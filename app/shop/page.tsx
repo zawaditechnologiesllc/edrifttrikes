@@ -1,270 +1,129 @@
-export const metadata = { title: "Shop All Trikes" };
+import Link from "next/link";
+import SiteHeader from "@/components/storefront/SiteHeader";
+import SiteFooter from "@/components/storefront/SiteFooter";
+import ProductCard from "@/components/storefront/ProductCard";
+import { getProducts, getCategories } from "@/lib/db";
 
-export default function Page() {
+export const metadata = { title: "Shop All Rigs" };
+
+const POWER = [
+  { key: "", label: "All Power" },
+  { key: "electric", label: "Electric" },
+  { key: "gas", label: "Gas" },
+  { key: "gravity", label: "Gravity" },
+];
+const SORTS = [
+  { key: "newest", label: "Latest Drop" },
+  { key: "price-asc", label: "Price ↑" },
+  { key: "price-desc", label: "Price ↓" },
+];
+
+export default async function ShopPage({
+  searchParams,
+}: {
+  searchParams: { category?: string; power?: string; sort?: string };
+}) {
+  const sort = (searchParams.sort as "newest" | "price-asc" | "price-desc") || "newest";
+  const [products, categories] = await Promise.all([
+    getProducts({
+      categorySlug: searchParams.category,
+      power: searchParams.power,
+      sort,
+    }),
+    getCategories(),
+  ]);
+
+  const qp = (over: Record<string, string | undefined>) => {
+    const p = new URLSearchParams();
+    const merged = { ...searchParams, ...over };
+    Object.entries(merged).forEach(([k, v]) => v && p.set(k, v));
+    const s = p.toString();
+    return s ? `/shop?${s}` : "/shop";
+  };
+
   return (
-    <div className="bg-off-white text-surface-container-lowest font-body-md overflow-x-hidden min-h-screen">
-      {/* Global Navigation */}
-      <nav className="bg-surface dark:bg-surface-container-lowest w-full top-0 sticky z-50 border-b border-white/10 group/nav">
-        <div className="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
-          <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="/">E-DRIFT</a>
-          <div className="hidden md:flex items-center gap-8">
-            <div className="group/item">
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1 flex items-center gap-1" href="/shop">
-                TRIKES <span className="material-symbols-outlined text-xs transition-transform group-hover/item:rotate-180">expand_more</span>
-              </a>
-              {/* Mega Menu: Trikes */}
-              <div className="absolute top-full left-0 w-full mega-menu-gradient border-b border-white/10 opacity-0 invisible group-hover/item:opacity-100 group-hover/item:visible transition-all duration-300 pointer-events-none group-hover/item:pointer-events-auto">
-                <div className="max-w-max-width mx-auto px-margin-desktop py-12 grid grid-cols-4 gap-12">
-                  <div className="col-span-1">
-                    <h4 className="font-label-bold text-xs text-secondary tracking-[0.2em] mb-6 border-b border-white/10 pb-4">ELECTRIC PERFORMANCE</h4>
-                    <ul className="space-y-4">
-                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="/product/volt-s1-pro">VOLT-S1 PRO</a></li>
-                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="/product/volt-s1-pro">VOLT-E CORE</a></li>
-                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="#">STORM CHASER</a></li>
-                    </ul>
-                  </div>
-                  <div className="col-span-1">
-                    <h4 className="font-label-bold text-xs text-secondary tracking-[0.2em] mb-6 border-b border-white/10 pb-4">GAS POWERED</h4>
-                    <ul className="space-y-4">
-                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="#">INTERCEPTOR-G</a></li>
-                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="#">HAZARD X</a></li>
-                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="#">NITRO-FUELED</a></li>
-                    </ul>
-                  </div>
-                  <div className="col-span-2 bg-white/5 p-8 border border-white/5 rounded">
-                    <div className="flex gap-6 items-center">
-                      <div className="w-1/2 aspect-video bg-surface-container rounded overflow-hidden">
-                        <img alt="Featured" className="w-full h-full object-cover" src="/assets/action-mid-slide.jpg" />
-                      </div>
-                      <div className="w-1/2">
-                        <span className="text-secondary text-[10px] font-label-bold tracking-widest block mb-2 uppercase">New Release</span>
-                        <h5 className="text-white font-headline-md text-xl mb-2">VOLT-S1 PRO</h5>
-                        <p className="text-on-surface-variant text-xs mb-4">Experience the pinnacle of electric drift engineering.</p>
-                        <a className="inline-block border border-secondary text-secondary px-4 py-2 text-[10px] font-label-bold tracking-widest hover:bg-secondary hover:text-surface-container-lowest transition-all" href="#">VIEW RIG</a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/tech-lab">THE GARAGE</a>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="relative hidden sm:block">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-              <input className="bg-white/5 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-secondary w-48 transition-all text-white" placeholder="FIND YOUR RIG" type="text" />
-            </div>
-            <button className="text-on-surface-variant hover:text-secondary transition-colors active:scale-95 duration-75">
-              <span className="material-symbols-outlined">shopping_cart</span>
-            </button>
-            <button className="text-on-surface-variant hover:text-secondary transition-colors active:scale-95 duration-75">
-              <span className="material-symbols-outlined">person</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-      {/* Hero Header Area */}
-      <header className="relative bg-off-white pt-16 pb-12 overflow-hidden">
-        <div className="max-w-max-width mx-auto px-margin-desktop relative z-10">
-          <div className="flex flex-col items-start">
-            <span className="font-label-bold text-label-bold text-primary-container tracking-widest uppercase mb-2">PRECISION ENGINEERING</span>
-            <h1 className="font-display-lg text-display-lg text-surface-container-lowest uppercase leading-none mb-4">ALL RIGS</h1>
-            <div className="w-24 h-1 bg-secondary" />
-          </div>
-        </div>
-        {/* Subtle technical accent */}
-        <div className="absolute right-0 top-0 w-1/3 h-full opacity-5 pointer-events-none">
-          <div className="technical-grid w-full h-full" />
-        </div>
+    <div className="bg-off-white text-surface-container-lowest min-h-screen">
+      <SiteHeader light />
+
+      <header className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop pt-12 pb-8">
+        <span className="font-label-bold text-label-bold text-primary-container uppercase tracking-widest">
+          Precision Engineering
+        </span>
+        <h1 className="font-display-lg text-display-lg-mobile md:text-display-lg uppercase leading-none mt-2">
+          {searchParams.category ? searchParams.category : "All"} Rigs
+        </h1>
+        <div className="w-32 h-2 bg-secondary mt-4" />
       </header>
-      <main className="max-w-max-width mx-auto px-margin-desktop py-12 flex flex-col md:flex-row gap-gutter">
-        {/* Sidebar Filters */}
-        <aside className="w-full md:w-1/4 flex-shrink-0 space-y-10">
+
+      <main className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop pb-24 flex flex-col lg:flex-row gap-10">
+        {/* Filters */}
+        <aside className="lg:w-64 shrink-0 space-y-8">
           <div>
-            <h3 className="font-label-bold text-label-bold uppercase tracking-widest border-b border-surface-container-lowest/10 pb-4 mb-6">POWER SOURCE</h3>
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input defaultChecked className="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox" />
-                <span className="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">ELECTRIC (12)</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input className="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox" />
-                <span className="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">GAS (8)</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input className="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox" />
-                <span className="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">GRAVITY (4)</span>
-              </label>
+            <h3 className="font-label-bold text-label-bold uppercase tracking-widest mb-4 border-b border-black/10 pb-2">
+              Category
+            </h3>
+            <div className="flex flex-col gap-2">
+              <Link href={qp({ category: undefined })} className={`text-sm font-label-bold uppercase tracking-wide ${!searchParams.category ? "text-primary-container" : "text-slate-gray hover:text-black"}`}>All</Link>
+              {categories.map((c) => (
+                <Link key={c.id} href={qp({ category: c.slug })} className={`text-sm font-label-bold uppercase tracking-wide ${searchParams.category === c.slug ? "text-primary-container" : "text-slate-gray hover:text-black"}`}>
+                  {c.name}
+                </Link>
+              ))}
             </div>
           </div>
           <div>
-            <h3 className="font-label-bold text-label-bold uppercase tracking-widest border-b border-surface-container-lowest/10 pb-4 mb-6">SKILL LEVEL</h3>
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input className="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox" />
-                <span className="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">EXPERT</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input defaultChecked className="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox" />
-                <span className="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">INTERMEDIATE</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input className="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox" />
-                <span className="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">ENTRY</span>
-              </label>
+            <h3 className="font-label-bold text-label-bold uppercase tracking-widest mb-4 border-b border-black/10 pb-2">
+              Power Source
+            </h3>
+            <div className="flex flex-col gap-2">
+              {POWER.map((p) => (
+                <Link key={p.key} href={qp({ power: p.key || undefined })} className={`text-sm font-label-bold uppercase tracking-wide ${(searchParams.power || "") === p.key ? "text-primary-container" : "text-slate-gray hover:text-black"}`}>
+                  {p.label}
+                </Link>
+              ))}
             </div>
           </div>
-          <div>
-            <h3 className="font-label-bold text-label-bold uppercase tracking-widest border-b border-surface-container-lowest/10 pb-4 mb-6">PRICE RANGE</h3>
-            <input className="w-full h-1 bg-surface-container-lowest/10 appearance-none cursor-pointer accent-secondary" max={5000} min={500} type="range" />
-            <div className="flex justify-between mt-4">
-              <span className="font-label-bold text-xs">$500</span>
-              <span className="font-label-bold text-xs">$5,000</span>
-            </div>
-          </div>
-          <div className="bg-surface-container-lowest p-6 cut-corner text-white">
-            <h4 className="font-headline-md text-xl uppercase mb-2">CUSTOM BUILD?</h4>
-            <p className="text-xs text-on-surface-variant mb-6">Engineered to your specific drift dynamics.</p>
-            <button className="w-full py-3 bg-secondary text-surface-container-lowest font-label-bold text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all">START BUILD</button>
-          </div>
+          <Link href="/product/volt-s1-pro" className="block cut-corner bg-surface-container-lowest text-white p-6">
+            <h4 className="font-headline-md text-xl uppercase">Custom Build?</h4>
+            <p className="text-on-surface-variant text-sm mt-1">Engineered to your drift dynamics.</p>
+            <span className="inline-block mt-4 bg-secondary text-on-secondary-fixed px-4 py-2 text-xs font-label-bold uppercase tracking-widest rounded">Start Build</span>
+          </Link>
         </aside>
-        {/* Product Grid */}
-        <section className="flex-grow">
-          <div className="flex justify-between items-center mb-10">
-            <p className="font-label-bold text-sm text-surface-container-lowest/60">SHOWING 24 RIGS &amp; PACKS</p>
-            <div className="flex items-center gap-2">
-              <span className="font-label-bold text-xs uppercase tracking-widest">SORT BY:</span>
-              <select className="bg-transparent border-none font-label-bold text-sm focus:ring-0 cursor-pointer">
-                <option>LATEST DROP</option>
-                <option>PRICE: HI-LOW</option>
-                <option>PERFORMANCE</option>
-              </select>
+
+        {/* Grid */}
+        <section className="flex-1">
+          <div className="flex items-center justify-between border-b border-black/10 pb-4 mb-8">
+            <p className="font-label-bold text-slate-gray uppercase tracking-widest text-sm">
+              {products.length} {products.length === 1 ? "rig" : "rigs"}
+            </p>
+            <div className="flex gap-4">
+              {SORTS.map((s) => (
+                <Link key={s.key} href={qp({ sort: s.key })} className={`text-xs font-label-bold uppercase tracking-widest ${sort === s.key ? "text-primary-container" : "text-slate-gray hover:text-black"}`}>
+                  {s.label}
+                </Link>
+              ))}
             </div>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-gutter">
-            {/* Product Card 1: VOLT-S1 Pro */}
-            <article className="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col hover:shadow-xl transition-all duration-500">
-              <div className="relative aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
-                <img alt="The VOLT-S1 Pro electric drift trike, featuring a sleek Voltage Blue aerodynamic frame with carbon fiber accents." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/trike-voltage-blue.jpg" />
-                <div className="absolute top-4 left-4">
-                  <span className="bg-secondary text-surface-container-lowest px-3 py-1 font-label-bold text-xs uppercase tracking-widest rounded-sm">NEW</span>
-                </div>
-              </div>
-              <div className="p-8 flex flex-col flex-grow">
-                <div className="flex justify-between items-start mb-4">
-                  <h2 className="font-headline-md text-2xl uppercase tracking-tight">VOLT-S1 PRO</h2>
-                  <span className="font-headline-md text-2xl text-primary-container">$3,499</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  <div className="border-l-2 border-secondary pl-3">
-                    <span className="block font-label-bold text-[10px] text-surface-container-lowest/40 uppercase tracking-widest">TOP SPEED</span>
-                    <span className="font-label-bold text-lg tabular-nums">48 MPH</span>
-                  </div>
-                  <div className="border-l-2 border-secondary pl-3">
-                    <span className="block font-label-bold text-[10px] text-surface-container-lowest/40 uppercase tracking-widest">RANGE</span>
-                    <span className="font-label-bold text-lg tabular-nums">22 MILES</span>
-                  </div>
-                </div>
-                <button className="mt-auto w-full py-4 bg-surface-container-lowest text-white font-label-bold text-sm uppercase tracking-widest hover:bg-primary-container active:scale-[0.98] transition-all">CONFIGURE RIG</button>
-              </div>
-            </article>
-            {/* Product Card 2: INTERCEPTOR-G */}
-            <article className="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col hover:shadow-xl transition-all duration-500">
-              <div className="relative aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
-                <img alt="The INTERCEPTOR-G gas-powered drift trike, showing its rugged steel tube frame in charcoal black with Hazard Lime accents." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/trike-gas-charcoal.jpg" />
-              </div>
-              <div className="p-8 flex flex-col flex-grow">
-                <div className="flex justify-between items-start mb-4">
-                  <h2 className="font-headline-md text-2xl uppercase tracking-tight">INTERCEPTOR-G</h2>
-                  <span className="font-headline-md text-2xl text-primary-container">$2,850</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  <div className="border-l-2 border-secondary pl-3">
-                    <span className="block font-label-bold text-[10px] text-surface-container-lowest/40 uppercase tracking-widest">ENGINE</span>
-                    <span className="font-label-bold text-lg tabular-nums">212CC</span>
-                  </div>
-                  <div className="border-l-2 border-secondary pl-3">
-                    <span className="block font-label-bold text-[10px] text-surface-container-lowest/40 uppercase tracking-widest">OUTPUT</span>
-                    <span className="font-label-bold text-lg tabular-nums">12 HP</span>
-                  </div>
-                </div>
-                <button className="mt-auto w-full py-4 bg-surface-container-lowest text-white font-label-bold text-sm uppercase tracking-widest hover:bg-primary-container active:scale-[0.98] transition-all">CONFIGURE RIG</button>
-              </div>
-            </article>
-            {/* Product Card 3: PARTS BUNDLE */}
-            <article className="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col lg:col-span-2 hover:shadow-xl transition-all duration-500">
-              <div className="flex flex-col md:flex-row">
-                <div className="relative w-full md:w-1/2 aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
-                  <img alt="A detailed technical close-up of high-performance drift trike parts on a white studio background." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/parts-performance.jpg" />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-[#ffb4ab] text-error-container px-3 py-1 font-label-bold text-xs uppercase tracking-widest rounded-sm">LOW STOCK</span>
-                  </div>
-                </div>
-                <div className="p-8 md:p-12 flex flex-col flex-grow justify-center">
-                  <span className="font-label-bold text-xs text-primary-container uppercase tracking-widest mb-2">UPGRADE PACK</span>
-                  <h2 className="font-headline-md text-3xl uppercase tracking-tight mb-4">ELITE DRIFT BUNDLE V.4</h2>
-                  <p className="text-surface-container-lowest/60 text-sm mb-8 max-w-md">The ultimate conversion kit. Includes 5KW Brushless Motor, 72V Battery Interface, and 12-Month Slide-Sleeve Subscription.</p>
-                  <div className="flex items-center gap-6 mb-8">
-                    <span className="font-headline-md text-3xl text-primary-container">$899</span>
-                    <div className="flex items-center gap-1 text-secondary">
-                      <span className="material-symbols-outlined text-sm" style={{fontVariationSettings: '"FILL" 1'}}>star</span>
-                    </div></div></div></div></article></div></section></main>
-      {/* Global Footer */}
-      <footer className="bg-surface-container-lowest text-on-surface py-20 border-t border-white/5 relative overflow-hidden">
-        <div className="max-w-max-width mx-auto px-margin-desktop relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
-            <div className="col-span-1 md:col-span-1">
-              <h2 className="font-headline-md text-3xl text-secondary mb-6">E-DRIFT</h2>
-              <p className="text-on-surface-variant text-sm mb-8 leading-relaxed">Pioneering the evolution of drift performance. Engineered for those who live sideways.</p>
-              <div className="flex gap-4">
-                <a className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-secondary hover:text-surface transition-all" href="#"><span className="material-symbols-outlined text-lg">share</span></a>
-                <a className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-secondary hover:text-surface transition-all" href="#"><span className="material-symbols-outlined text-lg">videocam</span></a>
-                <a className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-secondary hover:text-surface transition-all" href="#"><span className="material-symbols-outlined text-lg">hub</span></a>
-              </div>
+
+          {products.length === 0 ? (
+            <div className="text-center py-24 border border-dashed border-black/15 rounded-lg">
+              <p className="font-headline-md text-2xl uppercase text-slate-gray">No rigs found</p>
+              <p className="text-slate-gray mt-2">
+                Connect Supabase and run the seed to populate the catalog.
+              </p>
+              <Link href="/shop" className="inline-block mt-4 text-primary-container font-label-bold uppercase tracking-widest">Reset filters</Link>
             </div>
-            <div>
-              <h4 className="font-label-bold text-xs tracking-widest uppercase mb-8 text-white">THE RIGS</h4>
-              <ul className="space-y-4">
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Electric Series</a></li>
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Gas Performance</a></li>
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Gravity Gravity</a></li>
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="/shop">Custom Shop</a></li>
-              </ul>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-gutter">
+              {products.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
             </div>
-            <div>
-              <h4 className="font-label-bold text-xs tracking-widest uppercase mb-8 text-white">RESOURCES</h4>
-              <ul className="space-y-4">
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="/support">Tech Support</a></li>
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Drift Academy</a></li>
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Find a Dealer</a></li>
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Maintenance</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-label-bold text-xs tracking-widest uppercase mb-8 text-white">JOIN THE SQUAD</h4>
-              <p className="text-xs text-on-surface-variant mb-6 uppercase tracking-widest">Get early access to drops.</p>
-              <form className="flex gap-2">
-                <input className="bg-white/5 border border-white/10 px-4 py-3 text-xs w-full focus:outline-none focus:border-secondary" placeholder="EMAIL" type="email" />
-                <button className="bg-secondary text-surface px-6 py-3 text-xs font-label-bold hover:brightness-110 transition-all">JOIN</button>
-              </form>
-            </div>
-          </div>
-          <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-6">
-            <p className="text-[10px] text-on-surface-variant uppercase tracking-[0.2em]">© 2024 E-DRIFT PERFORMANCE ENGINEERING. ALL RIGHTS RESERVED.</p>
-            <div className="flex gap-8 text-[10px] text-on-surface-variant uppercase tracking-[0.2em]">
-              <a className="hover:text-white transition-colors" href="#">Privacy</a>
-              <a className="hover:text-white transition-colors" href="#">Terms</a>
-              <a className="hover:text-white transition-colors" href="#">Liability</a>
-            </div>
-          </div>
-        </div>
-        {/* Footer Technical Graphic */}
-        <div className="absolute bottom-0 right-0 w-1/4 h-64 opacity-5 pointer-events-none">
-          <div className="technical-grid w-full h-full" />
-        </div>
-      </footer>
+          )}
+        </section>
+      </main>
+
+      <SiteFooter />
     </div>
   );
 }
