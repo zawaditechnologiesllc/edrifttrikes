@@ -136,6 +136,38 @@ export async function getMyOrders(): Promise<Order[]> {
   return (data as Order[]) ?? [];
 }
 
+export async function getWishlist(): Promise<Product[]> {
+  if (!supabaseConfigured()) return [];
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data } = await supabase
+    .from("wishlist_items")
+    .select("product:products(*, category:categories(*))")
+    .eq("user_id", user.id);
+  return ((data ?? []) as unknown as { product: Product | null }[])
+    .map((r) => r.product)
+    .filter((p): p is Product => Boolean(p));
+}
+
+export async function isInWishlist(productId: string): Promise<boolean> {
+  if (!supabaseConfigured()) return false;
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { data } = await supabase
+    .from("wishlist_items")
+    .select("product_id")
+    .eq("user_id", user.id)
+    .eq("product_id", productId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 export async function getOrderByNumber(orderNumber: string): Promise<Order | null> {
   if (!supabaseConfigured()) return null;
   const supabase = createClient();

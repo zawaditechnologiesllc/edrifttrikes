@@ -7,12 +7,20 @@ email, and **Stripe** checkout.
 
 | Layer | Service |
 | --- | --- |
-| Frontend + server | **Vercel** (Next.js App Router — Route Handlers & Server Actions) |
+| Frontend + commerce server | **Vercel** (Next.js App Router — Route Handlers & Server Actions) |
+| Backend service (email · webhooks · contact) | **Render** (`/server`) |
 | Auth · DB · Storage | **Supabase** |
-| Transactional email | **Resend** |
+| Transactional email | **Resend** (sent from the Render service) |
 | Payments | **Stripe** |
-| Background/heavy jobs (optional) | **Render** |
 | Repo | **GitHub** |
+
+The system is split into two deployables:
+
+- **Vercel (Next.js)** — the storefront + admin, all synchronous commerce
+  (catalog, cart, checkout session creation, orders).
+- **Render (`/server`)** — a required Node/Express backend that owns
+  transactional **email** (Resend), the **Stripe webhook**, and the **contact**
+  endpoint. The app calls it server-to-server with a shared `INTERNAL_API_KEY`.
 
 > Design language: *Voltage Drift* — Anton display type, Inter body, Voltage Blue
 > (`#1e5bff`) actions, Hazard Lime (`#c4f731`) accents, on a charcoal/off-white
@@ -89,15 +97,25 @@ npm run dev                    # http://localhost:3000
    ```
    You can now reach `/admin`.
 
-### 2. Resend (email)
-Add `RESEND_API_KEY` and a verified `EMAIL_FROM`. Without it, emails are skipped
-(logged) and the rest of the app still works.
+### 2. Render backend (required)
+The backend lives in [`/server`](./server) and is deployed via the root
+[`render.yaml`](./render.yaml) blueprint (New → Blueprint → connect this repo).
+Set its env (`SITE_URL`, `INTERNAL_API_KEY`, `SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`,
+`ORDERS_NOTIFICATION_EMAIL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`). Then
+on Vercel set `RENDER_API_URL` to the Render URL and `INTERNAL_API_KEY` to the
+same shared value. Run locally with `cd server && npm install && npm start`.
 
-### 3. Stripe (payments)
-Add `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Checkout then
-redirects to Stripe. Add a webhook to `/api/stripe/webhook` (event
-`checkout.session.completed`) and set `STRIPE_WEBHOOK_SECRET`. Without Stripe,
-checkout still places orders and emails confirmation.
+### 3. Resend (email) — on Render
+Add `RESEND_API_KEY` + verified `EMAIL_FROM` to the **Render** service. It sends
+welcome, order-confirmation, newsletter and contact emails.
+
+### 4. Stripe (payments)
+Add `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` on Vercel (the app
+creates checkout sessions). Point the Stripe **webhook** at the Render service
+`https://<render-url>/stripe/webhook` (event `checkout.session.completed`) and
+set `STRIPE_WEBHOOK_SECRET` on Render — it marks orders paid and emails the
+confirmation.
 
 > The app builds and previews **without any keys** — data calls degrade to empty
 > states so you can see the design before wiring services.
@@ -121,7 +139,8 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 | `/tech-lab` · `/tech-lab/[slug]` | Content hub + articles |
 | `/our-story` · `/support` · `/shipping-warranty` · `/wishlist` | Content pages |
 | `/admin` (+ products, orders, categories, articles) | Admin dashboard |
-| `/api/checkout` · `/api/stripe/webhook` · `/auth/callback` | Server endpoints |
+| `/api/checkout` · `/auth/callback` | Vercel server endpoints |
+| Render: `/health` `/email/*` `/contact` `/stripe/webhook` | Backend service |
 
 ## Deployment
 
