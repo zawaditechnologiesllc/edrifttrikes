@@ -1,163 +1,142 @@
-# E-Drift Trikes — Storefront
+# E-Drift Trikes — Storefront + Admin
 
-The **E-Drift Trikes** storefront, built from the *Voltage Drift* design system
-exported from Google Stitch and implemented as a production **Next.js** app on
-the project's stack:
+A dynamic, sellable storefront for **E-Drift Trikes**, built from the *Voltage
+Drift* design system (exported from Google Stitch) as a production **Next.js**
+app with a full **admin dashboard**, **Supabase** auth/data/storage, **Resend**
+email, and **Stripe** checkout.
 
 | Layer | Service |
 | --- | --- |
-| Frontend / hosting | **Vercel** (Next.js App Router) |
-| Auth + database | **Supabase** |
-| Backend API | **Render** |
-| Dev | **Claude Code** |
+| Frontend + server | **Vercel** (Next.js App Router — Route Handlers & Server Actions) |
+| Auth · DB · Storage | **Supabase** |
+| Transactional email | **Resend** |
+| Payments | **Stripe** |
+| Background/heavy jobs (optional) | **Render** |
 | Repo | **GitHub** |
 
-> Design language: *Voltage Drift* — "Industrial Minimalism meets High-Contrast
-> Boldness." Anton display type, Inter body, Voltage Blue (`#1e5bff`) actions,
-> Hazard Lime (`#c4f731`) accents, Signal Orange (`#ff8c00`) urgency, on a
-> charcoal (`#0e0e11`) / off-white (`#f6f6f3`) "Garage vs. Showroom" base.
-> The full token set lives in [`tailwind.config.ts`](./tailwind.config.ts) and
-> the brand spec in [`docs/DESIGN.md`](./docs/DESIGN.md).
+> Design language: *Voltage Drift* — Anton display type, Inter body, Voltage Blue
+> (`#1e5bff`) actions, Hazard Lime (`#c4f731`) accents, on a charcoal/off-white
+> "Garage vs. Showroom" base. Tokens in [`tailwind.config.ts`](./tailwind.config.ts),
+> brand spec in [`docs/DESIGN.md`](./docs/DESIGN.md).
 
-## Tech stack
+## What works
 
-- [Next.js 14](https://nextjs.org/) (App Router, TypeScript, React 18)
-- [Tailwind CSS 3](https://tailwindcss.com/) with `@tailwindcss/forms` and
-  `@tailwindcss/container-queries`
-- [`@supabase/ssr`](https://supabase.com/docs/guides/auth/server-side/nextjs)
-  for auth/session handling
-- Anton + Inter + Material Symbols (Google Fonts)
+**Storefront** — dynamic, data-driven from Supabase:
+- Shop with category / power / sort filters, dynamic product pages, search.
+- Client cart (drawer + full cart page) with live totals.
+- Checkout that recomputes prices server-side, creates an order, and either
+  redirects to **Stripe Checkout** (when configured) or places the order and
+  emails confirmation directly.
+- Email-only accounts (no Google/Apple): register, login, logout, order history.
+- Tech Lab content (articles) and newsletter signup.
+
+**Admin dashboard** (`/admin`, gated by `role = 'admin'`):
+- Overview with revenue / orders / products / riders.
+- Products CRUD with **image upload to Supabase Storage**.
+- Orders list + detail with status updates.
+- Categories and Tech Lab article management.
+
+**Backend / data**
+- Full Postgres schema with Row-Level Security (`supabase/migrations/0001_init.sql`).
+- Seed of real catalog + articles (`supabase/seed.sql`).
+- Resend emails: welcome, order confirmation, newsletter.
+- Stripe Checkout + webhook (`/api/stripe/webhook`) to mark orders paid.
 
 ## Project structure
 
 ```
 app/
-  layout.tsx              # <html>, fonts, global chrome, Enhancements
-  globals.css             # Tailwind + Voltage Drift custom effect classes
-  page.tsx                # Homepage
-  shop/                   # Shop all trikes
-  electric-trikes/        # Electric drift trikes category
-  product/volt-s1-pro/    # Product detail page (PDP)
-  cart/                   # Cart ("Garage Manifest")
-  checkout/               # Global checkout
-  order-confirmation/     # Order confirmed
-  search/                 # Search results (+ /search/no-results)
-  login/                  # Rider authentication
-  account/                # Rider dashboard
-  tech-lab/               # Content hub (+ /tech-lab/sleeve-fitting article)
-  our-story/  support/  shipping-warranty/  wishlist/
-  not-found.tsx           # 404 "Off Track"
+  layout.tsx                 # fonts, CartProvider, CartDrawer, Enhancements
+  page.tsx                   # homepage (Voltage Drift hero/marketing)
+  shop/ product/[slug]/ search/ cart/ checkout/ order-confirmation/
+  account/                   # rider dashboard (orders, sign out)
+  login/                     # email auth (AuthForm + server actions)
+  tech-lab/  tech-lab/[slug]/ # content hub + articles
+  our-story/ support/ shipping-warranty/ wishlist/ electric-trikes/
+  admin/                     # dashboard, products, orders, categories, articles
+  api/checkout/  api/stripe/webhook/  auth/callback/
+  not-found.tsx
 components/
-  Enhancements.tsx        # Client-side progressive enhancement (see below)
+  cart/{CartProvider,CartDrawer,AddToCartButton}.tsx
+  storefront/{SiteHeader,SiteFooter,ProductCard,NewsletterForm}.tsx
+  Enhancements.tsx
 lib/
-  supabase/{client,server,middleware}.ts   # Supabase wiring
-  api.ts                  # Render backend fetch helper
-middleware.ts             # Refreshes the Supabase session per request
+  db.ts types.ts format.ts totals.ts email.ts stripe.ts api.ts
+  actions/newsletter.ts
+  supabase/{client,server,admin,middleware}.ts
+supabase/
+  migrations/0001_init.sql   # schema + RLS + storage bucket
+  seed.sql                   # catalog + articles
+public/assets/               # migrated product/hero imagery
 ```
-
-Each route is a faithful port of the corresponding Stitch screen. The exported
-screens already carried responsive `md:`/`lg:` breakpoints, so the desktop
-exports are used as the single responsive source for each page.
-
-## Routes
-
-| Path | Screen |
-| --- | --- |
-| `/` | Homepage |
-| `/shop` | Shop all trikes |
-| `/electric-trikes` | Electric drift trikes |
-| `/product/volt-s1-pro` | Volt S1 Pro — technical PDP |
-| `/cart` | Cart / Garage Manifest |
-| `/checkout` | Global checkout |
-| `/order-confirmation` | Order confirmation |
-| `/search`, `/search/no-results` | Search results / empty state |
-| `/login` | Rider authentication |
-| `/account` | Rider dashboard |
-| `/tech-lab`, `/tech-lab/sleeve-fitting` | Content hub + DIY article |
-| `/our-story` | Our story |
-| `/support` | Support hub |
-| `/shipping-warranty` | Shipping & warranty |
-| `/wishlist` | Parts bin / wishlist |
-| `*` | 404 "Off Track" |
-
-## Design archive — every screen
-
-Beyond the curated app routes above, **every** screen from the Stitch export —
-all 41, mobile + desktop, including each design variant (v2, high-conversion,
-pro-engineered) — is preserved verbatim:
-
-- Browse them all at **`/screens`** (a gallery grouped by page, with thumbnails
-  and Mobile/Desktop badges). A floating **"All Screens"** link on every app
-  page jumps here.
-- Each screen is served faithfully from `public/design/<slug>.html`, rendered
-  exactly as designed, top to bottom, with its original scripts intact — so all
-  tabs, mega-menus, drawers, accordions, and steppers work natively. Imagery is
-  migrated to the local `/assets`, and primary nav links route into the app.
-
-So the project contains two layers: the **curated responsive app** (clean URLs,
-the foundation you build on) and the **complete faithful archive** (every
-exported design, untouched).
 
 ## Getting started
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in your Supabase + Render values
-npm run dev                  # http://localhost:3000
+cp .env.example .env.local     # fill in the keys below
+npm run dev                    # http://localhost:3000
 ```
 
-Build / production:
+### 1. Supabase
+1. Create a project, copy the URL + anon key + service-role key into `.env.local`.
+2. Run **`supabase/migrations/0001_init.sql`** then **`supabase/seed.sql`** in the
+   Supabase SQL editor (or `supabase db push`). This creates all tables, RLS
+   policies, the `product-images` storage bucket, and seeds the catalog.
+3. **Make yourself an admin**: register through `/login`, then in the SQL editor:
+   ```sql
+   update public.profiles set role = 'admin' where email = 'you@example.com';
+   ```
+   You can now reach `/admin`.
 
-```bash
-npm run build
-npm start
-```
+### 2. Resend (email)
+Add `RESEND_API_KEY` and a verified `EMAIL_FROM`. Without it, emails are skipped
+(logged) and the rest of the app still works.
+
+### 3. Stripe (payments)
+Add `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Checkout then
+redirects to Stripe. Add a webhook to `/api/stripe/webhook` (event
+`checkout.session.completed`) and set `STRIPE_WEBHOOK_SECRET`. Without Stripe,
+checkout still places orders and emails confirmation.
+
+> The app builds and previews **without any keys** — data calls degrade to empty
+> states so you can see the design before wiring services.
 
 ## Environment variables
 
-See [`.env.example`](./.env.example). Required for auth/data:
+See [`.env.example`](./.env.example): `NEXT_PUBLIC_SITE_URL`, Supabase
+(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`), Resend (`RESEND_API_KEY`, `EMAIL_FROM`),
+Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
+`STRIPE_WEBHOOK_SECRET`).
 
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (server-only)
-- `NEXT_PUBLIC_API_BASE_URL` (Render backend base URL)
+## Routes
 
-The app builds and renders without these set — auth/data calls simply no-op or
-throw a clear error until configured, so the storefront previews cleanly.
+| Path | Purpose |
+| --- | --- |
+| `/` | Homepage |
+| `/shop` · `/product/[slug]` · `/search` | Catalog, product, search |
+| `/cart` · `/checkout` · `/order-confirmation` | Buying funnel |
+| `/login` · `/account` | Email auth + rider dashboard |
+| `/tech-lab` · `/tech-lab/[slug]` | Content hub + articles |
+| `/our-story` · `/support` · `/shipping-warranty` · `/wishlist` | Content pages |
+| `/admin` (+ products, orders, categories, articles) | Admin dashboard |
+| `/api/checkout` · `/api/stripe/webhook` · `/auth/callback` | Server endpoints |
 
 ## Deployment
 
-- **Vercel** — import the GitHub repo; Vercel auto-detects Next.js. Add the env
-  vars above in Project → Settings → Environment Variables.
-- **Supabase** — create a project, then add the URL + anon key. The
-  `middleware.ts` keeps the auth session fresh on every request.
-- **Render** — deploy the backend API and set `NEXT_PUBLIC_API_BASE_URL` to its
-  URL. Frontend data calls go through `lib/api.ts`.
+- **Vercel** — import the repo; add all env vars in Project Settings. Next.js is
+  auto-detected.
+- **Supabase** — run the migration + seed; set Auth → URL config redirect to
+  `https://yourdomain.com/auth/callback`.
+- **Stripe** — add the live keys + webhook endpoint.
+- **Render** — optional; `lib/api.ts` is ready if you offload heavy/async jobs to
+  a separate Render service.
 
-## Interactivity
+## Notes / next steps
 
-The Stitch export used inline `onclick` handlers and per-page scripts. Those were
-converted into declarative `data-*` hooks driven by a single delegated client
-component, [`components/Enhancements.tsx`](./components/Enhancements.tsx):
-
-- accordions (`data-accordion`), overlays/drawers (`data-show` / `data-hide` /
-  `data-toggle-hidden`), quantity steppers (`data-step`), line-item removal
-  (`data-remove-closest`), back navigation (`data-history-back`)
-- sticky-nav "tighten on scroll" effect
-
-## Imagery
-
-All imagery from the Stitch export is bundled locally under
-[`public/assets/`](./public/assets) (optimized JPGs, ~1.3 MB total) and wired
-into the pages by content — no external/expiring CDN URLs. Any image that fails
-to load falls back to a branded placeholder (`Enhancements.tsx`). Swap these for
-final product photography (or serve from Supabase Storage) when ready.
-
-## Known limitations / next steps
-
-- **Data is still static.** Product listings, cart, search, and account content
-  are the design's placeholder content. Connecting them to Supabase + the Render
-  API (`lib/api.ts`) is the natural next iteration.
-- **Auth is UI-only.** The login/register screens render; wiring them to
-  Supabase Auth (the clients + middleware are already in place) is next.
-- A few bespoke per-page micro-interactions (e.g. the auth login/register tab
-  switch) render in their default state and can be wired up as needed.
+- Marketing/content pages (homepage, our-story, support, shipping, wishlist) keep
+  the faithful Voltage Drift design copy; wishlist can be wired to the
+  `wishlist_items` table next.
+- Product galleries beyond the seeded Volt S1 Pro can be expanded via the admin
+  (additional `product_images`).
