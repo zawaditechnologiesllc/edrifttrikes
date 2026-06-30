@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>YOUR PARTS BIN | VOLT DRIFT</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .slant-divider {
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+        }
+        .technical-grid {
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .power-slant-btn {
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+        }
+        .skew-hover:hover {
+            transform: skewX(-12deg);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary": "#c4f731",
+                      "primary": "#b7c4ff",
+                      "surface-tint": "#b7c4ff",
+                      "on-secondary-fixed-variant": "#3a4d00",
+                      "outline": "#8d90a2",
+                      "secondary-fixed-dim": "#a6d700",
+                      "surface-container-highest": "#353438",
+                      "surface-variant": "#353438",
+                      "on-tertiary-container": "#ffeae4",
+                      "surface-container-low": "#1b1b1e",
+                      "on-primary-fixed-variant": "#0039b5",
+                      "on-tertiary": "#5e1700",
+                      "on-secondary-fixed": "#151f00",
+                      "on-primary-fixed": "#001551",
+                      "error": "#ffb4ab",
+                      "surface-container-high": "#2a2a2d",
+                      "inverse-primary": "#004cec",
+                      "on-primary-container": "#ecedff",
+                      "on-error-container": "#ffdad6",
+                      "inverse-on-surface": "#303033",
+                      "inverse-surface": "#e4e1e6",
+                      "on-error": "#690005",
+                      "tertiary-container": "#c53a00",
+                      "secondary-fixed": "#c1f42e",
+                      "tertiary": "#ffb59e",
+                      "background": "#131316",
+                      "outline-variant": "#434656",
+                      "surface-bright": "#39393c",
+                      "on-surface-variant": "#c3c5d9",
+                      "primary-fixed": "#dce1ff",
+                      "primary-container": "#1e5bff",
+                      "on-tertiary-fixed-variant": "#852400",
+                      "secondary-container": "#a9da00",
+                      "on-surface": "#e4e1e6",
+                      "error-container": "#93000a",
+                      "tertiary-fixed-dim": "#ffb59e",
+                      "surface": "#131316",
+                      "on-primary": "#002681",
+                      "surface-container-lowest": "#0e0e11",
+                      "on-tertiary-fixed": "#3a0b00",
+                      "primary-fixed-dim": "#b7c4ff",
+                      "on-secondary-container": "#455c00",
+                      "surface-dim": "#131316",
+                      "surface-container": "#1f1f22",
+                      "tertiary-fixed": "#ffdbd0",
+                      "on-secondary": "#273500",
+                      "on-background": "#e4e1e6"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "unit": "4px",
+                      "margin-desktop": "64px",
+                      "margin-mobile": "16px",
+                      "max-width": "1440px"
+              },
+              "fontFamily": {
+                      "headline-xl": ["Anton"],
+                      "body-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "display-lg": ["Anton"],
+                      "label-bold": ["Inter"],
+                      "display-lg-mobile": ["Anton"],
+                      "headline-md": ["Anton"]
+              },
+              "fontSize": {
+                      "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                      "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                      "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-secondary selection:text-on-secondary">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 border-b border-white/10 bg-background/95 backdrop-blur-md">
+<div class="flex justify-between items-center px-margin-desktop py-4 max-w-max-width mx-auto">
+<a class="font-headline-md text-headline-md text-secondary uppercase italic" href="/product/volt-s1-pro">VOLT DRIFT</a>
+<div class="hidden md:flex items-center gap-8">
+<a class="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="/shop">Trikes</a>
+<a class="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="#">Upgrades</a>
+<a class="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="/shop">Gear</a>
+<a class="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="#">Tech</a>
+<a class="font-headline-md text-headline-md tracking-tighter text-secondary border-b-2 border-secondary pb-1 active:skew-x-[-12deg] transition-transform" href="#">Garage</a>
+</div>
+<div class="flex items-center gap-6">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-secondary transition-colors" data-icon="shopping_cart">shopping_cart</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-secondary transition-colors" data-icon="account_circle">account_circle</button>
+</div>
+</div>
+</nav>
+<main class="pt-32 pb-16 min-h-screen technical-grid">
+<div class="max-w-max-width mx-auto px-margin-desktop">
+<!-- Page Header -->
+<header class="mb-12 relative">
+<div class="flex items-baseline gap-4 mb-2">
+<h1 class="font-display-lg text-display-lg uppercase tracking-tighter">YOUR PARTS BIN</h1>
+<span class="text-secondary font-label-bold px-3 py-1 border border-secondary/30 bg-secondary/5 skew-x-[-12deg]">MANIFEST v2.4</span>
+</div>
+<div class="w-24 h-1 bg-secondary"></div>
+<p class="mt-6 text-on-surface-variant max-w-xl font-body-lg">Review your saved technical configurations, performance components, and chassis drafts. Ready for assembly.</p>
+</header>
+<!-- Parts List (Technical Manifest Layout) -->
+<div class="grid grid-cols-1 gap-gutter" id="parts-container">
+<!-- Item 1: VOLT-S1 Pro -->
+<div class="group relative bg-surface-container-low border border-white/10 p-6 flex flex-col md:flex-row gap-8 items-center hover:border-secondary/50 transition-all duration-300 overflow-hidden">
+<!-- Technical ID Background Decor -->
+<div class="absolute top-4 right-4 font-headline-md text-6xl opacity-[0.03] select-none pointer-events-none">S1-P01</div>
+<div class="w-full md:w-80 h-56 bg-surface-container-lowest overflow-hidden flex items-center justify-center border border-white/5 relative">
+<img alt="VOLT-S1 Pro Side Profile" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/volt-s1-pro-hero.jpg"/>
+<div class="absolute bottom-2 left-2 bg-secondary text-on-secondary px-2 py-1 text-[10px] font-bold uppercase tracking-widest">SAVED CONFIG</div>
+</div>
+<div class="flex-1 space-y-4">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline-md text-headline-md leading-none mb-1">VOLT-S1 PRO</h3>
+<p class="text-secondary font-label-bold text-xs">CHASSIS / ELECTRIC DRIFT TRIKE</p>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">$3,499.00</span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4 py-4 border-y border-white/5">
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Motor</p>
+<p class="text-sm font-bold">5000W BLDC</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Battery</p>
+<p class="text-sm font-bold">72V 40Ah Carbon</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Colorway</p>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 bg-secondary rounded-full"></div>
+<p class="text-sm font-bold">Voltage Blue</p>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap gap-4 pt-2">
+<button class="bg-secondary text-on-secondary px-8 py-3 font-label-bold uppercase flex items-center gap-2 hover:bg-secondary/90 transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg" data-icon="build">build</span>
+                                ADD TO BUILD
+                            </button>
+<button class="border border-white/20 text-on-surface px-6 py-3 font-label-bold uppercase flex items-center gap-2 hover:bg-white/5 transition-all group/btn">
+<span class="material-symbols-outlined text-lg group-hover/btn:text-error transition-colors" data-icon="delete">delete</span>
+                                REMOVE
+                            </button>
+</div>
+</div>
+</div>
+<!-- Item 2: Performance Sleeves -->
+<div class="group relative bg-surface-container-low border border-white/10 p-6 flex flex-col md:flex-row gap-8 items-center hover:border-secondary/50 transition-all duration-300 overflow-hidden">
+<div class="absolute top-4 right-4 font-headline-md text-6xl opacity-[0.03] select-none pointer-events-none">ACC-X2</div>
+<div class="w-full md:w-80 h-56 bg-surface-container-lowest overflow-hidden flex items-center justify-center border border-white/5 relative">
+<img alt="Performance Sleeves and Motor" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/motor-72v-hub.jpg"/>
+<div class="absolute top-2 left-2 bg-primary text-on-primary px-2 py-1 text-[10px] font-bold uppercase tracking-widest">IN STOCK</div>
+</div>
+<div class="flex-1 space-y-4">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline-md text-headline-md leading-none mb-1">PERFORMANCE SLEEVES</h3>
+<p class="text-secondary font-label-bold text-xs">UPGRADE / REAR SLIDERS</p>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">$245.00</span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4 py-4 border-y border-white/5">
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Material</p>
+<p class="text-sm font-bold">Custom PVC Mix</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Quantity</p>
+<p class="text-sm font-bold">1 Set (2 Sleeves)</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Compatibility</p>
+<p class="text-sm font-bold">S1, S1-Pro, GT</p>
+</div>
+</div>
+<div class="flex flex-wrap gap-4 pt-2">
+<button class="bg-secondary text-on-secondary px-8 py-3 font-label-bold uppercase flex items-center gap-2 hover:bg-secondary/90 transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg" data-icon="shopping_cart">shopping_cart</span>
+                                ADD TO BUILD
+                            </button>
+<button class="border border-white/20 text-on-surface px-6 py-3 font-label-bold uppercase flex items-center gap-2 hover:bg-white/5 transition-all group/btn">
+<span class="material-symbols-outlined text-lg group-hover/btn:text-error transition-colors" data-icon="delete">delete</span>
+                                REMOVE
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty State (Hidden by default, shown via JS if list empty) -->
+<div class="hidden py-32 flex flex-col items-center justify-center text-center space-y-8 border-2 border-dashed border-white/10 bg-surface-container-lowest/50" id="empty-state">
+<div class="w-24 h-24 rounded-full border-2 border-secondary/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-5xl text-secondary" data-icon="inventory_2">inventory_2</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md uppercase mb-2">Your bin is empty.</h2>
+<p class="text-on-surface-variant">Your technical manifest currently contains no saved configurations.</p>
+</div>
+<a class="bg-secondary text-on-secondary px-12 py-4 font-label-bold uppercase hover:bg-secondary/80 transition-all skew-x-[-12deg]" href="#">
+                    Start your build
+                </a>
+</div>
+<!-- Summary Bar -->
+<div class="mt-12 bg-surface-container-high p-8 flex flex-col md:flex-row justify-between items-center gap-8 border-l-4 border-secondary">
+<div class="flex gap-12">
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-[0.2em] mb-1">Manifest Items</p>
+<p class="font-headline-md text-headline-md leading-none" id="item-count">02</p>
+</div>
+<div>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-[0.2em] mb-1">Estimated Value</p>
+<p class="font-headline-md text-headline-md leading-none text-secondary">$3,744.00</p>
+</div>
+</div>
+<div class="flex gap-4">
+<button class="bg-on-surface text-background px-10 py-4 font-label-bold uppercase hover:bg-white transition-all">CHECKOUT ALL</button>
+<button class="border border-secondary text-secondary px-6 py-4 font-label-bold uppercase hover:bg-secondary/10 transition-all">EXPORT SPEC</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full mt-margin-desktop border-t border-white/10 bg-surface-container-lowest">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter px-margin-desktop py-16 max-w-max-width mx-auto">
+<div class="col-span-1 md:col-span-1">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6 uppercase italic">VOLT DRIFT</h2>
+<p class="text-on-surface-variant font-body-md pr-8">
+                    High-performance electric drifting equipment. Engineered for precision, designed for the street.
+                </p>
+</div>
+<div>
+<h4 class="font-label-bold text-secondary uppercase mb-6 tracking-widest">Engineering</h4>
+<ul class="space-y-4">
+<li><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="#">Manuals</a></li>
+<li><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="#">Safety Data</a></li>
+<li><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="#">Battery Tech</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-bold text-secondary uppercase mb-6 tracking-widest">Support</h4>
+<ul class="space-y-4">
+<li><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="/shipping-warranty">Shipping</a></li>
+<li><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="/shipping-warranty">Warranty</a></li>
+<li><a class="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="/support">Contact</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-bold text-secondary uppercase mb-6 tracking-widest">Newsletter</h4>
+<div class="relative">
+<input class="w-full bg-background border border-white/10 py-3 px-4 text-sm font-label-bold focus:border-secondary outline-none rounded-none" placeholder="EMAIL@DOMAIN.COM" type="email"/>
+<button class="absolute right-2 top-1/2 -translate-y-1/2 text-secondary">
+<span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<div class="px-margin-desktop py-8 border-t border-white/5 text-center">
+<p class="text-on-surface-variant font-body-md opacity-50">© 2024 VOLT DRIFT ENGINEERING. ALL RIGHTS RESERVED.</p>
+</div>
+</footer>
+<script>
+        // Simple Micro-interaction for item removal
+        const removeButtons = document.querySelectorAll('button:has(span[data-icon="delete"])');
+        const container = document.getElementById('parts-container');
+        const emptyState = document.getElementById('empty-state');
+        const itemCountEl = document.getElementById('item-count');
+
+        removeButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const card = this.closest('.group');
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(20px)';
+                
+                setTimeout(() => {
+                    card.remove();
+                    updateCount();
+                }, 300);
+            });
+        });
+
+        function updateCount() {
+            const items = container.children.length;
+            itemCountEl.textContent = items.toString().padStart(2, '0');
+            if (items === 0) {
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            }
+        }
+    </script>
+</body></html>

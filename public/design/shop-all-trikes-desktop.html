@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>E-DRIFT | All Rigs</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary": "#b7c4ff",
+            "surface-tint": "#b7c4ff",
+            "surface-container-lowest": "#0e0e11",
+            "primary-fixed-dim": "#b7c4ff",
+            "on-tertiary-container": "#ffeae4",
+            "surface-dim": "#131316",
+            "on-secondary": "#273500",
+            "on-error-container": "#ffdad6",
+            "surface-variant": "#353438",
+            "surface-container": "#1f1f22",
+            "surface-bright": "#39393c",
+            "surface": "#131316",
+            "on-surface": "#e4e1e6",
+            "on-error": "#690005",
+            "on-primary-fixed-variant": "#0039b5",
+            "on-secondary-fixed": "#151f00",
+            "on-primary-container": "#ecedff",
+            "secondary-fixed": "#c1f42e",
+            "on-primary-fixed": "#001551",
+            "inverse-on-surface": "#303033",
+            "on-primary": "#002681",
+            "error-container": "#93000a",
+            "on-tertiary-fixed-variant": "#852400",
+            "secondary-fixed-dim": "#a6d700",
+            "secondary": "#c4f731",
+            "background": "#131316",
+            "secondary-container": "#a9da00",
+            "surface-container-highest": "#353438",
+            "on-background": "#e4e1e6",
+            "on-surface-variant": "#c3c5d9",
+            "tertiary": "#ffb59e",
+            "primary-fixed": "#dce1ff",
+            "outline-variant": "#434656",
+            "on-tertiary": "#5e1700",
+            "error": "#ffb4ab",
+            "surface-container-low": "#1b1b1e",
+            "outline": "#8d90a2",
+            "on-secondary-container": "#455c00",
+            "tertiary-container": "#c53a00",
+            "inverse-primary": "#004cec",
+            "on-secondary-fixed-variant": "#3a4d00",
+            "primary-container": "#1e5bff",
+            "tertiary-fixed": "#ffdbd0",
+            "inverse-surface": "#e4e1e6",
+            "surface-container-high": "#2a2a2d",
+            "tertiary-fixed-dim": "#ffb59e",
+            "on-tertiary-fixed": "#3a0b00",
+            "off-white": "#F6F6F3"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "max-width": "1440px",
+            "unit": "4px",
+            "gutter": "24px",
+            "margin-desktop": "64px",
+            "margin-mobile": "16px"
+          },
+          "fontFamily": {
+            "headline-xl": ["Anton"],
+            "display-lg-mobile": ["Anton"],
+            "display-lg": ["Anton"],
+            "body-md": ["Inter"],
+            "headline-md": ["Anton"],
+            "label-bold": ["Inter"],
+            "body-lg": ["Inter"]
+          },
+          "fontSize": {
+            "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+            "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+            "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+            "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+            "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+            "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+            "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .power-slant-bg {
+      clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+    }
+    .technical-grid {
+      background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .cut-corner {
+      clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
+    }
+  </style>
+</head>
+<body class="bg-off-white text-surface-container-lowest font-body-md overflow-x-hidden">
+<!-- TopNavBar -->
+<nav class="bg-surface dark:bg-surface-container-lowest w-full top-0 sticky z-50 border-b border-white/10 transition-all">
+<div class="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
+<a class="font-headline-md text-headline-md text-secondary tracking-tighter" href="/">E-DRIFT</a>
+<div class="hidden md:flex items-center gap-8">
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="/shop">TRIKES</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/tech-lab">THE GARAGE</a>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="bg-white/5 border border-white/10 rounded-sm py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-secondary w-48 transition-all" placeholder="FIND YOUR RIG" type="text"/>
+</div>
+<button class="text-on-surface-variant hover:text-secondary transition-colors active:scale-95 duration-75">
+<span class="material-symbols-outlined">shopping_cart</span>
+</button>
+<button class="text-on-surface-variant hover:text-secondary transition-colors active:scale-95 duration-75">
+<span class="material-symbols-outlined">person</span>
+</button>
+</div>
+</div>
+</nav>
+<!-- Hero Header Area -->
+<header class="relative bg-off-white pt-16 pb-12 overflow-hidden">
+<div class="max-w-max-width mx-auto px-margin-desktop relative z-10">
+<div class="flex flex-col items-start">
+<span class="font-label-bold text-label-bold text-primary-container tracking-widest uppercase mb-2">PRECISION ENGINEERING</span>
+<h1 class="font-display-lg text-display-lg text-surface-container-lowest uppercase leading-none mb-4">ALL RIGS</h1>
+<div class="w-24 h-1 bg-secondary"></div>
+</div>
+</div>
+<!-- Subtle technical accent -->
+<div class="absolute right-0 top-0 w-1/3 h-full opacity-5 pointer-events-none">
+<div class="technical-grid w-full h-full"></div>
+</div>
+</header>
+<main class="max-w-max-width mx-auto px-margin-desktop py-12 flex flex-col md:flex-row gap-gutter">
+<!-- Sidebar Filters -->
+<aside class="w-full md:w-1/4 flex-shrink-0 space-y-10">
+<div>
+<h3 class="font-label-bold text-label-bold uppercase tracking-widest border-b border-surface-container-lowest/10 pb-4 mb-6">POWER SOURCE</h3>
+<div class="space-y-4">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox"/>
+<span class="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">ELECTRIC (12)</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox"/>
+<span class="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">GAS (8)</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox"/>
+<span class="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">GRAVITY (4)</span>
+</label>
+</div>
+</div>
+<div>
+<h3 class="font-label-bold text-label-bold uppercase tracking-widest border-b border-surface-container-lowest/10 pb-4 mb-6">SKILL LEVEL</h3>
+<div class="space-y-4">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox"/>
+<span class="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">EXPERT</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox"/>
+<span class="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">INTERMEDIATE</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="w-5 h-5 rounded border-surface-container-lowest/20 text-secondary focus:ring-secondary" type="checkbox"/>
+<span class="font-label-bold text-sm tracking-wide group-hover:text-primary-container transition-colors">ENTRY</span>
+</label>
+</div>
+</div>
+<div>
+<h3 class="font-label-bold text-label-bold uppercase tracking-widest border-b border-surface-container-lowest/10 pb-4 mb-6">PRICE RANGE</h3>
+<input class="w-full h-1 bg-surface-container-lowest/10 appearance-none cursor-pointer accent-secondary" max="5000" min="500" type="range"/>
+<div class="flex justify-between mt-4">
+<span class="font-label-bold text-xs">$500</span>
+<span class="font-label-bold text-xs">$5,000</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 cut-corner text-white">
+<h4 class="font-headline-md text-xl uppercase mb-2">CUSTOM BUILD?</h4>
+<p class="text-xs text-on-surface-variant mb-6">Engineered to your specific drift dynamics.</p>
+<button class="w-full py-3 bg-secondary text-surface-container-lowest font-label-bold text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all">START BUILD</button>
+</div>
+</aside>
+<!-- Product Grid -->
+<section class="flex-grow">
+<div class="flex justify-between items-center mb-10">
+<p class="font-label-bold text-sm text-surface-container-lowest/60">SHOWING 24 RIGS & PACKS</p>
+<div class="flex items-center gap-2">
+<span class="font-label-bold text-xs uppercase tracking-widest">SORT BY:</span>
+<select class="bg-transparent border-none font-label-bold text-sm focus:ring-0 cursor-pointer">
+<option>LATEST DROP</option>
+<option>PRICE: HI-LOW</option>
+<option>PERFORMANCE</option>
+</select>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-gutter">
+<!-- Product Card 1: VOLT-S1 Pro -->
+<article class="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col hover:shadow-xl transition-all duration-500">
+<div class="relative aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
+<img alt="The VOLT-S1 Pro electric drift trike, featuring a sleek Voltage Blue aerodynamic frame with carbon fiber accents. The vehicle is captured in a high-end automotive studio setting with soft top-down lighting highlighting its metallic finish and wide rear slick tires. The mood is clinical and high-performance, emphasizing technical precision and electric engineering. The color palette is dominated by deep blues and sharp blacks on a clean neutral background." class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/volt-s1-pro-hero.jpg"/>
+<div class="absolute top-4 left-4">
+<span class="bg-secondary text-surface-container-lowest px-3 py-1 font-label-bold text-xs uppercase tracking-widest rounded-sm">NEW</span>
+</div>
+</div>
+<div class="p-8 flex flex-col flex-grow">
+<div class="flex justify-between items-start mb-4">
+<h2 class="font-headline-md text-2xl uppercase tracking-tight">VOLT-S1 PRO</h2>
+<span class="font-headline-md text-2xl text-primary-container">$3,499</span>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-8">
+<div class="border-l-2 border-secondary pl-3">
+<span class="block font-label-bold text-[10px] text-surface-container-lowest/40 uppercase tracking-widest">TOP SPEED</span>
+<span class="font-label-bold text-lg tabular-nums">48 MPH</span>
+</div>
+<div class="border-l-2 border-secondary pl-3">
+<span class="block font-label-bold text-[10px] text-surface-container-lowest/40 uppercase tracking-widest">RANGE</span>
+<span class="font-label-bold text-lg tabular-nums">22 MILES</span>
+</div>
+</div>
+<button class="mt-auto w-full py-4 bg-surface-container-lowest text-white font-label-bold text-sm uppercase tracking-widest hover:bg-primary-container active:scale-[0.98] transition-all">CONFIGURE RIG</button>
+</div>
+</article>
+<!-- Product Card 2: INTERCEPTOR-G -->
+<article class="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col hover:shadow-xl transition-all duration-500">
+<div class="relative aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
+<img alt="The INTERCEPTOR-G gas-powered drift trike, showing its rugged steel tube frame in charcoal black with Hazard Lime accents. A powerful 212cc engine is center-mounted with a high-performance chrome exhaust pipe. The trike is shown in a professional white studio environment with crisp lighting that defines its industrial minimalism and aggressive street motorsport stance. Bold engineering details and wide drift wheels are prominent." class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/trike-gas-charcoal.jpg"/>
+</div>
+<div class="p-8 flex flex-col flex-grow">
+<div class="flex justify-between items-start mb-4">
+<h2 class="font-headline-md text-2xl uppercase tracking-tight">INTERCEPTOR-G</h2>
+<span class="font-headline-md text-2xl text-primary-container">$2,850</span>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-8">
+<div class="border-l-2 border-secondary pl-3">
+<span class="block font-label-bold text-[10px] text-surface-container-lowest/40 uppercase tracking-widest">ENGINE</span>
+<span class="font-label-bold text-lg tabular-nums">212CC</span>
+</div>
+<div class="border-l-2 border-secondary pl-3">
+<span class="block font-label-bold text-[10px] text-surface-container-lowest/40 uppercase tracking-widest">OUTPUT</span>
+<span class="font-label-bold text-lg tabular-nums">12 HP</span>
+</div>
+</div>
+<button class="mt-auto w-full py-4 bg-surface-container-lowest text-white font-label-bold text-sm uppercase tracking-widest hover:bg-primary-container active:scale-[0.98] transition-all">CONFIGURE RIG</button>
+</div>
+</article>
+<!-- Product Card 3: PARTS BUNDLE -->
+<article class="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col lg:col-span-2 hover:shadow-xl transition-all duration-500">
+<div class="flex flex-col md:flex-row">
+<div class="relative w-full md:w-1/2 aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
+<img alt="A detailed technical close-up of high-performance drift trike parts on a white studio background. The image features a high-torque brushless motor with Voltage Blue anodized casing alongside specialized PVC slide sleeves for drifting. The lighting is bright and even, highlighting the metallic textures and precision engineering of the components. The aesthetic is clean, expert, and focused on motorsport-grade reliability and hardware." class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/parts-performance.jpg"/>
+<div class="absolute top-4 left-4">
+<span class="bg-[#ffb4ab] text-error-container px-3 py-1 font-label-bold text-xs uppercase tracking-widest rounded-sm">LOW STOCK</span>
+</div>
+</div>
+<div class="p-8 md:p-12 flex flex-col flex-grow justify-center">
+<span class="font-label-bold text-xs text-primary-container uppercase tracking-widest mb-2">UPGRADE PACK</span>
+<h2 class="font-headline-md text-3xl uppercase tracking-tight mb-4">ELITE DRIFT BUNDLE V.4</h2>
+<p class="text-surface-container-lowest/60 text-sm mb-8 max-w-md">The ultimate conversion kit. Includes 5KW Brushless Motor, 72V Battery Interface, and 12-Month Slide-Sleeve Subscription.</p>
+<div class="flex items-center gap-6 mb-8">
+<span class="font-headline-md text-3xl text-primary-container">$899</span>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+</div></div></div></div></article></div></section></main></body></html>

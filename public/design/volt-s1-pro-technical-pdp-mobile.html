@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VOLT-S1 Pro | E-DRIFT TRIKES</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#434656",
+                        "inverse-on-surface": "#303033",
+                        "surface-container": "#1f1f22",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#ffdbd0",
+                        "on-tertiary": "#5e1700",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "secondary-fixed": "#c1f42e",
+                        "primary": "#b7c4ff",
+                        "on-error-container": "#ffdad6",
+                        "secondary-container": "#a9da00",
+                        "outline": "#8d90a2",
+                        "background": "#131316",
+                        "surface": "#131316",
+                        "surface-container-highest": "#353438",
+                        "on-surface-variant": "#c3c5d9",
+                        "inverse-primary": "#004cec",
+                        "surface-bright": "#39393c",
+                        "on-surface": "#e4e1e6",
+                        "on-secondary": "#273500",
+                        "secondary-fixed-dim": "#a6d700",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "surface-container-high": "#2a2a2d",
+                        "on-primary-fixed": "#001551",
+                        "on-primary": "#002681",
+                        "surface-variant": "#353438",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "secondary": "#c4f731",
+                        "on-tertiary-fixed": "#3a0b00",
+                        "on-secondary-fixed": "#151f00",
+                        "error": "#ffb4ab",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "tertiary-container": "#c53a00",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "inverse-surface": "#e4e1e6",
+                        "surface-container-lowest": "#0e0e11",
+                        "on-error": "#690005",
+                        "on-background": "#e4e1e6",
+                        "surface-container-low": "#1b1b1e",
+                        "on-tertiary-container": "#ffeae4",
+                        "tertiary": "#ffb59e",
+                        "surface-dim": "#131316",
+                        "primary-container": "#1e5bff",
+                        "on-primary-container": "#ecedff",
+                        "surface-tint": "#b7c4ff",
+                        "on-secondary-container": "#455c00",
+                        "primary-fixed": "#dce1ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "max-width": "1440px",
+                        "unit": "4px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Anton"],
+                        "body-md": ["Inter"],
+                        "display-lg-mobile": ["Anton"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Anton"],
+                        "display-lg": ["Anton"],
+                        "label-bold": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .power-slant {
+            clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%);
+        }
+        
+        .technical-grid {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .active-ring {
+            box-shadow: 0 0 0 2px theme('colors.secondary');
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md text-body-md selection:bg-secondary selection:text-on-secondary">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center h-16 px-4 w-full border-b border-white/20 bg-surface">
+<button class="text-primary hover:opacity-80 transition-opacity active:scale-95 transition-transform">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-widest uppercase">E-DRIFT</div>
+<button class="text-primary hover:opacity-80 transition-opacity active:scale-95 transition-transform">
+<span class="material-symbols-outlined">shopping_cart</span>
+</button>
+</header>
+<main class="pt-16 pb-32">
+<!-- Hero Gallery -->
+<section class="relative w-full h-[530px] overflow-hidden bg-white">
+<div class="flex h-full overflow-x-auto snap-x snap-mandatory hide-scrollbar">
+<div class="min-w-full h-full snap-center">
+<img class="w-full h-full object-contain" data-alt="A professional studio side-view photograph of the VOLT-S1 Pro electric drift trike. The trike features a brilliant metallic Voltage Blue tubular frame, a low-profile black racing seat, and a large front wheel with a hydraulic disc brake. The background is a clean, minimalist white studio setting with soft cinematic lighting, emphasizing the industrial minimalist aesthetic and high-performance engineering." src="/assets/volt-s1-pro-hero.jpg"/>
+</div>
+<div class="min-w-full h-full snap-center">
+<img class="w-full h-full object-contain" data-alt="A macro detail shot focusing on the VOLT-S1 Pro handlebars and digital display. The handlebars are anodized in deep navy blue with the product name laser-etched in gold. A high-resolution OLED screen glows with technical telemetry including voltage levels and power modes. The lighting is crisp and cool, highlighting the knurled grips and precision-machined aluminum components of the electric drift machine." src="/assets/parts-performance.jpg"/>
+</div>
+<div class="min-w-full h-full snap-center">
+<img class="w-full h-full object-contain" data-alt="Technical close-up of the rear wheel assembly of the VOLT-S1 Pro. The shot shows the high-torque BLDC hub motor encased in a transparent blue PVC drift sleeve. Visual effects of electric energy arcing around the motor emphasize its high-performance drift capabilities. The scene is shot against a clinical white background, showcasing the fusion of electric power and street motorsport engineering." src="/assets/motor-72v-hub.jpg"/>
+</div>
+</div>
+<div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+<div class="w-8 h-1 bg-primary"></div>
+<div class="w-8 h-1 bg-outline/30"></div>
+<div class="w-8 h-1 bg-outline/30"></div>
+</div>
+</section>
+<!-- Buy Box -->
+<section class="px-margin-mobile mt-8">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h1 class="font-headline-md text-headline-md-mobile text-on-surface uppercase">VOLT-S1 Pro</h1>
+<div class="flex items-center gap-1 mt-1">
+<div class="flex text-secondary">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+</div></div></div></div></section></main></body></html>

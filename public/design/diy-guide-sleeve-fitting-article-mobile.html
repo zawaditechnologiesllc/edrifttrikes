@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .power-slant-divider {
+            clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%);
+        }
+        .technical-grid {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .cut-corner {
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed": "#c1f42e",
+                        "inverse-surface": "#e4e1e6",
+                        "surface-container-highest": "#353438",
+                        "on-primary-fixed": "#001551",
+                        "tertiary": "#ffb59e",
+                        "secondary-fixed-dim": "#a6d700",
+                        "primary": "#b7c4ff",
+                        "error-container": "#93000a",
+                        "inverse-primary": "#004cec",
+                        "surface-container-lowest": "#0e0e11",
+                        "primary-container": "#1e5bff",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "background": "#131316",
+                        "on-tertiary-container": "#ffeae4",
+                        "surface-bright": "#39393c",
+                        "secondary": "#c4f731",
+                        "on-error": "#690005",
+                        "secondary-container": "#a9da00",
+                        "on-secondary-container": "#455c00",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "tertiary-container": "#c53a00",
+                        "primary-fixed": "#dce1ff",
+                        "on-secondary": "#273500",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#b7c4ff",
+                        "on-surface": "#e4e1e6",
+                        "tertiary-fixed": "#ffdbd0",
+                        "surface-dim": "#131316",
+                        "on-tertiary-fixed": "#3a0b00",
+                        "on-primary": "#002681",
+                        "outline-variant": "#434656",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "outline": "#8d90a2",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "surface-variant": "#353438",
+                        "surface-container-low": "#1b1b1e",
+                        "surface-container": "#1f1f22",
+                        "surface": "#131316",
+                        "inverse-on-surface": "#303033",
+                        "on-tertiary": "#5e1700",
+                        "on-secondary-fixed": "#151f00",
+                        "surface-container-high": "#2a2a2d",
+                        "on-primary-container": "#ecedff",
+                        "on-background": "#e4e1e6",
+                        "on-surface-variant": "#c3c5d9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "max-width": "1440px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "display-lg-mobile": ["Anton"],
+                        "display-lg": ["Anton"],
+                        "headline-xl": ["Anton"],
+                        "headline-md": ["Anton"],
+                        "body-lg": ["Inter"],
+                        "label-bold": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md selection:bg-secondary selection:text-on-secondary">
+<!-- Top Navigation Shell -->
+<nav class="fixed top-0 w-full z-50 flex justify-between items-center h-16 px-margin-mobile border-b border-white/20 bg-surface">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary active:scale-95 transition-transform" data-icon="menu">menu</span>
+<span class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-widest uppercase text-2xl">E-DRIFT</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity" data-icon="shopping_cart">shopping_cart</span>
+</div>
+</nav>
+<main class="pt-16 pb-32">
+<!-- Hero Section -->
+<header class="relative w-full aspect-[1.50] overflow-hidden power-slant-divider">
+<img alt="Close-up hands-on shot of a mechanic installing a Hazard Lime PVC drift sleeve on a rear wheel hub, sparks of blue static, technical detail, gritty urban workshop setting, high-energy motorsport aesthetic." class="w-full h-full object-cover grayscale-[30%] brightness-75 transition-all duration-700 hover:grayscale-0 hover:scale-105" src="/assets/motor-72v-hub.jpg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute bottom-12 left-margin-mobile">
+<span class="bg-secondary text-on-secondary font-label-bold text-label-bold px-3 py-1 rounded-sm mb-4 inline-block uppercase tracking-wider">Masterclass</span>
+<h1 class="font-headline-xl text-headline-xl text-on-surface uppercase leading-none max-w-[80%]">PVC SLEEVE INSTALLATION</h1>
+</div>
+</header>
+<!-- Article Meta -->
+<section class="px-margin-mobile py-8 border-b border-white/10 flex justify-between items-end">
+<div class="flex flex-col gap-1">
+<span class="text-outline font-label-bold text-[10px] uppercase tracking-widest">Difficulty</span>
+<span class="text-secondary font-label-bold text-label-bold">EXPERT (LEVEL 4)</span>
+</div>
+<div class="flex flex-col gap-1 text-right">
+<span class="text-outline font-label-bold text-[10px] uppercase tracking-widest">Estimated Time</span>
+<span class="text-primary font-label-bold text-label-bold">45 MINUTES</span>
+</div>
+</section>
+<!-- Introduction -->
+<article class="px-margin-mobile py-12 space-y-8">
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+                The drift sleeve is the soul of electric sliding. Mastering the fitment process ensures maximum adhesion and heat dissipation during high-speed technical maneuvers. This guide covers the precision heat-shrink technique required for E-Drift performance.
+            </p>
+<!-- Collapsible Tools -->
+<details class="group bg-surface-container-high rounded-lg overflow-hidden border border-white/10">
+<summary class="flex items-center justify-between p-4 cursor-pointer list-none active:bg-surface-container-highest">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="build">build</span>
+<span class="font-label-bold text-label-bold uppercase">Required Toolset</span>
+</div>
+<span class="material-symbols-outlined transition-transform group-open:rotate-180" data-icon="expand_more">expand_more</span>
+</summary>
+<div class="p-4 pt-0 grid grid-cols-1 gap-4 border-t border-white/5">
+<div class="flex items-center gap-3 py-2 border-b border-white/5">
+<div class="w-2 h-2 bg-secondary flex-shrink-0"></div>
+<span class="font-body-md">Commercial Heat Gun (1500W+)</span>
+</div>
+<div class="flex items-center gap-3 py-2 border-b border-white/5">
+<div class="w-2 h-2 bg-secondary flex-shrink-0"></div>
+<span class="font-body-md">Hub Lubricant (Volt-Grease Gen-2)</span>
+</div>
+<div class="flex items-center gap-3 py-2 border-b border-white/5">
+<div class="w-2 h-2 bg-secondary flex-shrink-0"></div>
+<span class="font-body-md">Torque Wrench (ISO Certified)</span>
+</div>
+<div class="flex items-center gap-3 py-2">
+<div class="w-2 h-2 bg-secondary flex-shrink-0"></div>
+<span class="font-body-md">Protective Insulated Gloves</span>
+</div>
+</div>
+</details>
+<!-- Step 1 -->
+<div class="space-y-4 pt-8">
+<div class="flex items-center gap-4">
+<span class="font-display-lg-mobile text-display-lg-mobile text-primary/20 leading-none">01</span>
+<h3 class="font-headline-md text-headline-md-mobile text-on-surface uppercase">Surface Prep</h3>
+</div>
+<div class="relative w-full h-48 bg-surface-container rounded-lg overflow-hidden technical-grid border border-white/10 flex items-center justify-center">
+<!-- Technical Diagram Placeholder -->
+<div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 11px);"></div>
+<div class="relative z-10 text-center">
+<span class="material-symbols-outlined text-4xl text-primary mb-2" data-icon="precision_manufacturing">precision_manufacturing</span>
+<p class="font-label-bold text-xs uppercase tracking-tighter opacity-60 text-on-surface">Diagram 4-A: Hub Clearance</p>
+</div>
+</div>
+<p class="font-body-md text-on-surface-variant">
+                    Clean the hub surface using isopropyl alcohol. Any residue will create air pockets that compromise the sleeve's structural integrity under friction.
+                </p>
+</div>
+<!-- Step 2 -->
+<div class="space-y-4 pt-8">
+<div class="flex items-center gap-4">
+<span class="font-display-lg-mobile text-display-lg-mobile text-primary/20 leading-none">02</span>
+<h3 class="font-headline-md text-headline-md-mobile text-on-surface uppercase">Heat Activation</h3>
+</div>
+<div class="relative p-6 bg-surface-container-low border-l-4 border-secondary rounded-r-lg">
+<p class="font-body-md italic text-on-surface">
+                        "Maintaining a constant 230°F is critical. Oscillate the heat gun 4 inches from the PVC surface to avoid localized melting."
+                    </p>
+<p class="mt-2 text-secondary font-label-bold text-xs">— Lead Engineer, Drift Lab</p>
+</div>
+<p class="font-body-md text-on-surface-variant">
+                    Uniformly heat the sleeve until it achieves a semi-malleable state. Slide onto the hub in one fluid motion to prevent uneven cooling cycles.
+                </p>
+</div>
+</article>
+<!-- Technical Specs Table -->
+<section class="mx-margin-mobile p-6 bg-surface-container-lowest border border-white/10 rounded-lg technical-grid">
+<h4 class="font-label-bold text-label-bold uppercase text-secondary mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="settings">settings</span>
+                Torque Specifications
+            </h4>
+<div class="space-y-3">
+<div class="flex justify-between py-2 border-b border-white/5">
+<span class="text-outline text-sm">Hub Bolts</span>
+<span class="text-on-surface font-label-bold">45 Nm</span>
+</div>
+<div class="flex justify-between py-2 border-b border-white/5">
+<span class="text-outline text-sm">Axle Nut</span>
+<span class="text-on-surface font-label-bold">120 Nm</span>
+</div>
+<div class="flex justify-between py-2">
+<span class="text-outline text-sm">Sleeve Tolerance</span>
+<span class="text-on-surface font-label-bold">±0.2mm</span>
+</div>
+</div>
+</section>
+<!-- Related Content Carousel -->
+<section class="mt-16">
+<div class="px-margin-mobile mb-6">
+<h3 class="font-headline-md text-headline-md-mobile text-on-surface uppercase">Deep Dives</h3>
+</div>
+<div class="flex overflow-x-auto gap-4 px-margin-mobile pb-8 snap-x no-scrollbar">
+<!-- Related Item 1 -->
+<div class="flex-shrink-0 w-64 snap-start group">
+<div class="w-full aspect-square bg-surface-container rounded-lg overflow-hidden relative mb-3">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-500" data-alt="Dynamic shot of an electric drift trike performing a 360-degree spin in a dark, neon-lit industrial hangar. The trike is leaving streaks of Hazard Lime light, representing high-speed motion and precision drifting. The environment is gritty, urban, and futuristic with technical grid overlays." style="background-image: url('/assets/action-360-slide.jpg')"></div>
+<div class="absolute top-2 right-2 bg-background/80 backdrop-blur-sm p-1 rounded">
+<span class="material-symbols-outlined text-sm text-secondary" data-icon="videocam">videocam</span>
+</div>
+</div>
+<p class="font-label-bold text-xs text-secondary uppercase mb-1">Video Guide</p>
+<h5 class="font-label-bold text-on-surface">360 Entry Techniques</h5>
+</div>
+<!-- Related Item 2 -->
+<div class="flex-shrink-0 w-64 snap-start group">
+<div class="w-full aspect-square bg-surface-container rounded-lg overflow-hidden relative mb-3">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-500" data-alt="Technical close-up of a high-capacity lithium-ion battery pack designed for electric motorsport. The casing features exposed carbon fiber textures and Hazard Lime wiring connectors. Bright blue status LEDs indicate optimal power levels against a dark, minimalist background with blueprint lines." style="background-image: url('/assets/volt-s1-pro-cockpit.jpg')"></div>
+</div>
+<p class="font-label-bold text-xs text-primary uppercase mb-1">Article</p>
+<h5 class="font-label-bold text-on-surface">Battery Heat Mitigation</h5>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Sticky Button Area -->
+<div class="fixed bottom-0 left-0 w-full p-4 bg-gradient-to-t from-background to-transparent z-40 pointer-events-none">
+<div class="max-w-md mx-auto flex items-center justify-between gap-4 p-4 bg-surface-container-highest rounded-xl shadow-2xl border border-white/20 pointer-events-auto">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface flex items-center justify-center border border-white/10">
+<span class="material-symbols-outlined text-secondary" data-icon="electric_rickshaw">electric_rickshaw</span>
+</div>
+<div>
+<p class="font-label-bold text-xs text-outline uppercase leading-none mb-1">Standard PVC</p>
+<p class="font-label-bold text-on-surface">$24.99</p>
+</div>
+</div>
+<button class="bg-secondary text-on-secondary font-label-bold text-label-bold px-6 py-3 rounded-lg uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-all">
+<span>Add to Cart</span>
+<span class="material-symbols-outlined text-sm" data-icon="add_shopping_cart">add_shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Footer -->
+<footer class="flex flex-col gap-4 p-margin-mobile pb-24 w-full text-center border-t border-white/10 bg-surface-container-lowest">
+<p class="font-headline-md text-headline-md text-primary uppercase">E-DRIFT</p>
+<p class="font-label-bold text-label-bold text-primary-fixed-dim uppercase">© 2024 E-DRIFT TRIKES. ENGINEERED FOR CHAOS.</p>
+<div class="flex justify-center gap-6">
+<a class="text-outline font-label-bold text-xs uppercase hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="text-outline font-label-bold text-xs uppercase hover:text-primary transition-colors" href="#">Terms</a>
+<a class="text-outline font-label-bold text-xs uppercase hover:text-primary transition-colors" href="#">Safety</a>
+</div>
+</footer>
+<script>
+        // Micro-interaction for technical grid parallax
+        document.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const grids = document.querySelectorAll('.technical-grid');
+            grids.forEach(grid => {
+                const speed = 0.05;
+                grid.style.backgroundPositionY = (scrolled * speed) + 'px';
+            });
+        });
+    </script>
+</body></html>

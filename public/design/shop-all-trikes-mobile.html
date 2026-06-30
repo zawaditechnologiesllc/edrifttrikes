@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#b7c4ff",
+                        "surface-tint": "#b7c4ff",
+                        "surface-container-lowest": "#0e0e11",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-tertiary-container": "#ffeae4",
+                        "surface-dim": "#131316",
+                        "on-secondary": "#273500",
+                        "on-error-container": "#ffdad6",
+                        "surface-variant": "#353438",
+                        "surface-container": "#1f1f22",
+                        "surface-bright": "#39393c",
+                        "surface": "#131316",
+                        "on-surface": "#e4e1e6",
+                        "on-error": "#690005",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "on-secondary-fixed": "#151f00",
+                        "on-primary-container": "#ecedff",
+                        "secondary-fixed": "#c1f42e",
+                        "on-primary-fixed": "#001551",
+                        "inverse-on-surface": "#303033",
+                        "on-primary": "#002681",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "secondary-fixed-dim": "#a6d700",
+                        "secondary": "#c4f731",
+                        "background": "#131316",
+                        "secondary-container": "#a9da00",
+                        "surface-container-highest": "#353438",
+                        "on-background": "#e4e1e6",
+                        "on-surface-variant": "#c3c5d9",
+                        "tertiary": "#ffb59e",
+                        "primary-fixed": "#dce1ff",
+                        "outline-variant": "#434656",
+                        "on-tertiary": "#5e1700",
+                        "error": "#ffb4ab",
+                        "surface-container-low": "#1b1b1e",
+                        "outline": "#8d90a2",
+                        "on-secondary-container": "#455c00",
+                        "tertiary-container": "#c53a00",
+                        "inverse-primary": "#004cec",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "primary-container": "#1e5bff",
+                        "tertiary-fixed": "#ffdbd0",
+                        "inverse-surface": "#e4e1e6",
+                        "surface-container-high": "#2a2a2d",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "on-tertiary-fixed": "#3a0b00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "max-width": "1440px",
+                        "unit": "4px",
+                        "gutter": "24px",
+                        "margin-desktop": "64px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Anton"],
+                        "display-lg-mobile": ["Anton"],
+                        "display-lg": ["Anton"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Anton"],
+                        "label-bold": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .cut-corner-badge {
+            clip-path: polygon(10% 0%, 100% 0%, 100% 70%, 90% 100%, 0% 100%, 0% 30%);
+        }
+        .slant-header {
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+        }
+        .technical-grid {
+            background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-secondary selection:text-on-secondary">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 border-b border-white/20 bg-surface flex justify-between items-center h-16 px-margin-mobile w-full">
+<div class="flex items-center gap-4">
+<button class="text-primary active:scale-95 transition-transform" onclick="toggleDrawer()">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<span class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-widest uppercase">E-DRIFT</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-primary active:scale-95 transition-transform relative">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span class="absolute -top-1 -right-1 bg-secondary text-on-secondary text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">2</span>
+</button>
+</div>
+</header>
+<!-- Navigation Drawer (Hidden by default) -->
+<div class="hidden h-full w-full fixed inset-0 z-[60] transition-all duration-300 ease-in-out bg-surface-container-highest" id="drawer">
+<div class="flex flex-col p-margin-mobile pt-24 h-full">
+<div class="flex justify-between items-center mb-12">
+<span class="font-headline-md-mobile text-headline-md-mobile text-primary">VOLTAGE CONTROL</span>
+<button class="text-on-surface" onclick="toggleDrawer()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="bg-secondary text-on-secondary rounded-lg px-4 py-3 flex items-center gap-4 transition-all duration-300 ease-in-out" href="/shop">
+<span class="material-symbols-outlined">electric_rickshaw</span>
+<span class="font-label-bold text-label-bold">TRIKES</span>
+</a>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-4 border-b border-white/10 hover:bg-surface-variant transition-all" href="#">
+<span class="material-symbols-outlined">speed</span>
+<span class="font-label-bold text-label-bold">PERFORMANCE</span>
+</a>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-4 border-b border-white/10 hover:bg-surface-variant transition-all" href="/shop">
+<span class="material-symbols-outlined">settings_input_component</span>
+<span class="font-label-bold text-label-bold">CUSTOM SHOP</span>
+</a>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-4 border-b border-white/10 hover:bg-surface-variant transition-all" href="#">
+<span class="material-symbols-outlined">sports_score</span>
+<span class="font-label-bold text-label-bold">RACE EVENTS</span>
+</a>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-4 border-b border-white/10 hover:bg-surface-variant transition-all" href="/support">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-bold text-label-bold">SUPPORT</span>
+</a>
+</nav>
+</div>
+</div>
+<main class="pt-16 pb-24">
+<!-- Hero Section -->
+<section class="relative h-[30vh] flex items-center px-margin-mobile bg-surface-dim slant-header overflow-hidden">
+<div class="technical-grid absolute inset-0 opacity-20"></div>
+<div class="relative z-10">
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary leading-none uppercase">ALL RIGS</h1>
+<p class="text-on-surface-variant font-label-bold mt-2 flex items-center gap-2">
+<span class="w-2 h-2 bg-secondary block"></span>
+                    STREET LEGAL CHAOS
+                </p>
+</div>
+<!-- Decorative Vector Element -->
+<div class="absolute right-[-20%] top-0 h-full w-full rotate-12 opacity-10 pointer-events-none">
+<span class="material-symbols-outlined !text-[200px] text-primary">electric_rickshaw</span>
+</div>
+</section>
+<!-- Sticky Filter Bar -->
+<div class="sticky top-16 z-40 bg-surface/95 backdrop-blur-md border-b border-white/10 px-margin-mobile py-4 flex justify-between items-center shadow-lg">
+<button class="flex items-center gap-2 bg-surface-container-high px-4 py-2 rounded-lg border border-white/10 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-secondary">tune</span>
+<span class="font-label-bold text-label-bold uppercase">Filter</span>
+</button>
+<div class="flex items-center gap-3">
+<span class="text-on-surface-variant text-xs font-label-bold uppercase">12 Models</span>
+<button class="flex items-center gap-1 text-primary active:scale-95 transition-transform">
+<span class="font-label-bold text-label-bold uppercase">Sort</span>
+<span class="material-symbols-outlined">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Product Grid -->
+<section class="px-margin-mobile mt-8 bg-[#f5f5f7] text-inverse-on-surface py-12 -mx-margin-mobile">
+<div class="grid grid-cols-2 gap-4 px-margin-mobile">
+<!-- Product Card 1 -->
+<div class="group bg-white rounded-lg border border-slate-200 overflow-hidden transition-all duration-300 hover:shadow-xl flex flex-col h-full relative">
+<div class="absolute top-2 left-2 z-10">
+<span class="bg-secondary text-on-secondary px-2 py-0.5 text-[10px] font-bold uppercase cut-corner-badge">NEW</span>
+</div>
+<div class="aspect-square w-full overflow-hidden bg-slate-100 flex items-center justify-center p-2">
+<img alt="The Volt-Drifter X" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" src="/assets/action-mid-slide.jpg"/>
+</div>
+<div class="p-3 flex flex-col flex-grow border-b-2 border-transparent group-hover:border-secondary transition-colors">
+<h3 class="font-headline-md text-sm leading-tight text-surface uppercase">VOLT-DRIFTER X</h3>
+<div class="mt-2 flex flex-col gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-secondary"></span>
+<span class="text-[10px] font-bold text-outline uppercase">72V Brushless</span>
+</div>
+</div>
+<div class="mt-auto pt-3 flex justify-between items-end">
+<span class="font-headline-md text-lg text-primary-container">$3,499</span>
+<button class="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-secondary active:scale-90 transition-transform">
+<span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Product Card 2 -->
+<div class="group bg-white rounded-lg border border-slate-200 overflow-hidden transition-all duration-300 hover:shadow-xl flex flex-col h-full relative">
+<div class="aspect-square w-full overflow-hidden bg-slate-100 flex items-center justify-center p-2">
+<img alt="The Midnight Slinger" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" src="/assets/garage-workshop-night.jpg"/>
+</div>
+<div class="p-3 flex flex-col flex-grow border-b-2 border-transparent group-hover:border-secondary transition-colors">
+<h3 class="font-headline-md text-sm leading-tight text-surface uppercase">MIDNIGHT SLINGER</h3>
+<div class="mt-2 flex flex-col gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-secondary"></span>
+<span class="text-[10px] font-bold text-outline uppercase">60V High Torque</span>
+</div>
+</div>
+<div class="mt-auto pt-3 flex justify-between items-end">
+<span class="font-headline-md text-lg text-primary-container">$2,850</span>
+<button class="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-secondary active:scale-90 transition-transform">
+<span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Product Card 3 -->
+<div class="group bg-white rounded-lg border border-slate-200 overflow-hidden transition-all duration-300 hover:shadow-xl flex flex-col h-full relative">
+<div class="aspect-square w-full overflow-hidden bg-slate-100 flex items-center justify-center p-2">
+<div class="w-full h-full flex items-center justify-center">
+<img class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" data-alt="A sleek minimalist electric drift trike with a lime green frame and large black slick tires, shown from a rear perspective on a studio grey background." src="/assets/action-mid-slide.jpg"/>
+</div>
+</div>
+<div class="p-3 flex flex-col flex-grow border-b-2 border-transparent group-hover:border-secondary transition-colors">
+<h3 class="font-headline-md text-sm leading-tight text-surface uppercase">RAZOR-EDGE EVO</h3>
+<div class="mt-2 flex flex-col gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-secondary"></span>
+<span class="text-[10px] font-bold text-outline uppercase">84V Custom</span>
+</div>
+</div>
+<div class="mt-auto pt-3 flex justify-between items-end">
+<span class="font-headline-md text-lg text-primary-container">$4,100</span>
+<button class="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-secondary active:scale-90 transition-transform">
+<span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Product Card 4 -->
+<div class="group bg-white rounded-lg border border-slate-200 overflow-hidden transition-all duration-300 hover:shadow-xl flex flex-col h-full relative">
+<div class="absolute top-2 left-2 z-10">
+<span class="bg-tertiary-container text-on-tertiary-container px-2 py-0.5 text-[10px] font-bold uppercase cut-corner-badge">SALE</span>
+</div>
+<div class="aspect-square w-full overflow-hidden bg-slate-100 flex items-center justify-center p-2">
+<div class="w-full h-full flex items-center justify-center">
+<img class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" data-alt="A rugged industrial electric drift trike with a brushed metal finish and thick black handle grips, minimalist professional studio lighting with high contrast shadows." src="/assets/trike-gas-charcoal.jpg"/>
+</div>
+</div>
+<div class="p-3 flex flex-col flex-grow border-b-2 border-transparent group-hover:border-secondary transition-colors">
+<h3 class="font-headline-md text-sm leading-tight text-surface uppercase">STREET-BRAWLER</h3>
+<div class="mt-2 flex flex-col gap-1">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-secondary"></span>
+<span class="text-[10px] font-bold text-outline uppercase">48V Standard</span>
+</div>
+</div>
+<div class="mt-auto pt-3 flex justify-between items-end">
+<div class="flex flex-col">
+<span class="text-[10px] line-through text-outline">$1,999</span>
+<span class="font-headline-md text-lg text-tertiary-container">$1,599</span>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-secondary active:scale-90 transition-transform">
+<span class="material-symbols-outlined !text-xl">add_shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Technical Specs Ticker -->
+<div class="w-full overflow-hidden bg-secondary py-2 border-y border-black/10">
+<div class="flex whitespace-nowrap gap-8 animate-[scroll_20s_linear_infinite] px-4">
+<span class="text-on-secondary font-label-bold uppercase flex items-center gap-2 italic">
+<span class="material-symbols-outlined !text-sm" style="font-variation-settings: 'FILL' 1">bolt</span> HIGH-VOLTAGE MOTORS
+                </span>
+<span class="text-on-secondary font-label-bold uppercase flex items-center gap-2 italic">
+<span class="material-symbols-outlined !text-sm" style="font-variation-settings: 'FILL' 1">bolt</span> SWAPPABLE BATTERY PACKS
+                </span>
+<span class="text-on-secondary font-label-bold uppercase flex items-center gap-2 italic">
+<span class="material-symbols-outlined !text-sm" style="font-variation-settings: 'FILL' 1">bolt</span> CARBON FIBER SEATS
+                </span>
+<span class="text-on-secondary font-label-bold uppercase flex items-center gap-2 italic">
+<span class="material-symbols-outlined !text-sm" style="font-variation-settings: 'FILL' 1">bolt</span> 100% STREET CHAOS
+                </span>
+<!-- Duplicate for seamless scroll -->
+<span class="text-on-secondary font-label-bold uppercase flex items-center gap-2 italic">
+<span class="material-symbols-outlined !text-sm" style="font-variation-settings: 'FILL' 1">bolt</span> HIGH-VOLTAGE MOTORS
+                </span>
+<span class="text-on-secondary font-label-bold uppercase flex items-center gap-2 italic">
+<span class="material-symbols-outlined !text-sm" style="font-variation-settings: 'FILL' 1">bolt</span> SWAPPABLE BATTERY PACKS
+                </span>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-white/10 bg-surface-container-lowest flex flex-col gap-4 p-margin-mobile pb-12 w-full text-center">
+<div class="font-headline-md text-headline-md text-primary">E-DRIFT</div>
+<nav class="flex justify-center gap-6">
+<a class="text-outline hover:text-primary transition-colors font-label-bold text-label-bold uppercase" href="#">Privacy</a>
+<a class="text-outline hover:text-primary transition-colors font-label-bold text-label-bold uppercase" href="#">Terms</a>
+<a class="text-outline hover:text-primary transition-colors font-label-bold text-label-bold uppercase" href="#">Safety</a>
+</nav>
+<div class="text-primary-fixed-dim font-label-bold text-[10px] opacity-60">
+            © 2024 E-DRIFT TRIKES. ENGINEERED FOR CHAOS.
+        </div>
+</footer>
+<!-- Bottom Nav for Mobile -->
+<nav class="fixed bottom-0 left-0 w-full bg-surface-container/90 backdrop-blur-xl border-t border-white/5 h-16 grid grid-cols-4 items-center px-4 z-[45] md:hidden">
+<button class="flex flex-col items-center justify-center gap-1 text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">electric_rickshaw</span>
+<span class="text-[10px] font-bold uppercase">Shop</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-outline">
+<span class="material-symbols-outlined">explore</span>
+<span class="text-[10px] font-bold uppercase">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-outline">
+<span class="material-symbols-outlined">construction</span>
+<span class="text-[10px] font-bold uppercase">Build</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-outline">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold uppercase">Garage</span>
+</button>
+</nav>
+<script>
+        function toggleDrawer() {
+            const drawer = document.getElementById('drawer');
+            if (drawer.classList.contains('hidden')) {
+                drawer.classList.remove('hidden');
+                setTimeout(() => drawer.classList.add('opacity-100'), 10);
+            } else {
+                drawer.classList.add('opacity-0');
+                setTimeout(() => drawer.classList.add('hidden'), 300);
+            }
+        }
+
+        // Marquee animation style injection
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `
+            @keyframes scroll {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
+            }
+        `;
+        document.head.appendChild(styleSheet);
+    </script>
+</body></html>

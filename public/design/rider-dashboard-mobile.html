@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>E-DRIFT | Rider Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .slant-divider {
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+        }
+        .technical-grid {
+            background-image: radial-gradient(rgba(183, 196, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#dce1ff",
+                        "outline-variant": "#434656",
+                        "on-tertiary-fixed": "#3a0b00",
+                        "surface-container-highest": "#353438",
+                        "on-primary": "#002681",
+                        "on-background": "#e4e1e6",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "secondary-container": "#a9da00",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "tertiary": "#ffb59e",
+                        "surface-container-low": "#1b1b1e",
+                        "tertiary-fixed": "#ffdbd0",
+                        "secondary": "#c4f731",
+                        "on-surface": "#e4e1e6",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "primary-container": "#1e5bff",
+                        "on-tertiary-container": "#ffeae4",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "secondary-fixed-dim": "#a6d700",
+                        "inverse-surface": "#e4e1e6",
+                        "surface-tint": "#b7c4ff",
+                        "surface-dim": "#131316",
+                        "surface-bright": "#39393c",
+                        "on-secondary-fixed": "#151f00",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-container": "#c53a00",
+                        "on-surface-variant": "#c3c5d9",
+                        "on-secondary-container": "#455c00",
+                        "secondary-fixed": "#c1f42e",
+                        "on-tertiary": "#5e1700",
+                        "inverse-on-surface": "#303033",
+                        "background": "#131316",
+                        "surface-variant": "#353438",
+                        "on-primary-container": "#ecedff",
+                        "surface-container": "#1f1f22",
+                        "surface-container-lowest": "#0e0e11",
+                        "on-secondary": "#273500",
+                        "outline": "#8d90a2",
+                        "surface": "#131316",
+                        "on-primary-fixed": "#001551",
+                        "on-error": "#690005",
+                        "primary": "#b7c4ff",
+                        "inverse-primary": "#004cec",
+                        "surface-container-high": "#2a2a2d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "max-width": "1440px",
+                        "unit": "4px",
+                        "margin-desktop": "64px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Anton"],
+                        "label-bold": ["Inter"],
+                        "headline-xl": ["Anton"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Anton"],
+                        "display-lg-mobile": ["Anton"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body-md min-h-screen">
+<!-- Top AppBar (from JSON) -->
+<header class="fixed top-0 w-full z-50 border-b border-white/20 bg-surface flex justify-between items-center h-16 px-margin-mobile w-full">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95" data-icon="menu">menu</button>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-widest uppercase">E-DRIFT</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95" data-icon="shopping_cart">shopping_cart</button>
+<div class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold text-xs border border-white/20">JS</div>
+</div>
+</header>
+<main class="pt-20 pb-24">
+<!-- Dashboard Header -->
+<section class="px-margin-mobile pt-4 pb-8 technical-grid">
+<div class="flex flex-col gap-2">
+<span class="text-secondary font-label-bold text-label-bold uppercase tracking-widest">RIDER_PROFILE_041</span>
+<h2 class="font-headline-xl text-headline-xl-mobile uppercase text-on-surface">DASHBOARD</h2>
+</div>
+</section>
+<!-- Horizontal Scrollable Tabs -->
+<nav class="flex overflow-x-auto hide-scrollbar px-margin-mobile gap-6 mb-8 border-b border-white/10 sticky top-16 bg-surface-container-lowest z-40 py-2">
+<a class="whitespace-nowrap text-secondary font-label-bold text-label-bold border-b-2 border-secondary pb-2 transition-all" href="#">OVERVIEW</a>
+<a class="whitespace-nowrap text-outline font-label-bold text-label-bold pb-2 hover:text-on-surface transition-colors" href="#">MY BUILDS</a>
+<a class="whitespace-nowrap text-outline font-label-bold text-label-bold pb-2 hover:text-on-surface transition-colors" href="#">ORDERS</a>
+<a class="whitespace-nowrap text-outline font-label-bold text-label-bold pb-2 hover:text-on-surface transition-colors" href="#">STATISTICS</a>
+<a class="whitespace-nowrap text-outline font-label-bold text-label-bold pb-2 hover:text-on-surface transition-colors" href="#">GARAGE</a>
+</nav>
+<!-- Quick Stats Bento -->
+<section class="px-margin-mobile grid grid-cols-2 gap-4 mb-10">
+<div class="bg-surface-container-low border border-white/10 p-4 flex flex-col gap-1">
+<span class="text-outline text-xs uppercase font-label-bold">TOTAL DRIFT HRS</span>
+<span class="text-primary font-headline-md text-headline-md-mobile">142.5</span>
+</div>
+<div class="bg-surface-container-low border border-white/10 p-4 flex flex-col gap-1">
+<span class="text-outline text-xs uppercase font-label-bold">RANKING</span>
+<span class="text-secondary font-headline-md text-headline-md-mobile">#12</span>
+</div>
+</section>
+<!-- Active Orders Section -->
+<section class="px-margin-mobile mb-12">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-headline-md text-headline-md-mobile uppercase flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="package_2">package_2</span>
+                    Active Orders
+                </h3>
+<span class="text-secondary font-label-bold text-label-bold">1 ACTIVE</span>
+</div>
+<div class="bg-surface-container-high border border-white/10 p-6 relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-2 bg-secondary text-on-secondary font-label-bold text-[10px] uppercase">Express</div>
+<div class="flex justify-between items-start mb-6">
+<div>
+<p class="font-label-bold text-on-surface mb-1 uppercase">Order #ED-99210</p>
+<p class="text-outline text-xs">V-S1 Pro Drifting Rig + Racing Seat Upgrade</p>
+</div>
+</div>
+<!-- Custom Status Bar -->
+<div class="flex flex-col gap-3">
+<div class="flex justify-between text-[10px] font-label-bold text-outline uppercase">
+<span class="text-secondary">Processing</span>
+<span class="text-secondary">Assembly</span>
+<span class="text-primary-container">Transit</span>
+<span>Delivered</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-lowest rounded-full flex overflow-hidden">
+<div class="h-full bg-secondary w-1/3"></div>
+<div class="h-full bg-secondary w-1/4 border-l border-surface-container-high"></div>
+<div class="h-full bg-surface-container-highest flex-1"></div>
+</div>
+<p class="text-[11px] text-secondary-fixed flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-sm" data-icon="info">info</span>
+                        Chassis calibration in progress. Estimated dispatch: 48h.
+                    </p>
+</div>
+</div>
+</section>
+<!-- My Builds (Rig Cards) -->
+<section class="px-margin-mobile mb-12">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-headline-md text-headline-md-mobile uppercase flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="electric_rickshaw">electric_rickshaw</span>
+                    My builds
+                </h3>
+<button class="text-primary font-label-bold text-label-bold flex items-center gap-1 active:opacity-70 transition-opacity">
+                    ADD NEW <span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+</button>
+</div>
+<div class="flex flex-col gap-4">
+<!-- Technical Rig Card 1 -->
+<div class="bg-white border border-white/20 p-4 rounded-lg flex items-center gap-4 transition-transform active:scale-[0.98]">
+<div class="w-24 h-24 bg-surface-container-lowest rounded-md flex-shrink-0 overflow-hidden border border-primary/20">
+<img class="w-full h-full object-cover grayscale contrast-125" data-alt="Technical product photography of the Volt-S1 Pro electric drift trike, showing detailed mechanical components and a vibrant Voltage Blue frame against a clinical white laboratory background. Professional automotive lighting emphasizes the sharp angles and carbon fiber textures." src="/assets/volt-s1-pro-hero.jpg"/>
+</div>
+<div class="flex-1 flex flex-col justify-between h-24 py-1">
+<div>
+<h4 class="font-headline-md text-[20px] text-surface-container-lowest leading-tight">VOLT-S1 "PHANTOM"</h4>
+<p class="text-surface-container-highest/60 text-[10px] font-label-bold uppercase tracking-tight">Status: Active Track Rig</p>
+</div>
+<div class="flex gap-2">
+<span class="px-2 py-0.5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded">15kW</span>
+<span class="px-2 py-0.5 bg-surface-container-highest text-white text-[10px] font-bold rounded">72V</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-surface-container-lowest" data-icon="arrow_forward_ios">arrow_forward_ios</span>
+</div>
+<!-- Technical Rig Card 2 -->
+<div class="bg-surface-container-high border border-white/10 p-4 flex items-center gap-4 transition-transform active:scale-[0.98]">
+<div class="w-24 h-24 bg-surface-container-lowest rounded-md flex-shrink-0 overflow-hidden border border-primary/20">
+<div class="w-full h-full flex items-center justify-center bg-surface-container-low">
+<span class="material-symbols-outlined text-outline text-3xl" data-icon="build">build</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-between h-24 py-1">
+<div>
+<h4 class="font-headline-md text-[20px] text-on-surface leading-tight">STREET PROJECT #2</h4>
+<p class="text-outline text-[10px] font-label-bold uppercase tracking-tight">Status: Under Construction</p>
+</div>
+<div class="w-full bg-surface-container-lowest h-1 mt-1">
+<div class="bg-tertiary w-2/3 h-full"></div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline" data-icon="arrow_forward_ios">arrow_forward_ios</span>
+</div>
+</div>
+</section>
+<!-- Quick Links -->
+<section class="px-margin-mobile mb-16">
+<div class="grid grid-cols-1 gap-2">
+<a class="flex items-center justify-between p-5 bg-surface-container-low border-l-4 border-primary hover:bg-surface-container-high transition-colors active:scale-95" href="/wishlist">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="favorite">favorite</span>
+<span class="font-label-bold text-label-bold uppercase">Wishlist / Parts Bin</span>
+</div>
+<span class="bg-primary/20 text-primary text-[10px] px-2 py-1 rounded font-bold">12 ITEMS</span>
+</a>
+<a class="flex items-center justify-between p-5 bg-surface-container-low border-l-4 border-outline hover:bg-surface-container-high transition-colors active:scale-95" href="#">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-outline" data-icon="settings">settings</span>
+<span class="font-label-bold text-label-bold uppercase">Technical Settings</span>
+</div>
+<span class="material-symbols-outlined text-outline text-sm" data-icon="chevron_right">chevron_right</span>
+</a>
+<a class="flex items-center justify-between p-5 bg-surface-container-low border-l-4 border-outline hover:bg-surface-container-high transition-colors active:scale-95" href="/support">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-outline" data-icon="support">support</span>
+<span class="font-label-bold text-label-bold uppercase">System Support</span>
+</div>
+<span class="material-symbols-outlined text-outline text-sm" data-icon="chevron_right">chevron_right</span>
+</a>
+</div>
+</section>
+<!-- Footer (from JSON) -->
+<footer class="w-full border-t border-white/10 bg-surface-container-lowest flex flex-col gap-4 p-margin-mobile pb-12 w-full text-center">
+<h4 class="font-headline-md text-headline-md text-primary-fixed-dim uppercase tracking-tighter">E-DRIFT TRIKES</h4>
+<div class="flex justify-center gap-6">
+<a class="text-outline font-label-bold text-label-bold hover:text-primary transition-colors active:opacity-70" href="#">Privacy</a>
+<a class="text-outline font-label-bold text-label-bold hover:text-primary transition-colors active:opacity-70" href="#">Terms</a>
+<a class="text-outline font-label-bold text-label-bold hover:text-primary transition-colors active:opacity-70" href="#">Safety</a>
+</div>
+<p class="text-outline text-[10px] uppercase font-label-bold mt-4 opacity-50">© 2024 E-DRIFT TRIKES. ENGINEERED FOR CHAOS.</p>
+</footer>
+</main>
+<!-- Bottom Navigation Bar (Contextual for Top-Level) -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-white/10 flex justify-around items-center h-16 z-50">
+<button class="flex flex-col items-center gap-1 text-outline transition-colors active:scale-95">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] font-label-bold">HOME</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-outline transition-colors active:scale-95">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="text-[10px] font-label-bold">EXPLORE</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-secondary transition-colors active:scale-95">
+<span class="material-symbols-outlined" data-icon="person_outline" style="font-variation-settings: 'FILL' 1;">person_outline</span>
+<span class="text-[10px] font-label-bold">PROFILE</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-outline transition-colors active:scale-95">
+<span class="material-symbols-outlined" data-icon="sports_score">sports_score</span>
+<span class="text-[10px] font-label-bold">EVENTS</span>
+</button>
+</nav>
+<!-- Floating Action Button - Only for Relevant Task -->
+<button class="fixed bottom-20 right-4 w-14 h-14 bg-secondary text-on-secondary rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform z-40">
+<span class="material-symbols-outlined text-3xl" data-icon="bolt">bolt</span>
+</button>
+<script>
+        // Micro-interaction for tabs
+        const tabs = document.querySelectorAll('nav a');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                tabs.forEach(t => {
+                    t.classList.remove('text-secondary', 'border-b-2', 'border-secondary');
+                    t.classList.add('text-outline');
+                });
+                tab.classList.add('text-secondary', 'border-b-2', 'border-secondary');
+                tab.classList.remove('text-outline');
+            });
+        });
+
+        // Atmospheric grid pulse interaction
+        document.addEventListener('mousemove', (e) => {
+            const grid = document.querySelector('.technical-grid');
+            if(grid) {
+                const x = (e.clientX / window.innerWidth) * 100;
+                const y = (e.clientY / window.innerHeight) * 100;
+                grid.style.backgroundPosition = `${x}% ${y}%`;
+            }
+        });
+    </script>
+</body></html>

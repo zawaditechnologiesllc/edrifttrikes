@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>E-DRIFT | ENGINEERED FOR CHAOS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton:wght@100..900&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#353438",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-primary-fixed": "#001551",
+                        "on-primary": "#002681",
+                        "secondary-fixed-dim": "#a6d700",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "surface-container-high": "#2a2a2d",
+                        "on-surface": "#e4e1e6",
+                        "on-secondary": "#273500",
+                        "surface-container-highest": "#353438",
+                        "on-surface-variant": "#c3c5d9",
+                        "inverse-primary": "#004cec",
+                        "surface-bright": "#39393c",
+                        "surface": "#131316",
+                        "background": "#131316",
+                        "on-error-container": "#ffdad6",
+                        "secondary-container": "#a9da00",
+                        "outline": "#8d90a2",
+                        "tertiary-fixed": "#ffdbd0",
+                        "on-tertiary": "#5e1700",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "secondary-fixed": "#c1f42e",
+                        "primary": "#b7c4ff",
+                        "inverse-on-surface": "#303033",
+                        "surface-container": "#1f1f22",
+                        "error-container": "#93000a",
+                        "outline-variant": "#434656",
+                        "primary-fixed": "#dce1ff",
+                        "on-secondary-container": "#455c00",
+                        "surface-tint": "#b7c4ff",
+                        "primary-container": "#1e5bff",
+                        "on-primary-container": "#ecedff",
+                        "tertiary": "#ffb59e",
+                        "surface-dim": "#131316",
+                        "on-tertiary-container": "#ffeae4",
+                        "surface-container-low": "#1b1b1e",
+                        "on-background": "#e4e1e6",
+                        "inverse-surface": "#e4e1e6",
+                        "surface-container-lowest": "#0e0e11",
+                        "on-error": "#690005",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "tertiary-container": "#c53a00",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "secondary": "#c4f731",
+                        "on-tertiary-fixed": "#3a0b00",
+                        "on-secondary-fixed": "#151f00",
+                        "error": "#ffb4ab"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "max-width": "1440px"
+                    },
+                    "fontFamily": {
+                        "display-lg-mobile": ["Anton"],
+                        "body-lg": ["Inter"],
+                        "headline-xl": ["Anton"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Anton"],
+                        "display-lg": ["Anton"],
+                        "label-bold": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .power-slant {
+            clip-path: polygon(0 0, 100% 0, 100% 92%, 0 100%);
+        }
+        .power-slant-reverse {
+            clip-path: polygon(0 8%, 100% 0, 100% 100%, 0 100%);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .technical-grid {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-active .accordion-content {
+            max-height: 500px;
+        }
+        .accordion-active .accordion-icon {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-secondary selection:text-on-secondary">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 border-b border-white/10 bg-surface flex justify-between items-center h-16 px-margin-mobile backdrop-blur-md">
+<button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 transition-transform" id="menu-toggle">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="font-display-lg-mobile text-2xl text-primary tracking-widest uppercase">E-DRIFT</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 transition-transform">
+<span class="material-symbols-outlined">search</span>
+</button>
+<button class="text-on-surface hover:opacity-80 transition-opacity active:scale-95 transition-transform relative">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span class="absolute -top-1 -right-1 bg-secondary text-on-secondary text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+</button>
+</div>
+</header>
+<!-- NavigationDrawer (Full Screen) -->
+<nav class="fixed inset-0 z-[60] bg-surface-container-highest translate-x-full transition-transform duration-300 ease-in-out hidden flex flex-col" id="nav-drawer">
+<div class="flex justify-between items-center h-16 px-margin-mobile border-b border-white/10 bg-surface">
+<div class="font-display-lg-mobile text-xl text-primary tracking-widest uppercase">MENU</div>
+<button class="text-on-surface" id="close-menu">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="p-margin-mobile flex flex-col gap-4 overflow-y-auto hide-scrollbar flex-1">
+<!-- Search Bar -->
+<div class="relative mb-4">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant py-3 pl-10 pr-4 rounded font-label-bold text-xs uppercase tracking-wider focus:outline-none focus:border-primary" placeholder="SEARCH THE GARAGE" type="text"/>
+</div>
+<!-- Accordion Taxonomy -->
+<div class="flex flex-col">
+<!-- Accordion Item 1 -->
+<div class="accordion-item border-b border-white/10">
+<button class="accordion-trigger w-full flex justify-between items-center py-5 group">
+<span class="font-headline-md text-xl uppercase tracking-wider group-hover:text-primary transition-colors">Electric Trikes</span>
+<span class="material-symbols-outlined accordion-icon transition-transform text-outline">expand_more</span>
+</button>
+<div class="accordion-content">
+<div class="flex flex-col gap-3 pb-5 pl-4">
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">All Electric Models</a>
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="/product/volt-s1-pro">Voltage S-Series</a>
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">Pro-Circuit Rigs</a>
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">Custom Builds</a>
+</div>
+</div>
+</div>
+<!-- Accordion Item 2 -->
+<div class="accordion-item border-b border-white/10">
+<button class="accordion-trigger w-full flex justify-between items-center py-5 group">
+<span class="font-headline-md text-xl uppercase tracking-wider group-hover:text-primary transition-colors">Gas-Powered</span>
+<span class="material-symbols-outlined accordion-icon transition-transform text-outline">expand_more</span>
+</button>
+<div class="accordion-content">
+<div class="flex flex-col gap-3 pb-5 pl-4">
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">2-Stroke Chaos</a>
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">Predator Swaps</a>
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">Chassis Only</a>
+</div>
+</div>
+</div>
+<!-- Accordion Item 3 -->
+<div class="accordion-item border-b border-white/10">
+<button class="accordion-trigger w-full flex justify-between items-center py-5 group">
+<span class="font-headline-md text-xl uppercase tracking-wider group-hover:text-primary transition-colors">Performance Parts</span>
+<span class="material-symbols-outlined accordion-icon transition-transform text-outline">expand_more</span>
+</button>
+<div class="accordion-content">
+<div class="flex flex-col gap-3 pb-5 pl-4">
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="/tech-lab/sleeve-fitting">PVC Sleeves</a>
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">Torque Controllers</a>
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">Front End Kits</a>
+<a class="text-on-surface-variant hover:text-secondary text-sm font-label-bold uppercase" href="#">Axle Assemblies</a>
+</div>
+</div>
+</div>
+<!-- Static Links -->
+<a class="py-5 border-b border-white/10 font-headline-md text-xl uppercase tracking-wider hover:text-primary transition-colors" href="/login">Rider Gear</a>
+<a class="py-5 border-b border-white/10 font-headline-md text-xl uppercase tracking-wider hover:text-primary transition-colors" href="#">Race Events</a>
+</div>
+<!-- Drawer Footer Info -->
+<div class="mt-auto py-8 border-t border-white/10 flex flex-col gap-4">
+<div class="flex gap-6">
+<span class="material-symbols-outlined text-primary">location_on</span>
+<span class="text-sm">Find a Track Near You</span>
+</div>
+<div class="flex gap-6">
+<span class="material-symbols-outlined text-primary">support_agent</span>
+<span class="text-sm">Technical Support</span>
+</div>
+</div>
+</div>
+</nav>
+<main class="pt-16">
+<!-- Hero Section -->
+<section class="relative h-[80vh] w-full overflow-hidden power-slant flex flex-col justify-end p-margin-mobile pb-20">
+<div class="absolute inset-0 z-0">
+<img class="w-full h-full object-cover grayscale-[0.2] contrast-[1.2]" src="/assets/trike-gas-charcoal.jpg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
+</div>
+<div class="relative z-10">
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-on-surface uppercase mb-6 leading-none">
+                    ENGINEERED<br/>FOR CHAOS
+                </h1>
+<button class="bg-secondary text-on-secondary px-10 py-4 rounded font-label-bold text-label-bold uppercase active:scale-95 transition-transform w-max shadow-lg shadow-secondary/20">
+                    SHOP NOW
+                </button>
+</div>
+<!-- Technical Decoration -->
+<div class="absolute top-24 right-4 text-primary opacity-40 flex flex-col gap-1 items-end pointer-events-none">
+<div class="text-[10px] tracking-tighter uppercase font-bold">Voltage System 72V</div>
+<div class="w-24 h-[1px] bg-primary"></div>
+<div class="text-[10px] tracking-tighter uppercase font-bold">Torque Vectoring: Active</div>
+</div>
+</section>
+<!-- Section 1: Horizontal Trike Scroll -->
+<section class="bg-on-surface text-surface py-16 -mt-8 overflow-hidden">
+<div class="px-margin-mobile mb-8 flex justify-between items-end">
+<h2 class="font-headline-md text-2xl uppercase tracking-tight">Featured Rigs</h2>
+<a class="text-label-bold font-label-bold border-b-2 border-secondary pb-1" href="/shop">VIEW ALL</a>
+</div>
+<div class="flex overflow-x-auto hide-scrollbar gap-gutter px-margin-mobile snap-x snap-mandatory">
+<!-- Card 1 -->
+<div class="flex-shrink-0 w-72 snap-start">
+<div class="relative w-full aspect-square bg-surface-container-low rounded mb-4 overflow-hidden group">
+<img class="w-full h-full object-cover" data-alt="A side view of a matte black electric drift trike with neon green accents" src="/assets/action-mid-slide.jpg"/>
+<div class="absolute top-3 left-3 bg-secondary text-on-secondary px-2 py-1 text-[10px] font-bold rounded">NEW</div>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-label-bold text-label-bold uppercase">The Volt-S1</h3>
+<p class="text-xs opacity-60">High-Output Commuter</p>
+</div>
+<span class="font-bold">$1,499</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="flex-shrink-0 w-72 snap-start">
+<div class="relative w-full aspect-square bg-surface-container-low rounded mb-4 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Close up shot of an electric drift trike's customized front wheel" src="/assets/action-mid-slide.jpg"/>
+<div class="absolute top-3 left-3 bg-primary text-on-primary px-2 py-1 text-[10px] font-bold rounded">PRO</div>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-label-bold text-label-bold uppercase">Riot Drift MK3</h3>
+<p class="text-xs opacity-60">Competitive Circuit</p>
+</div>
+<span class="font-bold">$2,100</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="flex-shrink-0 w-72 snap-start">
+<div class="relative w-full aspect-square bg-surface-container-low rounded mb-4 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Vibrant trike leaning into a turn" src="/assets/volt-s1-pro-hero.jpg"/>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-label-bold text-label-bold uppercase">Apex Predator</h3>
+<p class="text-xs opacity-60">Ultimate Torque</p>
+</div>
+<span class="font-bold">$2,850</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Category Grid -->
+<section class="py-16 technical-grid border-t border-white/5">
+<div class="px-margin-mobile flex flex-col gap-4">
+<a class="group relative h-32 overflow-hidden rounded flex items-center p-8 bg-surface-container-high border border-white/10 active:scale-[0.98] transition-all" href="/shop">
+<span class="relative z-10 font-headline-md text-2xl uppercase tracking-widest transition-transform group-hover:translate-x-2">Trikes</span>
+<span class="material-symbols-outlined absolute right-8 text-secondary group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+<a class="group relative h-32 overflow-hidden rounded flex items-center p-8 bg-surface-container-high border border-white/10 active:scale-[0.98] transition-all" href="/shop">
+<span class="relative z-10 font-headline-md text-2xl uppercase tracking-widest transition-transform group-hover:translate-x-2">Parts</span>
+<span class="material-symbols-outlined absolute right-8 text-secondary group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+<a class="group relative h-32 overflow-hidden rounded flex items-center p-8 bg-surface-container-high border border-white/10 active:scale-[0.98] transition-all" href="/shop">
+<span class="relative z-10 font-headline-md text-2xl uppercase tracking-widest transition-transform group-hover:translate-x-2">Gear</span>
+<span class="material-symbols-outlined absolute right-8 text-secondary group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</section>
+</main>
+<!-- Updated Footer Section -->
+<footer class="bg-surface text-on-surface">
+<!-- Trust Strip -->
+<div class="bg-surface-container-lowest border-y border-white/5 py-4 px-margin-mobile overflow-x-auto hide-scrollbar">
+<div class="flex items-center justify-between min-w-[600px] gap-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">bolt</span>
+<span class="text-[10px] font-label-bold uppercase tracking-widest">Global Shipping</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">shield</span>
+<span class="text-[10px] font-label-bold uppercase tracking-widest">2-Year Warranty</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">verified</span>
+<span class="text-[10px] font-label-bold uppercase tracking-widest">Certified Safety</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">build</span>
+<span class="text-[10px] font-label-bold uppercase tracking-widest">US-Based Support</span>
+</div>
+</div>
+</div>
+<!-- Newsletter Signup -->
+<section class="py-16 px-margin-mobile border-b border-white/10">
+<div class="max-w-md mx-auto text-center mb-8">
+<h3 class="font-headline-md text-3xl uppercase mb-2">JOIN THE VOLTAGE</h3>
+<p class="text-sm text-on-surface-variant">Get first access to limited edition drops, track meetups, and technical builds.</p>
+</div>
+<form class="flex flex-col gap-3 max-w-md mx-auto">
+<input class="bg-surface-container-low border border-outline-variant px-4 py-4 rounded text-sm focus:border-secondary focus:ring-0 outline-none text-on-surface uppercase font-label-bold tracking-widest" placeholder="EMAIL ADDRESS" type="email"/>
+<button class="bg-secondary text-on-secondary px-6 py-4 rounded font-label-bold text-label-bold uppercase tracking-[0.2em] hover:bg-secondary-fixed transition-colors active:scale-[0.98]" type="submit">
+                    ENLIST NOW
+                </button>
+</form>
+</section>
+<!-- Main Footer Content -->
+<div class="py-12 px-margin-mobile flex flex-col items-center gap-10">
+<div class="font-display-lg text-4xl text-primary tracking-[0.3em] uppercase">E-DRIFT</div>
+<div class="grid grid-cols-2 gap-x-12 gap-y-8 w-full max-w-sm">
+<div class="flex flex-col gap-3">
+<h4 class="font-label-bold text-xs text-primary uppercase tracking-widest">Shop</h4>
+<a class="text-xs text-on-surface-variant hover:text-on-surface uppercase" href="/shop">All Trikes</a>
+<a class="text-xs text-on-surface-variant hover:text-on-surface uppercase" href="/shop">Parts Shop</a>
+<a class="text-xs text-on-surface-variant hover:text-on-surface uppercase" href="#">Merch</a>
+</div>
+<div class="flex flex-col gap-3">
+<h4 class="font-label-bold text-xs text-primary uppercase tracking-widest">Support</h4>
+<a class="text-xs text-on-surface-variant hover:text-on-surface uppercase" href="#">Track My Order</a>
+<a class="text-xs text-on-surface-variant hover:text-on-surface uppercase" href="#">Technical Docs</a>
+<a class="text-xs text-on-surface-variant hover:text-on-surface uppercase" href="/shipping-warranty">Returns</a>
+</div>
+</div>
+<!-- Payment Icons & Legal -->
+<div class="flex flex-col items-center gap-6 w-full">
+<div class="flex gap-4 opacity-50 grayscale hover:grayscale-0 transition-all">
+<span class="material-symbols-outlined text-2xl">credit_card</span>
+<span class="material-symbols-outlined text-2xl">account_balance_wallet</span>
+<span class="material-symbols-outlined text-2xl">contactless</span>
+<span class="material-symbols-outlined text-2xl">payments</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="flex gap-6">
+<a class="text-[10px] font-label-bold text-outline hover:text-primary uppercase" href="#">Privacy</a>
+<a class="text-[10px] font-label-bold text-outline hover:text-primary uppercase" href="#">Terms</a>
+<a class="text-[10px] font-label-bold text-outline hover:text-primary uppercase" href="#">Safety</a>
+</div>
+<p class="text-[10px] text-outline-variant font-label-bold tracking-[0.1em] text-center mt-4 uppercase">
+                        © 2024 E-DRIFT TRIKES. ENGINEERED FOR CHAOS. VOLTAGE DRIFT DESIGN SYSTEM V2.4
+                    </p>
+</div>
+</div>
+</div>
+</footer>
+<!-- Scripts -->
+<script>
+        const menuToggle = document.getElementById('menu-toggle');
+        const closeMenu = document.getElementById('close-menu');
+        const navDrawer = document.getElementById('nav-drawer');
+
+        // Navigation Toggle
+        menuToggle.addEventListener('click', () => {
+            navDrawer.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => {
+                navDrawer.classList.remove('translate-x-full');
+            }, 10);
+        });
+
+        closeMenu.addEventListener('click', () => {
+            navDrawer.classList.add('translate-x-full');
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                navDrawer.classList.add('hidden');
+            }, 300);
+        });
+
+        // Accordion Logic
+        const accordionTriggers = document.querySelectorAll('.accordion-trigger');
+        accordionTriggers.forEach(trigger => {
+            trigger.addEventListener('click', () => {
+                const parent = trigger.parentElement;
+                const isActive = parent.classList.contains('accordion-active');
+                
+                // Close all others
+                document.querySelectorAll('.accordion-item').forEach(item => {
+                    item.classList.remove('accordion-active');
+                });
+
+                // Toggle current
+                if (!isActive) {
+                    parent.classList.add('accordion-active');
+                }
+            });
+        });
+
+        // Sticky Header scroll effect
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 20) {
+                header.classList.add('bg-opacity-90', 'h-14');
+                header.classList.remove('h-16');
+            } else {
+                header.classList.remove('bg-opacity-90', 'h-14');
+                header.classList.add('h-16');
+            }
+        });
+    </script>
+</body></html>

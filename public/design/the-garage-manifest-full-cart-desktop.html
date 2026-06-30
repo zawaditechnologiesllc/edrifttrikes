@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>E-DRIFT | MISSION LOGISTICS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .technical-grid {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .hazard-stripe {
+            background: repeating-linear-gradient(
+                45deg,
+                #b7c4ff,
+                #b7c4ff 10px,
+                #004cec 10px,
+                #004cec 20px
+            );
+        }
+        .cut-corner {
+            clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%, 0 25%);
+        }
+        .manifest-title {
+            letter-spacing: 0.1em;
+            text-shadow: 0 0 20px rgba(183, 196, 255, 0.3);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0e0e11; }
+        ::-webkit-scrollbar-thumb { background: #1e5bff; border-radius: 10px; }
+        
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .ready-status {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#c3c5d9",
+                        "on-secondary": "#273500",
+                        "surface-dim": "#131316",
+                        "on-tertiary-fixed": "#3a0b00",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "tertiary-fixed": "#ffdbd0",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-secondary-fixed": "#151f00",
+                        "secondary-fixed-dim": "#a6d700",
+                        "tertiary": "#ffb59e",
+                        "tertiary-container": "#c53a00",
+                        "primary-container": "#1e5bff",
+                        "surface-bright": "#39393c",
+                        "on-tertiary-container": "#ffeae4",
+                        "inverse-on-surface": "#303033",
+                        "primary-fixed": "#dce1ff",
+                        "on-primary-fixed": "#001551",
+                        "surface-container-highest": "#353438",
+                        "surface-container": "#1f1f22",
+                        "surface-container-lowest": "#0e0e11",
+                        "primary": "#b7c4ff",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "on-primary": "#002681",
+                        "surface-container-high": "#2a2a2d",
+                        "on-tertiary": "#5e1700",
+                        "error": "#ffb4ab",
+                        "on-surface": "#e4e1e6",
+                        "on-secondary-container": "#455c00",
+                        "background": "#131316",
+                        "secondary": "#c4f731",
+                        "inverse-surface": "#e4e1e6",
+                        "on-primary-container": "#ecedff",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "surface-tint": "#b7c4ff",
+                        "surface-container-low": "#1b1b1e",
+                        "secondary-fixed": "#c1f42e",
+                        "surface": "#131316",
+                        "surface-variant": "#353438",
+                        "on-error": "#690005",
+                        "on-background": "#e4e1e6",
+                        "outline": "#8d90a2",
+                        "outline-variant": "#434656",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#004cec",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "secondary-container": "#a9da00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "max-width": "1440px"
+                    },
+                    "fontFamily": {
+                        "label-bold": ["Inter"],
+                        "display-lg": ["Anton"],
+                        "body-lg": ["Inter"],
+                        "display-lg-mobile": ["Anton"],
+                        "headline-md": ["Anton"],
+                        "headline-xl": ["Anton"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body-md overflow-x-hidden selection:bg-secondary selection:text-on-secondary">
+<!-- TopNavBar -->
+<header class="w-full top-0 sticky bg-surface dark:bg-surface-container-lowest border-b border-white/10 z-50">
+<div class="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
+<a class="font-headline-md text-headline-md text-secondary tracking-tighter" href="/">E-DRIFT</a>
+<nav class="hidden md:flex items-center gap-8">
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">TRIKES</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="/tech-lab">THE GARAGE</a>
+</nav>
+<div class="flex items-center gap-6">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all active:scale-90" data-icon="search">search</button>
+<div class="relative">
+<button class="material-symbols-outlined text-primary transition-all active:scale-90" data-icon="shopping_cart">shopping_cart</button>
+<span class="absolute -top-2 -right-2 bg-secondary text-on-secondary text-[10px] font-bold px-1.5 py-0.5 rounded-full">1</span>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all active:scale-90" data-icon="person">person</button>
+</div>
+</div>
+</header>
+<main class="technical-grid min-h-screen pt-12 pb-24">
+<div class="max-w-max-width mx-auto px-margin-desktop">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 mb-4">
+<a class="font-label-bold text-label-bold text-on-surface-variant/60 hover:text-on-surface transition-colors" href="#">CORE</a>
+<span class="material-symbols-outlined text-on-surface-variant/40 text-sm">chevron_right</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">LOGISTICS</span>
+</nav>
+<!-- Main Mission Title -->
+<div class="flex items-baseline gap-4 mb-12">
+<h1 class="font-headline-xl text-headline-xl uppercase manifest-title">MISSION LOGISTICS</h1>
+<span class="text-primary font-label-bold text-xs tracking-[0.3em] uppercase opacity-60">Status: Active Deployment</span>
+</div>
+<!-- Split Screen Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+<!-- Left Column: Your Manifest -->
+<div class="lg:col-span-7 space-y-gutter" id="manifest-container">
+<div class="flex items-center justify-between border-b border-white/10 pb-4">
+<h2 class="font-headline-md text-headline-md uppercase text-on-surface/90">YOUR MANIFEST</h2>
+<span class="text-xs font-label-bold text-on-surface-variant opacity-40 uppercase">Ref: #ED-992-ARC</span>
+</div>
+<!-- Free Shipping Progress (Hazard Style) -->
+<div class="bg-surface-container-low p-6 border border-white/5 relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<div class="flex justify-between items-center mb-4">
+<p class="font-label-bold text-label-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">local_shipping</span>
+                            LOGISTICS SUBSIDY TARGET
+                        </p>
+<p class="font-label-bold text-label-bold text-on-surface-variant">$1,200.00 REMAINING</p>
+</div>
+<div class="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-white/5">
+<div class="h-full hazard-stripe w-3/4 relative"></div>
+</div>
+</div>
+<!-- Manifest Items -->
+<div class="space-y-4" id="cart-items">
+<!-- Item 1 -->
+<div class="bg-surface-container border border-white/10 flex gap-6 p-6 group relative">
+<div class="w-40 h-40 bg-black overflow-hidden flex-shrink-0 border border-white/5">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" src="/assets/action-360-slide.jpg"/>
+</div>
+<div class="flex-grow flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div>
+<div class="bg-secondary text-on-secondary text-[10px] font-bold px-2 py-0.5 mb-2 inline-block cut-corner">LIMITED ASSET</div>
+<h3 class="font-headline-md text-headline-md text-on-surface uppercase leading-none">VOLTAGE BLUE DRIFT RIG</h3>
+<p class="text-on-surface-variant font-label-bold mt-1 text-xs">SPEC: 72V BRUSHLESS BEAST</p>
+</div>
+<p class="font-headline-md text-headline-md text-primary">$3,499.00</p>
+</div>
+<div class="flex items-center justify-between mt-6">
+<div class="flex items-center bg-black/40 border border-white/10 rounded-sm">
+<button class="px-3 py-2 hover:bg-white/5 text-on-surface-variant" onclick="this.nextElementSibling.stepDown()">
+<span class="material-symbols-outlined text-sm">remove</span>
+</button>
+<input class="w-10 bg-transparent border-none text-center font-label-bold focus:ring-0 text-sm" min="1" type="number" value="1"/>
+<button class="px-3 py-2 hover:bg-white/5 text-on-surface-variant" onclick="this.previousElementSibling.stepUp()">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+<button class="flex items-center gap-2 text-on-surface-variant/40 hover:text-error transition-colors uppercase font-label-bold text-[10px] tracking-widest" onclick="this.closest('.group').remove(); checkEmptyState();">
+<span class="material-symbols-outlined text-base">delete_sweep</span>
+                                    PURGE
+                                </button>
+</div>
+</div>
+</div>
+<!-- Item 2 (Out of Stock Example) -->
+<div class="bg-surface-container/50 border border-white/10 flex gap-6 p-6 group relative opacity-80 grayscale">
+<div class="w-40 h-40 bg-black overflow-hidden flex-shrink-0 border border-white/5 relative">
+<img class="w-full h-full object-cover" src="/assets/trike-voltage-blue.jpg"/>
+<div class="absolute inset-0 bg-black/60 flex items-center justify-center">
+<span class="border-2 border-error text-error font-headline-md px-4 py-1 -rotate-12 uppercase text-sm tracking-widest">DECOMMISSIONED</span>
+</div>
+</div>
+<div class="flex-grow flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface-variant/60 uppercase leading-none">BRUSHLESS SPARE HUB</h3>
+<p class="text-on-surface-variant/40 font-label-bold mt-1 text-xs">SPEC: 72V DIRECT DRIVE</p>
+</div>
+<p class="font-headline-md text-headline-md text-on-surface-variant/40">$420.00</p>
+</div>
+<div class="flex items-center justify-between mt-6">
+<span class="text-error font-label-bold text-[10px] uppercase tracking-widest">AWAITING RESTOCK</span>
+<button class="flex items-center gap-2 text-on-surface-variant/40 hover:text-error transition-colors uppercase font-label-bold text-[10px] tracking-widest" onclick="this.closest('.group').remove(); checkEmptyState();">
+<span class="material-symbols-outlined text-base">delete_sweep</span>
+                                    PURGE
+                                </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty State (Hidden by default) -->
+<div class="hidden animate-fadeIn" id="empty-garage">
+<div class="bg-surface-container relative overflow-hidden border border-white/10 rounded-lg group">
+<img alt="Empty Workshop" class="w-full aspect-video object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000" src="/assets/garage-workshop-night.jpg"/>
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center p-12 bg-gradient-to-t from-surface to-transparent">
+<h2 class="font-headline-xl text-headline-xl mb-4">GARAGE IS OFFLINE</h2>
+<p class="font-body-md text-on-surface-variant max-w-md mb-8">No active assets detected in your manifest. Return to base to select your gear.</p>
+<a class="bg-primary px-10 py-4 font-label-bold text-on-primary uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_30px_rgba(30,91,255,0.4)]" href="#">RE-ENGAGE</a>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Order Logistics -->
+<aside class="lg:col-span-5 sticky top-24">
+<div class="bg-surface-container-high p-8 border border-white/10 relative overflow-hidden">
+<!-- Background Technical Watermark -->
+<div class="absolute -top-10 -right-10 opacity-[0.03] rotate-12 pointer-events-none">
+<span class="material-symbols-outlined text-[300px]">precision_manufacturing</span>
+</div>
+<div class="flex items-center gap-3 mb-8 pb-4 border-b border-white/5">
+<span class="material-symbols-outlined text-primary">analytics</span>
+<h2 class="font-headline-md text-headline-md uppercase">ORDER LOGISTICS</h2>
+</div>
+<div class="space-y-5 mb-8">
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-label-bold uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
+<span class="w-1 h-1 bg-primary rounded-full"></span> SUB-TOTAL
+                            </span>
+<span class="font-label-bold">$3,919.00</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-label-bold uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
+<span class="w-1 h-1 bg-white/20 rounded-full"></span> SHIPPING EST.
+                            </span>
+<span class="font-label-bold italic text-[10px] opacity-60">PENDING ADDRESS</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-label-bold uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
+<span class="w-1 h-1 bg-white/20 rounded-full"></span> TAX/DUTIES
+                            </span>
+<span class="font-label-bold">$124.50</span>
+</div>
+</div>
+<!-- Calculated State Visual -->
+<div class="bg-primary/5 border border-primary/20 p-4 mb-8 flex items-center gap-4 ready-status">
+<div class="bg-primary text-on-primary rounded-full p-1">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-bold text-primary text-[10px] uppercase tracking-widest">STATUS: READY FOR DRIFT</span>
+<span class="text-[9px] text-primary/60 uppercase">Calculations verified by E-DRIFT core</span>
+</div>
+</div>
+<div class="flex justify-between items-end mb-10">
+<div>
+<span class="font-label-bold text-on-surface-variant uppercase text-[10px] tracking-widest block mb-1">TOTAL PAYLOAD</span>
+<span class="font-label-bold text-on-surface uppercase text-sm">CREDITS DUE</span>
+</div>
+<span class="font-display-lg text-primary text-headline-xl leading-none">$4,043.50</span>
+</div>
+<div class="space-y-4">
+<button class="w-full bg-primary py-5 px-8 font-label-bold text-on-primary uppercase tracking-widest text-lg hover:bg-white transition-all active:scale-95 flex items-center justify-center gap-3 group relative overflow-hidden">
+<span class="relative z-10">INITIATE DEPLOYMENT</span>
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform relative z-10">rocket_launch</span>
+</button>
+<div class="grid grid-cols-2 gap-2">
+<button class="bg-black/40 border border-white/10 py-3 flex items-center justify-center rounded hover:bg-white/5 transition-all group">
+<span class="font-label-bold text-[10px] uppercase tracking-tighter opacity-50 group-hover:opacity-100">QUICK: APPLE PAY</span>
+</button>
+<button class="bg-[#ffc439] py-3 flex items-center justify-center rounded hover:brightness-110 transition-all">
+<span class="font-label-bold text-[10px] uppercase text-black tracking-tighter">QUICK: PAYPAL</span>
+</button>
+</div>
+</div>
+<!-- Trust Section & Transmission Footer -->
+<div class="mt-12 pt-8 border-t border-white/5">
+<div class="flex items-center gap-4 mb-6">
+<div class="bg-secondary-container/10 p-3 border border-secondary/20">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">encrypted</span>
+</div>
+<div>
+<p class="font-label-bold text-xs uppercase text-secondary">SECURE NODE ENCRYPTION</p>
+<p class="text-[9px] text-on-surface-variant uppercase tracking-widest">TLS 1.3 / AES-256 PROTECTION</p>
+</div>
+</div>
+<div class="bg-black/20 p-4 border border-white/5 rounded italic text-[9px] text-on-surface-variant/40 leading-relaxed uppercase tracking-tighter">
+<span class="text-secondary opacity-60">Transmission Note:</span> All logistics data is processed through our secure hardened perimeter. Zero data persistence on local client nodes. End-to-end encrypted transmission active.
+                        </div>
+</div>
+</div>
+</aside>
+</div>
+</div>
+</main>
+<footer class="bg-surface-container-lowest dark:bg-black w-full relative overflow-hidden border-t border-secondary/20">
+<div class="bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.02)_25%,rgba(255,255,255,0.02)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.02)_75%)] bg-[length:20px_20px] absolute inset-0 pointer-events-none"></div>
+<div class="flex flex-col md:flex-row justify-between items-start w-full px-margin-desktop py-16 gap-gutter max-w-max-width mx-auto relative z-10">
+<div>
+<span class="font-display-lg text-display-lg text-on-surface/10 absolute -bottom-4 -left-4 opacity-20 pointer-events-none">E-DRIFT</span>
+<h3 class="font-headline-md text-headline-md text-secondary mb-6">ENGINEERED FOR ADRENALINE.</h3>
+<p class="max-w-md text-on-surface-variant font-body-md">
+                We push the limits of electric propulsion to deliver the ultimate street motorsport experience. High voltage, zero compromise.
+            </p>
+</div>
+<div class="grid grid-cols-2 gap-12">
+<div class="space-y-4">
+<h4 class="font-label-bold text-label-bold text-on-surface uppercase mb-4">RESOURCES</h4>
+<ul class="space-y-2">
+<li><a class="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="/support">Support</a></li>
+<li><a class="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="#">Privacy</a></li>
+<li><a class="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="/shipping-warranty">Shipping</a></li>
+<li><a class="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="#">Terms</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h4 class="font-label-bold text-label-bold text-on-surface uppercase mb-4">SOCIAL</h4>
+<div class="flex gap-4">
+<button class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-secondary hover:text-secondary transition-all active:opacity-80">
+<span class="material-symbols-outlined text-lg">share_reviews</span>
+</button>
+<button class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-secondary hover:text-secondary transition-all active:opacity-80">
+<span class="material-symbols-outlined text-lg">movie</span>
+</button>
+<button class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-secondary hover:text-secondary transition-all active:opacity-80">
+<span class="material-symbols-outlined text-lg">podcasts</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="border-t border-white/5 py-8 text-center relative z-10">
+<p class="font-label-bold text-on-surface-variant/40 text-xs tracking-[0.2em]">© 2024 E-DRIFT MOTORS. MISSION CRITICAL INTERFACE.</p>
+</div>
+</footer>
+<script>
+    function checkEmptyState() {
+        const items = document.querySelectorAll('#cart-items > div');
+        if (items.length === 0) {
+            document.getElementById('cart-items').parentElement.classList.add('hidden');
+            document.getElementById('empty-garage').classList.remove('hidden');
+            document.querySelector('aside').classList.add('opacity-30', 'pointer-events-none');
+        }
+    }
+
+    // Micro-interactions for quantity
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('change', function() {
+            if(this.value < 1) this.value = 1;
+        });
+    });
+</script>
+</body></html>

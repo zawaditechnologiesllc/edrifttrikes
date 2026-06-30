@@ -55,6 +55,14 @@ export default function RootLayout({
       </head>
       <body className="bg-background text-on-surface font-body-md antialiased overflow-x-hidden">
         {children}
+        {/* Always-available link to the full design archive (every screen). */}
+        <a
+          href="/screens"
+          className="fixed bottom-4 left-4 z-[60] flex items-center gap-2 bg-surface-container-high/90 backdrop-blur border border-secondary/40 text-secondary font-label-bold text-[11px] uppercase tracking-widest px-4 py-2 rounded-full shadow-lg hover:bg-secondary hover:text-on-secondary-fixed transition-colors"
+        >
+          <span className="material-symbols-outlined text-base">grid_view</span>
+          All Screens
+        </a>
         <Enhancements />
       </body>
     </html>

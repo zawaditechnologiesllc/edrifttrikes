@@ -42,6 +42,39 @@ export default function Enhancements() {
         return;
       }
 
+      // auth login / register tabs (mirrors the export's switchTab)
+      const authTab = start.closest<HTMLElement>("#tab-login, #tab-register");
+      if (authTab) {
+        const mode = authTab.id === "tab-register" ? "register" : "login";
+        const loginBtn = document.getElementById("tab-login");
+        const registerBtn = document.getElementById("tab-register");
+        const submitBtn = document.querySelector<HTMLElement>(
+          '#auth-form button[type="submit"]'
+        );
+        const h2 = document.querySelector<HTMLElement>("header h2");
+        const p = document.querySelector<HTMLElement>("header p");
+        const on = ["text-secondary", "border-secondary"];
+        const off = ["text-on-surface-variant"];
+        const active = mode === "register" ? registerBtn : loginBtn;
+        const inactive = mode === "register" ? loginBtn : registerBtn;
+        active?.classList.add(...on);
+        active?.classList.remove(...off);
+        inactive?.classList.remove(...on);
+        inactive?.classList.add(...off);
+        if (submitBtn)
+          submitBtn.innerText =
+            mode === "register" ? "CREATE PROFILE" : "INITIALIZE LOGIN";
+        if (h2)
+          h2.innerText =
+            mode === "register" ? "JOIN THE SQUADRON" : "ACCESS THE GARAGE";
+        if (p)
+          p.innerText =
+            mode === "register"
+              ? "Establish your identity in the electric drift era."
+              : "Sign in to manage your fleet and performance specs.";
+        return;
+      }
+
       // nav icon buttons (cart / account / wishlist / search)
       const nav = start.closest<HTMLElement>("[data-nav]");
       if (nav) {

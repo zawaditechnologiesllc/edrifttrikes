@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>E-DRIFT | Rider Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .technical-grid {
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .power-slant {
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+        }
+        .cut-corner {
+            clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #131316; }
+        ::-webkit-scrollbar-thumb { background: #434656; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #b7c4ff; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#dce1ff",
+                        "outline-variant": "#434656",
+                        "on-tertiary-fixed": "#3a0b00",
+                        "surface-container-highest": "#353438",
+                        "on-primary": "#002681",
+                        "on-background": "#e4e1e6",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "secondary-container": "#a9da00",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "tertiary": "#ffb59e",
+                        "surface-container-low": "#1b1b1e",
+                        "tertiary-fixed": "#ffdbd0",
+                        "secondary": "#c4f731",
+                        "on-surface": "#e4e1e6",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "primary-container": "#1e5bff",
+                        "on-tertiary-container": "#ffeae4",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "secondary-fixed-dim": "#a6d700",
+                        "inverse-surface": "#e4e1e6",
+                        "surface-tint": "#b7c4ff",
+                        "surface-dim": "#131316",
+                        "surface-bright": "#39393c",
+                        "on-secondary-fixed": "#151f00",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-container": "#c53a00",
+                        "on-surface-variant": "#c3c5d9",
+                        "on-secondary-container": "#455c00",
+                        "secondary-fixed": "#c1f42e",
+                        "on-tertiary": "#5e1700",
+                        "inverse-on-surface": "#303033",
+                        "background": "#131316",
+                        "surface-variant": "#353438",
+                        "on-primary-container": "#ecedff",
+                        "surface-container": "#1f1f22",
+                        "surface-container-lowest": "#0e0e11",
+                        "on-secondary": "#273500",
+                        "outline": "#8d90a2",
+                        "surface": "#131316",
+                        "on-primary-fixed": "#001551",
+                        "on-error": "#690005",
+                        "primary": "#b7c4ff",
+                        "inverse-primary": "#004cec",
+                        "surface-container-high": "#2a2a2d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "max-width": "1440px",
+                        "unit": "4px",
+                        "margin-desktop": "64px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Anton"],
+                        "label-bold": ["Inter"],
+                        "headline-xl": ["Anton"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Anton"],
+                        "display-lg-mobile": ["Anton"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-secondary selection:text-on-secondary">
+<!-- Dashboard Layout Wrapper -->
+<div class="flex min-h-screen">
+<!-- Sidebar Navigation (Anchor: SideNav Logic) -->
+<aside class="w-72 bg-surface-container-lowest border-r border-outline-variant/20 flex flex-col sticky top-0 h-screen overflow-y-auto">
+<div class="p-8">
+<span class="font-headline-md text-headline-md text-secondary tracking-tighter uppercase">E-DRIFT</span>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<!-- Dashboard Active State -->
+<a class="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg transition-all duration-75 active:scale-95" href="/account">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-bold text-label-bold uppercase">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-white/5 transition-all rounded-lg active:scale-95" href="#orders">
+<span class="material-symbols-outlined" data-icon="package_2">package_2</span>
+<span class="font-label-bold text-label-bold uppercase">Orders &amp; Tracking</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-white/5 transition-all rounded-lg active:scale-95" href="#builds">
+<span class="material-symbols-outlined" data-icon="settings_wrench">settings_alert</span>
+<span class="font-label-bold text-label-bold uppercase">My Builds</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-white/5 transition-all rounded-lg active:scale-95" href="/wishlist">
+<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
+<span class="font-label-bold text-label-bold uppercase">Wishlist</span>
+</a>
+<div class="pt-8 pb-4 px-4">
+<span class="text-[10px] text-outline uppercase tracking-widest font-bold">Account</span>
+</div>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-white/5 transition-all rounded-lg active:scale-95" href="#">
+<span class="material-symbols-outlined" data-icon="location_on">location_on</span>
+<span class="font-label-bold text-label-bold uppercase">Addresses</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-white/5 transition-all rounded-lg active:scale-95" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-label-bold text-label-bold uppercase">Payment</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-white/5 transition-all rounded-lg active:scale-95" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-bold text-label-bold uppercase">Settings</span>
+</a>
+</nav>
+<div class="p-8">
+<button class="w-full flex items-center justify-center gap-2 py-3 border border-outline-variant/30 rounded-lg text-error font-label-bold text-label-bold uppercase hover:bg-error/10 transition-colors">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+                    Sign Out
+                </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 bg-surface-container-low min-h-screen technical-grid">
+<!-- Top App Bar (Contextual) -->
+<header class="w-full bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-30 px-margin-desktop py-6 flex justify-between items-center border-b border-outline-variant/10">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-secondary" data-icon="bolt">bolt</span>
+<h1 class="font-headline-md text-headline-md text-on-surface uppercase tracking-tighter">Welcome back, Drifter</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex -space-x-2">
+<div class="w-10 h-10 rounded-full border-2 border-surface-container-lowest bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-bold">JD</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors" data-icon="notifications">notifications</span>
+</div>
+</header>
+<div class="px-margin-desktop py-8 max-w-max-width mx-auto space-y-gutter">
+<!-- Summary Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="bg-surface-container p-6 border border-outline-variant/20 cut-corner group hover:border-primary/50 transition-colors">
+<div class="flex justify-between items-start mb-4">
+<span class="text-outline uppercase text-[10px] font-bold tracking-widest">Active Orders</span>
+<span class="material-symbols-outlined text-secondary" data-icon="local_shipping">local_shipping</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-on-surface">01</div>
+<div class="text-on-surface-variant text-sm mt-2">VOLT-S1 Pro • Expected Friday</div>
+</div>
+<div class="bg-surface-container p-6 border border-outline-variant/20 cut-corner group hover:border-secondary/50 transition-colors">
+<div class="flex justify-between items-start mb-4">
+<span class="text-outline uppercase text-[10px] font-bold tracking-widest">Build Status</span>
+<span class="material-symbols-outlined text-secondary" data-icon="engineering">engineering</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-on-surface">84%</div>
+<div class="text-on-surface-variant text-sm mt-2">Custom Drift Rig • Motor Calibrated</div>
+</div>
+<div class="bg-surface-container p-6 border border-outline-variant/20 cut-corner group hover:border-primary/50 transition-colors">
+<div class="flex justify-between items-start mb-4">
+<span class="text-outline uppercase text-[10px] font-bold tracking-widest">Garage Points</span>
+<span class="material-symbols-outlined text-secondary" data-icon="stars">stars</span>
+</div>
+<div class="font-headline-xl text-headline-xl text-on-surface">2,450</div>
+<div class="text-on-surface-variant text-sm mt-2">Next reward: 500 points away</div>
+</div>
+</div>
+<!-- Bento Content Area -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- My Builds (Large Bento Item) -->
+<section class="lg:col-span-8 space-y-gutter" id="builds">
+<div class="bg-surface-container-highest rounded-xl overflow-hidden border border-outline-variant/20 flex flex-col md:flex-row">
+<div class="md:w-1/2 p-8 space-y-6">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-secondary text-on-secondary rounded-full font-label-bold text-[10px] uppercase">
+<span class="material-symbols-outlined text-[14px]" data-icon="verified" data-weight="fill">verified</span>
+                                    Active Build
+                                </div>
+<h2 class="font-headline-xl text-headline-xl text-on-surface uppercase leading-none">THE VOLT-S1<br/><span class="text-secondary">PRO CONFIG</span></h2>
+<!-- Technical Specs Grid -->
+<div class="grid grid-cols-2 gap-4 pt-4 border-t border-outline-variant/20">
+<div>
+<p class="text-outline text-[10px] uppercase font-bold mb-1">Power Core</p>
+<p class="text-on-surface font-bold">72V Brushless Hub</p>
+</div>
+<div>
+<p class="text-outline text-[10px] uppercase font-bold mb-1">Drift Sleeve</p>
+<p class="text-on-surface font-bold">Custom PVC Hard-Shell</p>
+</div>
+<div>
+<p class="text-outline text-[10px] uppercase font-bold mb-1">Controller</p>
+<p class="text-on-surface font-bold">Vector Gen-3 Sine</p>
+</div>
+<div>
+<p class="text-outline text-[10px] uppercase font-bold mb-1">Telemetry</p>
+<p class="text-on-surface font-bold">Bluetooth v5.2</p>
+</div>
+</div>
+<div class="pt-6">
+<button class="bg-primary text-on-primary px-6 py-3 rounded-lg font-label-bold text-label-bold uppercase flex items-center gap-2 hover:bg-primary-fixed transition-colors active:scale-95 duration-75">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+                                        Manage Config
+                                    </button>
+</div>
+</div>
+<div class="md:w-1/2 relative bg-surface-container-lowest min-h-[400px]">
+<img class="w-full h-full object-cover opacity-80 mix-blend-screen" data-alt="Technical detail shot of the 72V brushless rear hub motor and custom PVC slide sleeves on the VOLT-S1 Pro, sparks of static blue, high-precision engineering aesthetic, white background. Volt-S1 Pro colors." src="/assets/motor-72v-hub.jpg"/>
+<div class="absolute inset-0 bg-gradient-to-r from-surface-container-highest to-transparent pointer-events-none"></div>
+<!-- Technical Grid Overlay -->
+<div class="absolute inset-0 technical-grid opacity-20 pointer-events-none"></div>
+</div>
+</div>
+<!-- Orders Timeline -->
+<div class="bg-surface-container p-8 rounded-xl border border-outline-variant/10" id="orders">
+<h3 class="font-headline-md text-headline-md text-on-surface uppercase mb-8">Active Orders</h3>
+<div class="relative">
+<!-- Order Header -->
+<div class="flex justify-between items-center mb-10 pb-6 border-b border-outline-variant/10">
+<div>
+<p class="text-outline text-[10px] uppercase font-bold">Order #ED-88291</p>
+<p class="text-on-surface font-bold text-lg">Hyper-Drift Kit Mk.II</p>
+</div>
+<div class="text-right">
+<p class="text-outline text-[10px] uppercase font-bold">ETA Delivery</p>
+<p class="text-secondary font-bold text-lg">Oct 24, 2024</p>
+</div>
+</div>
+<!-- Progress Line -->
+<div class="relative h-1 bg-outline-variant/20 w-full mb-12">
+<div class="absolute top-0 left-0 h-full bg-secondary w-2/3 shadow-[0_0_10px_rgba(196,247,49,0.5)]"></div>
+<!-- Nodes -->
+<div class="absolute -top-3 left-0 flex flex-col items-center">
+<div class="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary text-sm" data-icon="check">check</span>
+</div>
+<span class="mt-4 text-[10px] uppercase font-bold text-secondary">Processing</span>
+</div>
+<div class="absolute -top-3 left-1/3 flex flex-col items-center">
+<div class="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary text-sm" data-icon="check">check</span>
+</div>
+<span class="mt-4 text-[10px] uppercase font-bold text-secondary">QA Testing</span>
+</div>
+<div class="absolute -top-3 left-2/3 flex flex-col items-center">
+<div class="w-6 h-6 rounded-full bg-secondary ring-4 ring-secondary/20 flex items-center justify-center">
+<div class="w-2 h-2 rounded-full bg-on-secondary animate-pulse"></div>
+</div>
+<span class="mt-4 text-[10px] uppercase font-bold text-on-surface">Shipping</span>
+</div>
+<div class="absolute -top-3 left-full -translate-x-full flex flex-col items-center">
+<div class="w-6 h-6 rounded-full bg-outline-variant flex items-center justify-center"></div>
+<span class="mt-4 text-[10px] uppercase font-bold text-outline">Delivered</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Sidebar Stats / Quick Links -->
+<aside class="lg:col-span-4 space-y-gutter">
+<div class="bg-secondary-container p-8 cut-corner text-on-secondary-container">
+<h4 class="font-headline-md text-headline-md uppercase mb-2">Ready to Drift?</h4>
+<p class="text-sm mb-6 opacity-80">Your custom sleeve configuration is optimized for track conditions in your area (72°F, Dry Asphalt).</p>
+<button class="w-full bg-on-secondary-container text-secondary-container py-3 font-label-bold text-label-bold uppercase rounded hover:opacity-90 transition-opacity">
+                                View Track Profile
+                            </button>
+</div>
+<div class="bg-surface-container p-6 rounded-xl border border-outline-variant/10">
+<h4 class="font-label-bold text-label-bold uppercase text-on-surface mb-6">Recent Activity</h4>
+<div class="space-y-6">
+<div class="flex gap-4">
+<div class="w-10 h-10 shrink-0 bg-primary/10 flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-primary" data-icon="shopping_bag">shopping_bag</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Replacement Sleeves Ordered</p>
+<p class="text-xs text-on-surface-variant">2 days ago</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="w-10 h-10 shrink-0 bg-secondary/10 flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-secondary" data-icon="star">star</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Achievement: Tire Shredder</p>
+<p class="text-xs text-on-surface-variant">Last Week</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="w-10 h-10 shrink-0 bg-outline-variant/10 flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="build">build</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface">Motor Service Logged</p>
+<p class="text-xs text-on-surface-variant">3 weeks ago</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Technical Specs Card -->
+<div class="bg-surface-container-lowest p-6 border border-outline-variant/20 rounded-xl technical-grid">
+<h4 class="text-outline text-[10px] uppercase font-bold tracking-widest mb-4">Firmware Status</h4>
+<div class="space-y-3">
+<div class="flex justify-between items-center py-2 border-b border-outline-variant/10">
+<span class="text-on-surface-variant text-sm">Controller Version</span>
+<span class="text-secondary font-mono text-sm">v4.2.1-stable</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-outline-variant/10">
+<span class="text-on-surface-variant text-sm">Battery Cycle Count</span>
+<span class="text-on-surface font-mono text-sm">124</span>
+</div>
+<div class="flex justify-between items-center py-2">
+<span class="text-on-surface-variant text-sm">Next Calibration</span>
+<span class="text-primary font-mono text-sm">12.11.24</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</div>
+<!-- Footer (Anchor: Shared Component) -->
+<footer class="w-full relative overflow-hidden bg-surface-container-lowest dark:bg-black border-t border-secondary/20 mt-16">
+<div class="bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.02)_25%,rgba(255,255,255,0.02)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.02)_75%)] bg-[length:20px_20px]">
+<div class="flex flex-col md:flex-row justify-between items-start w-full px-margin-desktop py-16 gap-gutter max-w-max-width mx-auto">
+<span class="font-display-lg text-display-lg text-on-surface/10 absolute opacity-20 pointer-events-none left-0 bottom-0 select-none">E-DRIFT</span>
+<div class="z-10">
+<p class="text-secondary dark:text-secondary-fixed font-body-md text-body-md uppercase font-bold mb-4">© 2024 E-DRIFT MOTORS. ENGINEERED FOR ADRENALINE.</p>
+</div>
+<div class="flex gap-8 z-10">
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="/support">Support</a>
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="#">Privacy</a>
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="/shipping-warranty">Shipping</a>
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="#">Terms</a>
+</div>
+</div>
+</div>
+</footer>
+</main>
+</div>
+<!-- Floating Action Button (FAB) - For Home/Dashboard Intent -->
+<button class="fixed bottom-8 right-8 bg-secondary text-on-secondary w-14 h-14 rounded-full shadow-2xl flex items-center justify-center group hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-2xl group-hover:rotate-12 transition-transform" data-icon="add">add</span>
+<div class="absolute right-16 bg-surface-container border border-outline-variant text-on-surface px-4 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap font-label-bold uppercase text-[10px] tracking-widest">
+            Log New Drift Session
+        </div>
+</button>
+<script>
+        // Micro-interactions for technical data
+        document.querySelectorAll('.cut-corner').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Smooth scroll for anchors
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body></html>

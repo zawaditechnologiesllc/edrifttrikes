@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PIT CREW SUPPORT | VOLT DRIFT</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .slant-divider {
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+        }
+        .technical-grid {
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .voltage-glow:focus-within {
+            box-shadow: 0 0 0 2px #b7c4ff;
+        }
+        .hazard-border {
+            border-bottom: 2px solid #c4f731;
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary": "#c4f731",
+                    "primary": "#b7c4ff",
+                    "surface-tint": "#b7c4ff",
+                    "on-secondary-fixed-variant": "#3a4d00",
+                    "outline": "#8d90a2",
+                    "secondary-fixed-dim": "#a6d700",
+                    "surface-container-highest": "#353438",
+                    "surface-variant": "#353438",
+                    "on-tertiary-container": "#ffeae4",
+                    "surface-container-low": "#1b1b1e",
+                    "on-primary-fixed-variant": "#0039b5",
+                    "on-tertiary": "#5e1700",
+                    "on-secondary-fixed": "#151f00",
+                    "on-primary-fixed": "#001551",
+                    "error": "#ffb4ab",
+                    "surface-container-high": "#2a2a2d",
+                    "inverse-primary": "#004cec",
+                    "on-primary-container": "#ecedff",
+                    "on-error-container": "#ffdad6",
+                    "inverse-on-surface": "#303033",
+                    "inverse-surface": "#e4e1e6",
+                    "on-error": "#690005",
+                    "tertiary-container": "#c53a00",
+                    "secondary-fixed": "#c1f42e",
+                    "tertiary": "#ffb59e",
+                    "background": "#131316",
+                    "outline-variant": "#434656",
+                    "surface-bright": "#39393c",
+                    "on-surface-variant": "#c3c5d9",
+                    "primary-fixed": "#dce1ff",
+                    "primary-container": "#1e5bff",
+                    "on-tertiary-fixed-variant": "#852400",
+                    "secondary-container": "#a9da00",
+                    "on-surface": "#e4e1e6",
+                    "error-container": "#93000a",
+                    "tertiary-fixed-dim": "#ffb59e",
+                    "surface": "#131316",
+                    "on-primary": "#002681",
+                    "surface-container-lowest": "#0e0e11",
+                    "on-tertiary-fixed": "#3a0b00",
+                    "primary-fixed-dim": "#b7c4ff",
+                    "on-secondary-container": "#455c00",
+                    "surface-dim": "#131316",
+                    "surface-container": "#1f1f22",
+                    "tertiary-fixed": "#ffdbd0",
+                    "on-secondary": "#273500",
+                    "on-background": "#e4e1e6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "unit": "4px",
+                    "margin-desktop": "64px",
+                    "margin-mobile": "16px",
+                    "max-width": "1440px"
+            },
+            "fontFamily": {
+                    "headline-xl": ["Anton"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "display-lg": ["Anton"],
+                    "label-bold": ["Inter"],
+                    "display-lg-mobile": ["Anton"],
+                    "headline-md": ["Anton"]
+            },
+            "fontSize": {
+                    "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                    "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                    "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-secondary selection:text-on-secondary-container">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 border-b border-white/10 bg-background/95 backdrop-blur-md">
+<div class="flex justify-between items-center px-margin-desktop py-4 max-w-max-width mx-auto">
+<div class="font-headline-md text-headline-md text-secondary uppercase italic">VOLT DRIFT</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="/shop">Trikes</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="#">Upgrades</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="/shop">Gear</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="#">Tech</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="#">Garage</a>
+</div>
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined cursor-pointer hover:text-secondary transition-colors" style="font-variation-settings: 'FILL' 0;">shopping_cart</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-secondary transition-colors" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+</div>
+</div>
+</nav>
+<main class="pt-24">
+<!-- Hero Section -->
+<section class="relative h-[400px] flex items-center overflow-hidden bg-surface-container-lowest slant-divider">
+
+<div class="absolute inset-0 technical-grid opacity-20"></div>
+<div class="relative px-margin-desktop max-w-max-width mx-auto w-full">
+<div class="inline-block bg-secondary text-on-secondary px-3 py-1 mb-4 font-label-bold text-label-bold tracking-widest skew-x-[-15deg]">
+<span class="inline-block skew-x-[15deg]">SYSTEM STATUS: ONLINE</span>
+</div>
+<h1 class="font-display-lg text-display-lg text-on-surface uppercase leading-none tracking-tighter">PIT CREW <br/><span class="text-secondary">SUPPORT</span></h1>
+<p class="max-w-2xl text-body-lg text-on-surface-variant mt-6">Professional grade assistance for the electric drift community. Tuning, maintenance, and technical logistics.</p>
+</div>
+</section>
+<!-- Section 1: Quick Links -->
+<section class="px-margin-desktop py-20 max-w-max-width mx-auto">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Card 1 -->
+<div class="group relative bg-surface-container-low p-8 rounded-lg border border-white/10 hover:border-secondary/50 transition-all duration-300 hover:translate-y-[-4px]">
+<div class="mb-6">
+<span class="material-symbols-outlined text-secondary text-4xl">local_shipping</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-2">ORDER TRACKING</h3>
+<p class="text-on-surface-variant mb-6">Monitor your drift machine's journey from our assembly line to your door.</p>
+<a class="inline-flex items-center text-primary font-label-bold hover:gap-3 transition-all" href="#">
+                        LOCATE SHIPMENT <span class="material-symbols-outlined ml-2">arrow_forward</span>
+</a>
+<div class="absolute bottom-0 left-0 w-0 h-1 bg-secondary group-hover:w-full transition-all duration-500"></div>
+</div>
+<!-- Card 2 -->
+<div class="group relative bg-surface-container-low p-8 rounded-lg border border-white/10 hover:border-secondary/50 transition-all duration-300 hover:translate-y-[-4px]">
+<div class="mb-6">
+<span class="material-symbols-outlined text-secondary text-4xl">menu_book</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-2">MANUALS</h3>
+<p class="text-on-surface-variant mb-6">Schematics, assembly guides, and software update logs for all Volt models.</p>
+<a class="inline-flex items-center text-primary font-label-bold hover:gap-3 transition-all" href="#">
+                        DOWNLOAD PDF <span class="material-symbols-outlined ml-2">download</span>
+</a>
+<div class="absolute bottom-0 left-0 w-0 h-1 bg-secondary group-hover:w-full transition-all duration-500"></div>
+</div>
+<!-- Card 3 -->
+<div class="group relative bg-surface-container-low p-8 rounded-lg border border-white/10 hover:border-secondary/50 transition-all duration-300 hover:translate-y-[-4px]">
+<div class="mb-6">
+<span class="material-symbols-outlined text-secondary text-4xl">assignment_return</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-2">RETURNS</h3>
+<p class="text-on-surface-variant mb-6">Component failure or change of heart? Start the RMA process here.</p>
+<a class="inline-flex items-center text-primary font-label-bold hover:gap-3 transition-all" href="#">
+                        START RETURN <span class="material-symbols-outlined ml-2">restart_alt</span>
+</a>
+<div class="absolute bottom-0 left-0 w-0 h-1 bg-secondary group-hover:w-full transition-all duration-500"></div>
+</div>
+</div>
+</section>
+<!-- Section 2: Technical FAQ -->
+<section class="bg-surface-container-lowest py-24 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
+<div class="w-full h-full technical-grid"></div>
+</div>
+<div class="px-margin-desktop max-w-max-width mx-auto">
+<div class="flex flex-col md:flex-row gap-16">
+<div class="md:w-1/3">
+<h2 class="font-display-lg text-headline-xl text-on-surface uppercase mb-6">TECH SPECS <br/>&amp; <span class="text-secondary">FAQ</span></h2>
+<div class="w-16 h-1 bg-secondary mb-8"></div>
+<p class="text-on-surface-variant body-lg">Deep-dive technical knowledge for maintenance and performance optimization.</p>
+</div>
+<div class="md:w-2/3 space-y-4">
+<!-- FAQ Item 1 -->
+<details class="group bg-background border border-white/10 rounded-lg overflow-hidden transition-all duration-300">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="font-headline-md text-[24px] uppercase tracking-tight">01. BATTERY SAFETY &amp; STORAGE</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5 bg-surface-container-low/50">
+<ul class="space-y-4 pt-4">
+<li class="flex gap-3">
+<div class="w-2 h-2 bg-secondary mt-2 shrink-0"></div>
+<span>Always store batteries at 40-60% charge for long-term inactivity.</span>
+</li>
+<li class="flex gap-3">
+<div class="w-2 h-2 bg-secondary mt-2 shrink-0"></div>
+<span>Use only the official VOLT DRIFT high-current balancing charger.</span>
+</li>
+<li class="flex gap-3">
+<div class="w-2 h-2 bg-secondary mt-2 shrink-0"></div>
+<span>Operating temperature range: -5°C to 45°C. Performance may drop below zero.</span>
+</li>
+</ul>
+</div>
+</details>
+<!-- FAQ Item 2 -->
+<details class="group bg-background border border-white/10 rounded-lg overflow-hidden transition-all duration-300">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="font-headline-md text-[24px] uppercase tracking-tight">02. REAR SLEEVE MAINTENANCE</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5 bg-surface-container-low/50">
+<p class="pt-4">Polypropylene sleeves are consumables. Check for cracks every 5 hours of drift time. Replace immediately if core wheel exposure exceeds 15%.</p>
+</div>
+</details>
+<!-- FAQ Item 3 -->
+<details class="group bg-background border border-white/10 rounded-lg overflow-hidden transition-all duration-300">
+<summary class="flex justify-between items-center p-6 cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="font-headline-md text-[24px] uppercase tracking-tight">03. MOTOR TUNING &amp; FIRMWARE</span>
+<span class="material-symbols-outlined group-open:rotate-180 transition-transform">expand_more</span>
+</summary>
+<div class="p-6 pt-0 text-on-surface-variant border-t border-white/5 bg-surface-container-low/50">
+<p class="pt-4">Connect via USB-C to the VOLT DRIFT Configurator. Current limiters can be adjusted for "Expert Mode," but this may void warranty on standard motor coils.</p>
+</div>
+</details>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: Contact Form -->
+<section class="px-margin-desktop py-24 max-w-max-width mx-auto">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-24 items-start">
+<div>
+<h2 class="font-headline-xl text-headline-xl uppercase mb-8">SUBMIT A <span class="text-primary">TECH TICKET</span></h2>
+<p class="text-on-surface-variant mb-12">Facing a technical roadblock? Our engineering team monitors these inquiries for complex diagnostics and custom hardware support.</p>
+<div class="space-y-8">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-secondary p-3 bg-surface-container-low rounded-lg">build</span>
+<div>
+<h4 class="font-label-bold uppercase">Engineering Review</h4>
+<p class="text-sm text-on-surface-variant">Tickets are reviewed by mechanical engineers, not just support agents.</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-secondary p-3 bg-surface-container-low rounded-lg">speed</span>
+<div>
+<h4 class="font-label-bold uppercase">Rapid Response</h4>
+<p class="text-sm text-on-surface-variant">Average response time: 4.5 business hours for verified owners.</p>
+</div>
+</div>
+</div>
+<div class="mt-16 rounded-lg overflow-hidden border border-white/10 group">
+<div class="w-full h-48 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" data-alt="A high-contrast macro shot of a disassembled electric drift trike hub motor, revealing copper coils and precision engineering, styled with industrial blueprint lines and a tech-noir lighting palette." style="background-image: url('/assets/motor-72v-hub.jpg')"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-10 rounded-lg border border-white/10 voltage-glow transition-all">
+<form class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="font-label-bold text-xs uppercase tracking-widest text-on-surface-variant">Your Name</label>
+<input class="w-full bg-background border border-white/10 rounded-sm px-4 py-3 focus:border-primary focus:ring-0 outline-none transition-colors" placeholder="DRIFTER NAME" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-bold text-xs uppercase tracking-widest text-on-surface-variant">Chassis Serial #</label>
+<input class="w-full bg-background border border-white/10 rounded-sm px-4 py-3 focus:border-primary focus:ring-0 outline-none transition-colors" placeholder="VD-XXXX-XXXX" type="text"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label-bold text-xs uppercase tracking-widest text-on-surface-variant">Inquiry Category</label>
+<select class="w-full bg-background border border-white/10 rounded-sm px-4 py-3 focus:border-primary focus:ring-0 outline-none transition-colors appearance-none">
+<option>Electronic Speed Control (ESC) Issues</option>
+<option>Battery/BMS Management</option>
+<option>Chassis/Frame Stress</option>
+<option>Software Bug Report</option>
+<option>Custom Modification Advice</option>
+</select>
+</div>
+<div class="space-y-2">
+<label class="font-label-bold text-xs uppercase tracking-widest text-on-surface-variant">Technical Details</label>
+<textarea class="w-full bg-background border border-white/10 rounded-sm px-4 py-3 focus:border-primary focus:ring-0 outline-none transition-colors resize-none" placeholder="Describe the behavior, voltage readings, and environment..." rows="5"></textarea>
+</div>
+<button class="w-full bg-secondary text-on-secondary py-4 font-headline-md text-[20px] uppercase tracking-tighter hover:bg-secondary-fixed-dim transition-colors active:scale-95 duration-200" type="submit">
+                            TRANSMIT DATA
+                        </button>
+</form>
+</div>
+</div>
+</section>
+<!-- Section 4: Global Contact Options -->
+<section class="bg-primary-container/10 border-y border-white/5 py-20">
+<div class="px-margin-desktop max-w-max-width mx-auto">
+<div class="text-center mb-16">
+<h2 class="font-display-lg text-headline-xl uppercase">IMMEDIATE <span class="text-secondary">COMMUNICATION</span></h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Discord -->
+<div class="bg-background/40 backdrop-blur p-8 text-center border border-white/5 hover:border-secondary transition-colors">
+<span class="material-symbols-outlined text-secondary text-5xl mb-4" style="font-variation-settings: 'FILL' 1;">forum</span>
+<h4 class="font-headline-md text-[24px] uppercase mb-2">DISCORD COMMUNITY</h4>
+<p class="text-on-surface-variant mb-6 text-sm">Join the 'Paddock' for real-time peer support and dev talk.</p>
+<a class="block bg-on-surface text-background py-2 px-4 font-label-bold uppercase text-xs hover:bg-secondary transition-colors" href="#">JOIN SERVER</a>
+</div>
+<!-- Email -->
+<div class="bg-background/40 backdrop-blur p-8 text-center border border-white/5 hover:border-secondary transition-colors">
+<span class="material-symbols-outlined text-secondary text-5xl mb-4" style="font-variation-settings: 'FILL' 1;">mail</span>
+<h4 class="font-headline-md text-[24px] uppercase mb-2">DIRECT EMAIL</h4>
+<p class="text-on-surface-variant mb-6 text-sm">For official business, partnership, or legal inquiries.</p>
+<p class="font-label-bold text-primary">PITCREW@VOLTDRIFT.TECH</p>
+</div>
+<!-- Phone -->
+<div class="bg-background/40 backdrop-blur p-8 text-center border border-white/5 hover:border-secondary transition-colors">
+<span class="material-symbols-outlined text-secondary text-5xl mb-4" style="font-variation-settings: 'FILL' 1;">call</span>
+<h4 class="font-headline-md text-[24px] uppercase mb-2">HOTLINE</h4>
+<p class="text-on-surface-variant mb-6 text-sm">Available Mon-Fri, 9AM-5PM PST for urgent logistics.</p>
+<p class="font-label-bold text-primary">+1 (888) DRIFT-ON</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full mt-margin-desktop border-t border-white/10 bg-surface-container-lowest">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter px-margin-desktop py-16 max-w-max-width mx-auto">
+<div class="md:col-span-1">
+<div class="font-headline-md text-headline-md text-on-surface mb-6">VOLT DRIFT</div>
+<p class="text-on-surface-variant text-body-md opacity-60">High-performance electric drifting engineering for the street expert.</p>
+</div>
+<div>
+<h5 class="text-secondary font-label-bold uppercase mb-6 tracking-widest text-xs">Resources</h5>
+<ul class="space-y-3">
+<li><a class="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="#">Manuals</a></li>
+<li><a class="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="#">Safety Data</a></li>
+<li><a class="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="#">Battery Tech</a></li>
+</ul>
+</div>
+<div>
+<h5 class="text-secondary font-label-bold uppercase mb-6 tracking-widest text-xs">Support</h5>
+<ul class="space-y-3">
+<li><a class="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="/shipping-warranty">Shipping</a></li>
+<li><a class="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="/shipping-warranty">Warranty</a></li>
+<li><a class="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="/support">Contact</a></li>
+</ul>
+</div>
+<div>
+<h5 class="text-secondary font-label-bold uppercase mb-6 tracking-widest text-xs">Stay Synced</h5>
+<div class="flex border-b border-white/20 pb-2">
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full p-0" placeholder="EMAIL ADDRESS" type="email"/>
+<button class="material-symbols-outlined text-secondary">trending_flat</button>
+</div>
+</div>
+</div>
+<div class="px-margin-desktop py-8 border-t border-white/5 max-w-max-width mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="text-on-surface-variant text-body-md text-[12px] uppercase tracking-widest">© 2024 VOLT DRIFT ENGINEERING. ALL RIGHTS RESERVED.</div>
+<div class="flex gap-6 text-[12px] font-label-bold text-on-surface-variant">
+<a class="hover:text-secondary transition-colors" href="#">PRIVACY</a>
+<a class="hover:text-secondary transition-colors" href="#">TERMS</a>
+<a class="hover:text-secondary transition-colors" href="#">COOKIES</a>
+</div>
+</div>
+</footer>
+<script>
+        // Micro-interactions for form submission feedback
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalText = btn.textContent;
+            btn.textContent = 'TRANSMITTING...';
+            btn.classList.add('bg-primary', 'text-on-primary');
+            
+            setTimeout(() => {
+                btn.textContent = 'DATA SENT';
+                btn.classList.replace('bg-primary', 'bg-green-500');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('bg-green-500', 'text-on-primary');
+                    btn.classList.add('bg-secondary', 'text-on-secondary');
+                    e.target.reset();
+                }, 2000);
+            }, 1500);
+        });
+
+        // Dynamic header background
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 50) {
+                nav.classList.add('py-2');
+                nav.classList.remove('py-4');
+            } else {
+                nav.classList.add('py-4');
+                nav.classList.remove('py-2');
+            }
+        });
+    </script>
+</body></html>

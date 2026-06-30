@@ -80,6 +80,24 @@ exports are used as the single responsive source for each page.
 | `/wishlist` | Parts bin / wishlist |
 | `*` | 404 "Off Track" |
 
+## Design archive — every screen
+
+Beyond the curated app routes above, **every** screen from the Stitch export —
+all 41, mobile + desktop, including each design variant (v2, high-conversion,
+pro-engineered) — is preserved verbatim:
+
+- Browse them all at **`/screens`** (a gallery grouped by page, with thumbnails
+  and Mobile/Desktop badges). A floating **"All Screens"** link on every app
+  page jumps here.
+- Each screen is served faithfully from `public/design/<slug>.html`, rendered
+  exactly as designed, top to bottom, with its original scripts intact — so all
+  tabs, mega-menus, drawers, accordions, and steppers work natively. Imagery is
+  migrated to the local `/assets`, and primary nav links route into the app.
+
+So the project contains two layers: the **curated responsive app** (clean URLs,
+the foundation you build on) and the **complete faithful archive** (every
+exported design, untouched).
+
 ## Getting started
 
 ```bash

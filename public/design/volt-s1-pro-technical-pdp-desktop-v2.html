@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VOLT-S1 Pro | E-DRIFT MOTORS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#434656",
+                        "inverse-on-surface": "#303033",
+                        "surface-container": "#1f1f22",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#ffdbd0",
+                        "on-tertiary": "#5e1700",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "secondary-fixed": "#c1f42e",
+                        "primary": "#b7c4ff",
+                        "on-error-container": "#ffdad6",
+                        "secondary-container": "#a9da00",
+                        "outline": "#8d90a2",
+                        "background": "#131316",
+                        "surface": "#131316",
+                        "surface-container-highest": "#353438",
+                        "on-surface-variant": "#c3c5d9",
+                        "inverse-primary": "#004cec",
+                        "surface-bright": "#39393c",
+                        "on-surface": "#e4e1e6",
+                        "on-secondary": "#273500",
+                        "secondary-fixed-dim": "#a6d700",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "surface-container-high": "#2a2a2d",
+                        "on-primary-fixed": "#001551",
+                        "on-primary": "#002681",
+                        "surface-variant": "#353438",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "secondary": "#c4f731",
+                        "on-tertiary-fixed": "#3a0b00",
+                        "on-secondary-fixed": "#151f00",
+                        "error": "#ffb4ab",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "tertiary-container": "#c53a00",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "inverse-surface": "#e4e1e6",
+                        "surface-container-lowest": "#0e0e11",
+                        "on-error": "#690005",
+                        "on-background": "#e4e1e6",
+                        "surface-container-low": "#1b1b1e",
+                        "on-tertiary-container": "#ffeae4",
+                        "tertiary": "#ffb59e",
+                        "surface-dim": "#131316",
+                        "primary-container": "#1e5bff",
+                        "on-primary-container": "#ecedff",
+                        "surface-tint": "#b7c4ff",
+                        "on-secondary-container": "#455c00",
+                        "primary-fixed": "#dce1ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "8px",
+                        "xl": "12px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "max-width": "1440px",
+                        "unit": "4px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Anton"],
+                        "body-md": ["Inter"],
+                        "display-lg-mobile": ["Anton"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Anton"],
+                        "display-lg": ["Anton"],
+                        "label-bold": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .power-slant {
+            clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%);
+        }
+        .technical-grid {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .kinetic-btn {
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .kinetic-btn:hover {
+            transform: skewX(-6deg) scale(1.02);
+        }
+        .hazard-stripes {
+            background: repeating-linear-gradient(
+                45deg,
+                #c4f731,
+                #c4f731 10px,
+                #131316 10px,
+                #131316 20px
+            );
+        }
+        .speed-line {
+            background: linear-gradient(90deg, transparent, rgba(196, 247, 49, 0.2), transparent);
+            height: 1px;
+            width: 100%;
+        }
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .scan-line {
+            animation: scan 2s linear infinite;
+        }
+        @keyframes pulse-opacity {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.1; }
+        }
+        .skeleton-pulse {
+            animation: pulse-opacity 1.5s ease-in-out infinite;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0e0e11; }
+        ::-webkit-scrollbar-thumb { background: #353438; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #c4f731; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md selection:bg-secondary selection:text-on-secondary">
+<!-- TopNavBar -->
+<header class="w-full top-0 sticky z-50 bg-surface/80 backdrop-blur-md border-b border-white/10">
+<nav class="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
+<div class="font-headline-md text-headline-md text-secondary tracking-tighter uppercase">E-DRIFT</div>
+<div class="hidden md:flex gap-8 items-center">
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="/shop">TRIKES</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="/shop">PARTS</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="/shop">GEAR</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="/tech-lab">THE GARAGE</a>
+</div>
+<div class="flex items-center gap-6 text-primary dark:text-primary-fixed-dim">
+<button class="material-symbols-outlined hover:bg-white/5 p-2 rounded-full transition-all">shopping_cart</button>
+<button class="material-symbols-outlined hover:bg-white/5 p-2 rounded-full transition-all">person</button>
+</div>
+</nav>
+</header>
+<main class="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-12">
+<!-- PDP TOP SECTION -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+<!-- Left: Asymmetrical Gallery -->
+<div class="lg:col-span-7">
+<div class="grid grid-cols-6 grid-rows-6 gap-4 h-[700px]">
+<div class="col-span-4 row-span-4 bg-surface-container-low rounded-xl overflow-hidden border border-white/5 relative group">
+<img alt="VOLT-S1 Main" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="/assets/volt-s1-pro-hero.jpg"/>
+<div class="absolute top-4 left-4 z-10">
+<span class="bg-secondary text-on-secondary font-label-bold text-xs py-1 px-3 rounded uppercase tracking-wider">High Performance</span>
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
+</div>
+<div class="col-span-2 row-span-2 bg-surface-container-low rounded-xl overflow-hidden border border-white/5 group">
+<img alt="Control detail" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="/assets/volt-s1-pro-cockpit.jpg"/>
+</div>
+<div class="col-span-2 row-span-2 bg-surface-container-low rounded-xl overflow-hidden border border-white/5 group">
+<img alt="Wheel detail" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="/assets/motor-72v-hub.jpg"/>
+</div>
+<div class="col-span-2 row-span-2 bg-surface-container-low rounded-xl border border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-secondary text-3xl">play_circle</span>
+<span class="text-xs font-label-bold mt-2 tracking-widest uppercase">Field Test</span>
+</div>
+<div class="col-span-4 row-span-2 bg-surface-container-low rounded-xl border border-white/5 p-6 relative overflow-hidden">
+<div class="scan-line absolute left-0 right-0 h-px bg-secondary/30"></div>
+<div class="flex flex-col h-full justify-between">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-label-bold text-secondary uppercase tracking-[0.2em]">Diagnostic Shell</span>
+<span class="text-[10px] font-label-bold text-on-surface-variant">LVL-4 CERTIFIED</span>
+</div>
+<div class="flex gap-4">
+<div class="flex-1 h-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-3/4"></div>
+</div>
+<div class="flex-1 h-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-1/2"></div>
+</div>
+</div>
+<div class="font-mono text-[10px] text-on-surface-variant flex gap-4">
+<span>STATUS: READY</span>
+<span>TEMP: 32°C</span>
+<span>ID: V-S1-P-001</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Buy Box -->
+<div class="lg:col-span-5 flex flex-col">
+<div class="sticky top-24 space-y-8">
+<div class="space-y-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-secondary rounded-full animate-pulse"></div>
+<span class="text-secondary font-label-bold text-xs uppercase tracking-widest">In Stock - Ready for Shipping</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl uppercase">VOLT-S1 PRO</h1>
+<p class="text-on-surface-variant font-body-md leading-relaxed">Engineered for the clinical precision of professional drifting. Aircraft-grade chromoly chassis paired with our proprietary high-torque axial flux hub motor.</p>
+</div>
+<div class="p-6 border border-white/10 rounded-xl bg-surface-container-lowest relative overflow-hidden">
+<!-- Low Stock Hazard Bar -->
+<div class="absolute top-0 left-0 right-0 h-1.5 hazard-stripes opacity-80"></div>
+<div class="flex justify-between items-end mb-6">
+<div class="space-y-1">
+<span class="text-error font-label-bold text-[10px] uppercase tracking-tighter flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">bolt</span> LOW VOLTAGE (ONLY 3 LEFT)
+                                </span>
+<div class="text-4xl font-headline-md">$2,499.00</div>
+</div>
+<div class="text-right">
+<span class="text-[10px] text-on-surface-variant block uppercase">Finance from</span>
+<span class="font-label-bold text-primary">$120/mo</span>
+</div>
+</div>
+<div class="space-y-4">
+<button class="kinetic-btn w-full bg-secondary text-on-secondary font-label-bold py-5 rounded-lg uppercase tracking-widest flex items-center justify-center gap-3">
+<span>Add to Racing Stable</span>
+<span class="material-symbols-outlined text-xl">keyboard_double_arrow_right</span>
+</button>
+<button class="kinetic-btn w-full border border-white/10 hover:bg-white/5 font-label-bold py-5 rounded-lg uppercase tracking-widest transition-colors">
+                                Custom Build Configurator
+                            </button>
+</div>
+</div>
+<!-- Trust Signals Sidebar -->
+<div class="grid grid-cols-2 gap-4">
+<div class="p-4 border border-white/5 rounded-lg bg-surface-container flex items-center gap-4 group hover:border-secondary/30 transition-colors cursor-default">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors">
+<span class="material-symbols-outlined text-xl">public</span>
+</div>
+<div>
+<div class="text-xs font-label-bold uppercase tracking-wide">Worldwide</div>
+<div class="text-[10px] text-on-surface-variant">Global Express Ops</div>
+</div>
+</div>
+<div class="p-4 border border-white/5 rounded-lg bg-surface-container flex items-center gap-4 group hover:border-secondary/30 transition-colors cursor-default">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors">
+<span class="material-symbols-outlined text-xl">verified</span>
+</div>
+<div>
+<div class="text-xs font-label-bold uppercase tracking-wide">Certified</div>
+<div class="text-[10px] text-on-surface-variant">24/7 Tech Support</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Technical Specs Overhaul -->
+<div class="mt-24 space-y-12">
+<div class="flex items-center gap-6">
+<h2 class="font-headline-md text-headline-md uppercase shrink-0">Live Performance Log</h2>
+<div class="speed-line flex-grow"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 relative">
+<!-- Skeleton Loader State (Visible by default in this overhaul context) -->
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-label-bold text-on-surface-variant uppercase tracking-widest">Torque Curve</span>
+<span class="text-secondary font-mono text-xs">85Nm</span>
+</div>
+<div class="h-24 bg-surface-container rounded border border-white/5 relative overflow-hidden">
+<div class="absolute inset-0 skeleton-pulse bg-secondary/10"></div>
+<div class="absolute bottom-0 left-0 w-full h-full flex items-end px-2 gap-1">
+<div class="flex-1 bg-secondary/20 h-[20%]"></div>
+<div class="flex-1 bg-secondary/30 h-[40%]"></div>
+<div class="flex-1 bg-secondary/40 h-[70%]"></div>
+<div class="flex-1 bg-secondary/60 h-[85%]"></div>
+<div class="flex-1 bg-secondary/40 h-[60%]"></div>
+</div>
+</div>
+<p class="text-xs text-on-surface-variant font-mono">Real-time telemetry enabled via Bluetooth 5.2</p>
+</div>
+<div class="space-y-4 border-l border-white/10 pl-8">
+<div class="text-[10px] font-label-bold text-on-surface-variant uppercase tracking-widest">Velocity</div>
+<div class="text-4xl font-headline-md">45 MPH</div>
+<div class="speed-line my-4"></div>
+<div class="text-xs space-y-2">
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Acceleration (0-30)</span>
+<span class="font-mono">3.2s</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Top Speed Mode</span>
+<span class="font-mono">UNLOCKED</span>
+</div>
+</div>
+</div>
+<div class="space-y-4 border-l border-white/10 pl-8">
+<div class="text-[10px] font-label-bold text-on-surface-variant uppercase tracking-widest">Energy Core</div>
+<div class="text-4xl font-headline-md">72V / 30AH</div>
+<div class="speed-line my-4"></div>
+<div class="text-xs space-y-2">
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Cell Type</span>
+<span class="font-mono">LG 21700</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Cycles</span>
+<span class="font-mono">2000+</span>
+</div>
+</div>
+</div>
+<div class="space-y-4 border-l border-white/10 pl-8">
+<div class="text-[10px] font-label-bold text-on-surface-variant uppercase tracking-widest">Chassis</div>
+<div class="text-4xl font-headline-md">4130 STEEL</div>
+<div class="speed-line my-4"></div>
+<div class="text-xs space-y-2">
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Frame Weight</span>
+<span class="font-mono">12.4kg</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Rear Axle</span>
+<span class="font-mono">Reinforced 50mm</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="mt-24 border-t border-white/10 py-12 px-margin-desktop bg-surface-container-lowest">
+<div class="max-w-max-width mx-auto flex flex-col md:flex-row justify-between items-start gap-8">
+<div class="space-y-4 max-w-sm">
+<div class="font-headline-md text-secondary uppercase">E-DRIFT</div>
+<p class="text-sm text-on-surface-variant">Precision instruments for the modern drifter. Laboratory tested. Track proven. Est. 2024.</p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-12">
+<div class="space-y-4">
+<h4 class="text-xs font-label-bold uppercase tracking-widest text-on-surface">Mission</h4>
+<ul class="text-xs text-on-surface-variant space-y-2">
+<li><a class="hover:text-secondary" href="#">Technology</a></li>
+<li><a class="hover:text-secondary" href="#">Safety</a></li>
+<li><a class="hover:text-secondary" href="#">Team</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h4 class="text-xs font-label-bold uppercase tracking-widest text-on-surface">Protocols</h4>
+<ul class="text-xs text-on-surface-variant space-y-2">
+<li><a class="hover:text-secondary" href="/shipping-warranty">Shipping</a></li>
+<li><a class="hover:text-secondary" href="/shipping-warranty">Returns</a></li>
+<li><a class="hover:text-secondary" href="#">Privacy</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h4 class="text-xs font-label-bold uppercase tracking-widest text-on-surface">Connect</h4>
+<ul class="text-xs text-on-surface-variant space-y-2">
+<li><a class="hover:text-secondary" href="#">Instagram</a></li>
+<li><a class="hover:text-secondary" href="#">Discord</a></li>
+<li><a class="hover:text-secondary" href="/support">Support</a></li>
+</ul>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

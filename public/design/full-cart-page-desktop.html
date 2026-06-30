@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>E-DRIFT | YOUR GARAGE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .technical-grid {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .slant-divider {
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+        }
+        .cut-corner {
+            clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%, 0 25%);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0e0e11; }
+        ::-webkit-scrollbar-thumb { background: #1e5bff; border-radius: 10px; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#c3c5d9",
+                        "on-secondary": "#273500",
+                        "surface-dim": "#131316",
+                        "on-tertiary-fixed": "#3a0b00",
+                        "on-secondary-fixed-variant": "#3a4d00",
+                        "tertiary-fixed": "#ffdbd0",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "on-secondary-fixed": "#151f00",
+                        "secondary-fixed-dim": "#a6d700",
+                        "tertiary": "#ffb59e",
+                        "tertiary-container": "#c53a00",
+                        "primary-container": "#1e5bff",
+                        "surface-bright": "#39393c",
+                        "on-tertiary-container": "#ffeae4",
+                        "inverse-on-surface": "#303033",
+                        "primary-fixed": "#dce1ff",
+                        "on-primary-fixed": "#001551",
+                        "surface-container-highest": "#353438",
+                        "surface-container": "#1f1f22",
+                        "surface-container-lowest": "#0e0e11",
+                        "primary": "#b7c4ff",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#852400",
+                        "on-primary": "#002681",
+                        "surface-container-high": "#2a2a2d",
+                        "on-tertiary": "#5e1700",
+                        "error": "#ffb4ab",
+                        "on-surface": "#e4e1e6",
+                        "on-secondary-container": "#455c00",
+                        "background": "#131316",
+                        "secondary": "#c4f731",
+                        "inverse-surface": "#e4e1e6",
+                        "on-primary-container": "#ecedff",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "surface-tint": "#b7c4ff",
+                        "surface-container-low": "#1b1b1e",
+                        "secondary-fixed": "#c1f42e",
+                        "surface": "#131316",
+                        "surface-variant": "#353438",
+                        "on-error": "#690005",
+                        "on-background": "#e4e1e6",
+                        "outline": "#8d90a2",
+                        "outline-variant": "#434656",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#004cec",
+                        "on-primary-fixed-variant": "#0039b5",
+                        "secondary-container": "#a9da00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "max-width": "1440px"
+                    },
+                    "fontFamily": {
+                        "label-bold": ["Inter"],
+                        "display-lg": ["Anton"],
+                        "body-lg": ["Inter"],
+                        "display-lg-mobile": ["Anton"],
+                        "headline-md": ["Anton"],
+                        "headline-xl": ["Anton"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "display-lg": ["84px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body-md overflow-x-hidden selection:bg-secondary selection:text-on-secondary">
+<!-- TopNavBar -->
+<header class="w-full top-0 sticky bg-surface dark:bg-surface-container-lowest border-b border-white/10 z-50">
+<div class="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
+<a class="font-headline-md text-headline-md text-secondary tracking-tighter" href="/">E-DRIFT</a>
+<nav class="hidden md:flex items-center gap-8">
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">TRIKES</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+<a class="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="/tech-lab">THE GARAGE</a>
+</nav>
+<div class="flex items-center gap-6">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all active:scale-90" data-icon="search">search</button>
+<div class="relative">
+<button class="material-symbols-outlined text-primary transition-all active:scale-90" data-icon="shopping_cart">shopping_cart</button>
+<span class="absolute -top-2 -right-2 bg-secondary text-on-secondary text-[10px] font-bold px-1.5 py-0.5 rounded-full">1</span>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all active:scale-90" data-icon="person">person</button>
+</div>
+</div>
+</header>
+<main class="technical-grid min-h-screen pt-12 pb-24">
+<div class="max-w-max-width mx-auto px-margin-desktop">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 mb-4">
+<a class="font-label-bold text-label-bold text-on-surface-variant/60 hover:text-on-surface transition-colors" href="#">HOME</a>
+<span class="material-symbols-outlined text-on-surface-variant/40 text-sm">chevron_right</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">CART</span>
+</nav>
+<!-- Title -->
+<h1 class="font-headline-xl text-headline-xl mb-12 uppercase">YOUR GARAGE</h1>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+<!-- Main Cart Column -->
+<div class="lg:col-span-8 space-y-gutter">
+<!-- Free Shipping Progress -->
+<div class="bg-surface-container p-6 border-l-4 border-primary shadow-lg">
+<div class="flex justify-between items-center mb-4">
+<p class="font-label-bold text-label-bold text-primary">FREE WORLDWIDE SHIPPING TARGET</p>
+<p class="font-label-bold text-label-bold text-on-surface-variant">$1,200.00 TO GO</p>
+</div>
+<div class="w-full h-2 bg-white/10 overflow-hidden">
+<div class="h-full bg-primary w-3/4 relative">
+<div class="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[length:10px_10px] animate-[move_1s_linear_infinite]"></div>
+</div>
+</div>
+<style>
+                            @keyframes move { 0% { background-position: 0 0; } 100% { background-position: 10px 0; } }
+                        </style>
+</div>
+<!-- Line Items List -->
+<div class="space-y-4">
+<!-- Item 1 -->
+<div class="bg-surface-container-low border border-white/5 flex gap-6 p-6 group hover:border-primary/20 transition-all">
+<div class="w-48 h-48 bg-black overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="A high-end electric drift trike with a vibrant blue tubular frame, thick racing slick tires, and a minimalist carbon fiber seat, shot in a clinical studio setting with cool industrial lighting and metallic accents of the E-DRIFT brand." src="/assets/action-mid-slide.jpg"/>
+</div>
+<div class="flex-grow flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div>
+<div class="bg-secondary text-on-secondary text-[10px] font-bold px-2 py-0.5 mb-2 inline-block cut-corner">LIMITED EDITION</div>
+<h3 class="font-headline-md text-headline-md text-on-surface uppercase leading-none">VOLTAGE BLUE DRIFT RIG</h3>
+<p class="text-on-surface-variant font-label-bold mt-1">VARIANT: 72V BRUSHLESS BEAST</p>
+</div>
+<p class="font-headline-md text-headline-md text-primary">$3,499.00</p>
+</div>
+<div class="flex items-center justify-between mt-6">
+<div class="flex items-center border border-white/10 rounded-sm">
+<button class="px-3 py-2 hover:bg-white/5 transition-colors text-on-surface-variant hover:text-white" onclick="this.nextElementSibling.stepDown()">
+<span class="material-symbols-outlined text-sm">remove</span>
+</button>
+<input class="w-12 bg-transparent border-none text-center font-label-bold focus:ring-0" min="1" type="number" value="1"/>
+<button class="px-3 py-2 hover:bg-white/5 transition-colors text-on-surface-variant hover:text-white" onclick="this.previousElementSibling.stepUp()">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+<button class="flex items-center gap-2 text-on-surface-variant/40 hover:text-error transition-colors uppercase font-label-bold text-xs tracking-widest">
+<span class="material-symbols-outlined text-lg">delete_outline</span>
+                                        REMOVE
+                                    </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Cross-sell Section -->
+<section class="pt-12">
+<div class="flex items-center gap-4 mb-8">
+<h2 class="font-headline-md text-headline-md uppercase text-secondary">FREQUENTLY BOUGHT WITH YOUR RIG</h2>
+<div class="h-[1px] flex-grow bg-secondary/20"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Cross-sell Card 1 -->
+<div class="bg-surface-container-high border border-white/5 p-4 flex gap-4 group cursor-pointer hover:border-secondary transition-all">
+<div class="w-24 h-24 bg-black overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="Close up of high-performance translucent blue PVC drift sleeves for trike wheels, showing technical textures and industrial engineering details on a white background with subtle blue reflections." src="/assets/motor-72v-hub.jpg"/>
+</div>
+<div class="flex flex-col justify-between py-1">
+<div>
+<h4 class="font-label-bold text-on-surface uppercase tracking-tight">HIGH-PERFORMANCE SLEEVES</h4>
+<p class="text-xs text-on-surface-variant">V3 ULTRA-SLIP COMPOUND</p>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-secondary font-label-bold">$89.00</span>
+<button class="bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined text-sm">add_shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Cross-sell Card 2 -->
+<div class="bg-surface-container-high border border-white/5 p-4 flex gap-4 group cursor-pointer hover:border-secondary transition-all">
+<div class="w-24 h-24 bg-black overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="An electric drift trike motor showing internal copper coils and a blue anodized aluminum housing, featuring high-torque brushless components and heavy-duty cabling, professional studio lighting." src="/assets/parts-performance.jpg"/>
+</div>
+<div class="flex flex-col justify-between py-1">
+<div>
+<h4 class="font-label-bold text-on-surface uppercase tracking-tight">BRUSHLESS SPARE HUB</h4>
+<p class="text-xs text-on-surface-variant">72V DIRECT DRIVE COMPONENT</p>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-secondary font-label-bold">$420.00</span>
+<button class="bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined text-sm">add_shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Sidebar Summary -->
+<aside class="lg:col-span-4 sticky top-24">
+<div class="bg-surface-container-high p-8 border border-white/10 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-2 opacity-5">
+<span class="material-symbols-outlined text-[120px]" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<h2 class="font-headline-md text-headline-md uppercase mb-8 pb-4 border-b border-white/5">ORDER SUMMARY</h2>
+<div class="space-y-4 mb-8">
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-label-bold uppercase text-xs tracking-widest">SUBTOTAL</span>
+<span class="font-label-bold">$3,499.00</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-label-bold uppercase text-xs tracking-widest">EST. SHIPPING</span>
+<span class="font-label-bold italic text-[10px]">CALCULATED AT NEXT STEP</span>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant">
+<span class="font-label-bold uppercase text-xs tracking-widest">TAXES & DUTIES</span>
+<span class="font-label-bold">$124.50</span>
+</div>
+</div>
+<div class="flex justify-between items-end mb-10">
+<span class="font-label-bold text-on-surface uppercase">TOTAL</span>
+<span class="font-display-lg text-primary text-headline-xl leading-none">$3,623.50</span>
+</div>
+<div class="space-y-4">
+<button class="w-full bg-primary py-5 px-8 font-label-bold text-on-primary uppercase tracking-widest text-lg hover:bg-primary/90 transition-all active:scale-95 rounded-lg flex items-center justify-center gap-3 group">
+                                SECURE CHECKOUT
+                                <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+<div class="grid grid-cols-2 gap-2">
+<button class="bg-black border border-white/10 py-3 flex items-center justify-center rounded-lg hover:bg-white/5 transition-all">
+<span class="font-label-bold text-xs uppercase opacity-70">APPLE PAY</span>
+</button>
+<button class="bg-[#ffc439] py-3 flex items-center justify-center rounded-lg hover:opacity-90 transition-all">
+<span class="font-label-bold text-xs uppercase text-black">PAYPAL</span>
+</button>
+</div>
+<a class="block text-center font-label-bold text-xs text-on-surface-variant/60 hover:text-secondary uppercase tracking-widest transition-colors mt-4" href="/shop">
+                                CONTINUE SHOPPING
+                            </a>
+</div>
+<!-- Trust Section -->
+<div class="mt-12 pt-8 border-t border-white/5">
+<div class="flex items-center gap-4 mb-6">
+<div class="bg-secondary-container/20 p-3 rounded-lg">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">package_2</span>
+</div>
+<div>
+<p class="font-label-bold text-xs uppercase text-secondary">WORLDWIDE STEALTH SHIPPING</p>
+<p class="text-[10px] text-on-surface-variant uppercase">TRACKED & INSURED PARCELS</p>
+</div>
+</div>
+<div class="flex justify-between items-center opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+<span class="material-symbols-outlined">payments</span>
+<span class="material-symbols-outlined">contactless</span>
+<span class="material-symbols-outlined">credit_card</span>
+<span class="material-symbols-outlined">account_balance</span>
+<span class="material-symbols-outlined">qr_code_2</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest dark:bg-black w-full relative overflow-hidden border-t border-secondary/20">
+<div class="bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.02)_25%,rgba(255,255,255,0.02)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.02)_75%)] bg-[length:20px_20px] absolute inset-0 pointer-events-none"></div>
+<div class="flex flex-col md:flex-row justify-between items-start w-full px-margin-desktop py-16 gap-gutter max-w-max-width mx-auto relative z-10">
+<div>
+<span class="font-display-lg text-display-lg text-on-surface/10 absolute -bottom-4 -left-4 opacity-20 pointer-events-none">E-DRIFT</span>
+<h3 class="font-headline-md text-headline-md text-secondary mb-6">ENGINEERED FOR ADRENALINE.</h3>
+<p class="max-w-md text-on-surface-variant font-body-md">
+                    We push the limits of electric propulsion to deliver the ultimate street motorsport experience. High voltage, zero compromise.
+                </p>
+</div>
+<div class="grid grid-cols-2 gap-12">
+<div class="space-y-4">
+<h4 class="font-label-bold text-label-bold text-on-surface uppercase mb-4">RESOURCES</h4>
+<ul class="space-y-2">
+<li><a class="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="/support">Support</a></li>
+<li><a class="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="#">Privacy</a></li>
+<li><a class="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="/shipping-warranty">Shipping</a></li>
+<li><a class="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="#">Terms</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h4 class="font-label-bold text-label-bold text-on-surface uppercase mb-4">SOCIAL</h4>
+<div class="flex gap-4">
+<button class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-secondary hover:text-secondary transition-all active:opacity-80">
+<span class="material-symbols-outlined text-lg">share_reviews</span>
+</button>
+<button class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-secondary hover:text-secondary transition-all active:opacity-80">
+<span class="material-symbols-outlined text-lg">movie</span>
+</button>
+<button class="w-10 h-10 border border-white/10 flex items-center justify-center hover:border-secondary hover:text-secondary transition-all active:opacity-80">
+<span class="material-symbols-outlined text-lg">podcasts</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="border-t border-white/5 py-8 text-center relative z-10">
+<p class="font-label-bold text-on-surface-variant/40 text-xs tracking-[0.2em]">© 2024 E-DRIFT MOTORS. ALL RIGHTS RESERVED.</p>
+</div>
+</footer>
+<script>
+        // Micro-interactions for quantity and sidebar
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('change', function() {
+                if(this.value < 1) this.value = 1;
+                // Add shake animation or update subtotal logic here
+            });
+        });
+
+        // Hover effect for checkout button
+        const checkoutBtn = document.querySelector('button.bg-primary');
+        checkoutBtn.addEventListener('mousemove', (e) => {
+            const rect = checkoutBtn.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            checkoutBtn.style.setProperty('--x', `${x}px`);
+            checkoutBtn.style.setProperty('--y', `${y}px`);
+        });
+    </script>
+</body></html>
