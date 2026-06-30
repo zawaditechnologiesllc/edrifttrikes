@@ -42,6 +42,14 @@ export default function Enhancements() {
         return;
       }
 
+      // nav icon buttons (cart / account / wishlist / search)
+      const nav = start.closest<HTMLElement>("[data-nav]");
+      if (nav) {
+        const href = nav.getAttribute("data-nav");
+        if (href) window.location.assign(href);
+        return;
+      }
+
       // show / hide / toggle overlays & drawers
       const show = start.closest<HTMLElement>("[data-show]");
       if (show) {
@@ -108,10 +116,22 @@ export default function Enhancements() {
       nav.classList.toggle("scrolled-nav", window.scrollY > 50);
     };
 
+    // Guarantee no broken-image icons: any <img> that fails falls back to the
+    // branded placeholder.
+    const FALLBACK = "/assets/placeholder.svg";
+    const onImgError = (e: Event) => {
+      const img = e.target as HTMLImageElement;
+      if (img.tagName === "IMG" && !img.src.endsWith(FALLBACK)) {
+        img.src = FALLBACK;
+      }
+    };
+
     document.addEventListener("click", onClick);
+    document.addEventListener("error", onImgError, true); // capture phase for <img>
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       document.removeEventListener("click", onClick);
+      document.removeEventListener("error", onImgError, true);
       window.removeEventListener("scroll", onScroll);
     };
   }, []);

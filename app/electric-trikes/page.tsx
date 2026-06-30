@@ -8,10 +8,10 @@ export default function Page() {
         <nav className="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
           <div className="font-headline-md text-headline-md text-secondary tracking-tighter">E-DRIFT</div>
           <div className="hidden md:flex gap-8 items-center">
-            <a className="text-secondary border-b-2 border-secondary pb-1 font-label-bold text-label-bold uppercase tracking-widest" href="#">TRIKES</a>
-            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold uppercase tracking-widest hover:bg-white/5" href="#">PARTS</a>
-            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold uppercase tracking-widest hover:bg-white/5" href="#">GEAR</a>
-            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold uppercase tracking-widest hover:bg-white/5" href="#">THE GARAGE</a>
+            <a className="text-secondary border-b-2 border-secondary pb-1 font-label-bold text-label-bold uppercase tracking-widest" href="/shop">TRIKES</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold uppercase tracking-widest hover:bg-white/5" href="/shop">PARTS</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold uppercase tracking-widest hover:bg-white/5" href="/shop">GEAR</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold uppercase tracking-widest hover:bg-white/5" href="/tech-lab">THE GARAGE</a>
           </div>
           <div className="flex items-center gap-6">
             <div className="hidden lg:flex items-center bg-white/5 px-4 py-2 border border-white/10 rounded">
@@ -34,7 +34,7 @@ export default function Page() {
               <button className="bg-primary-container text-on-primary-container px-8 py-4 rounded-lg font-label-bold text-label-bold uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all">VIEW COLLECTION</button>
             </div>
             <div className="relative">
-              <img alt="Premium Electric Drift Trike" className="w-full h-auto drop-shadow-2xl transform hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida/AP1WRLsSi0f5aRwyykobAaBKpzfDKsfTMWKiUFMxa6P_dT7ZrC6dSWLrt8go-cahDk8haLJzgrRdsRw0YzTemrWoeQEicMpcujFdezUOFp2Idm6vP6fnj9EAE__XUg8wXwCH0s_6vkbu7E-OgmkZuG2g_BTkcVNByeH66m-arQr_fmkVLB3LhC8al3vVzj8qg5i8V33El6prttGbJD7sxVIWmQ8ZY4N4v9Bc94wt2lrL9LYIU86e9iuOJlU2krg" />
+              <img alt="Premium Electric Drift Trike" className="w-full h-auto drop-shadow-2xl transform hover:scale-105 transition-transform duration-700" src="/assets/action-mid-slide.jpg" />
               <div className="absolute -bottom-10 -right-10 w-48 h-48 border border-black/5 technical-grid pointer-events-none" />
             </div>
           </div>
@@ -126,7 +126,7 @@ export default function Page() {
                     <div className="absolute top-4 left-4 z-10">
                       <span className="bg-secondary text-on-secondary px-3 py-1 font-label-bold text-[12px] uppercase cut-corner">NEW</span>
                     </div>
-                    <img alt="VOLT-S1 PRO Electric Drift Trike" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida/AP1WRLsSi0f5aRwyykobAaBKpzfDKsfTMWKiUFMxa6P_dT7ZrC6dSWLrt8go-cahDk8haLJzgrRdsRw0YzTemrWoeQEicMpcujFdezUOFp2Idm6vP6fnj9EAE__XUg8wXwCH0s_6vkbu7E-OgmkZuG2g_BTkcVNByeH66m-arQr_fmkVLB3LhC8al3vVzj8qg5i8V33El6prttGbJD7sxVIWmQ8ZY4N4v9Bc94wt2lrL9LYIU86e9iuOJlU2krg" />
+                    <img alt="VOLT-S1 PRO Electric Drift Trike" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="/assets/volt-s1-pro-hero.jpg" />
                     <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
                       <p className="text-[10px] font-label-bold text-secondary uppercase tracking-widest">IN STOCK &amp; READY TO SHIP</p>
                     </div>
@@ -152,7 +152,7 @@ export default function Page() {
                     <div className="absolute top-4 left-4 z-10">
                       <span className="bg-primary-container text-white px-3 py-1 font-label-bold text-[12px] uppercase cut-corner">BEST SELLER</span>
                     </div>
-                    <img alt="RAZOR-EDGE EVO Professional Drift Trike Action" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida/AP1WRLuHgQ0BmBrdPK5lfcRXc3tbbZOeBTW_Nq2jInp3WliSPMH7FG4_OggE20QGCMOUWIZZ9ImNat9NOx8LDgGbX2fITmpEWiVRL8OTCuA2RtxROiomBqOGVqFpVydNT5ZXfzWXRMCDZoY25fKI1Jt3DxX8WKwylqDvGFNjQ3ko5amktzj9iY9pb4XsX6Lbmr61NsVIGPAYkW1ehiinQWJFhr6FwGrtxY7YLdsFXkmpHhRYqOF2O-ncFsSQ43w" />
+                    <img alt="RAZOR-EDGE EVO Professional Drift Trike Action" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="/assets/action-mid-slide.jpg" />
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all" />
                   </div>
                   <div className="p-6 flex flex-col flex-grow">
@@ -176,7 +176,7 @@ export default function Page() {
                     <div className="absolute top-4 left-4 z-10">
                       <span className="bg-error text-on-error px-3 py-1 font-label-bold text-[12px] uppercase cut-corner">SALE</span>
                     </div>
-                    <img alt="STREET BRAWLER Gas Powered Drift Trike" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida/AP1WRLsuKOPb9ry87zGlZ60MPtuHhHSGU21ropO6JAEvfTGJHGznonGxOYC8EWXWu1xYP19C1luqvPX7uTfuBk3UWhm3Z08AkS-TtnGL-u77lN1P4xqFtNAM2pSCnnSksSpUW5YJRoe1zfGSJUd5ucI6LcucIlIesKlAef6VeukYuSRTlzQmklIt0Zq4Ydv-E48Iroeod5XmV7qIAm8D48HKlUOoXLJUi_N2TbVBKj1nAOifkvtwY4h_IxiOIdua" />
+                    <img alt="STREET BRAWLER Gas Powered Drift Trike" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="/assets/action-mid-slide.jpg" />
                   </div>
                   <div className="p-6 flex flex-col flex-grow">
                     <div className="flex justify-between items-start mb-2">
@@ -251,16 +251,16 @@ export default function Page() {
             <div className="space-y-4">
               <h5 className="font-label-bold text-label-bold uppercase text-secondary">COMPANY</h5>
               <ul className="space-y-2">
-                <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="#">Support</a></li>
+                <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="/support">Support</a></li>
                 <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="#">Privacy</a></li>
-                <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="#">Shipping</a></li>
+                <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="/shipping-warranty">Shipping</a></li>
                 <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="#">Terms</a></li>
               </ul>
             </div>
             <div className="space-y-4">
               <h5 className="font-label-bold text-label-bold uppercase text-secondary">GARAGE</h5>
               <ul className="space-y-2">
-                <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="#">Trikes</a></li>
+                <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="/shop">Trikes</a></li>
                 <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="#">Batteries</a></li>
                 <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="#">Tires</a></li>
                 <li><a className="text-on-surface-variant font-label-bold text-[12px] uppercase hover:text-primary transition-colors" href="#">Apparel</a></li>

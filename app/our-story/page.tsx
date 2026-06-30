@@ -6,19 +6,19 @@ export default function Page() {
       {/* TopNavBar */}
       <nav className="fixed top-0 w-full z-50 border-b border-white/10 bg-background/95 backdrop-blur-md">
         <div className="flex justify-between items-center px-margin-desktop py-4 max-w-max-width mx-auto">
-          <a className="font-headline-md text-headline-md text-secondary uppercase italic tracking-tighter" href="#">VOLT DRIFT</a>
+          <a className="font-headline-md text-headline-md text-secondary uppercase italic tracking-tighter" href="/product/volt-s1-pro">VOLT DRIFT</a>
           <div className="hidden md:flex items-center space-x-8">
-            <a className="font-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Trikes</a>
+            <a className="font-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="/shop">Trikes</a>
             <a className="font-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Upgrades</a>
-            <a className="font-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Gear</a>
+            <a className="font-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="/shop">Gear</a>
             <a className="font-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Tech</a>
             <a className="font-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Garage</a>
           </div>
           <div className="flex items-center space-x-6">
-            <button className="text-on-surface-variant hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform">
+            <button className="text-on-surface-variant hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" data-nav="/cart">
               <span className="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
             </button>
-            <button className="text-on-surface-variant hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform">
+            <button className="text-on-surface-variant hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" data-nav="/login">
               <span className="material-symbols-outlined" data-icon="account_circle">account_circle</span>
             </button>
             <button className="md:hidden text-on-surface-variant">
@@ -32,7 +32,7 @@ export default function Page() {
         {/* Hero Section: BORN IN THE GARAGE */}
         <section className="relative min-h-[90vh] flex items-center overflow-hidden technical-grid">
           <div className="absolute inset-0 z-0">
-            <img alt="Electric drift trike action" className="w-full h-full object-cover opacity-60 mix-blend-luminosity" src="https://lh3.googleusercontent.com/aida/AP1WRLsPJSo_koPIorscaYNiOLFHpifFN45G8TOBTWlMVOMLLBlRhvaiFdZNmgPS2vgPhoNFU2dQ4mNVEer7scBLajgp_Njue1CIs1O_O3gU-WBJpgLpRLsINzZ_M-0whblHIiSOO4x5ew0VatHxVQrgBiH5u4puzyGy9u0YXVfyPwola83hHCOQZLRFZ-20r4p2788m19Id_EUsAVc0LSQ1UfAvQvt5e6cZ1ItkNdAWWORLtjBGjozLvo7Ppkdn" />
+            <img alt="Electric drift trike action" className="w-full h-full object-cover opacity-60 mix-blend-luminosity" src="/assets/action-mid-slide.jpg" />
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
             {/* Slanted overlay element */}
             <div className="absolute top-0 right-0 w-1/3 h-full bg-primary/10 -skew-x-12 transform translate-x-1/2" />
@@ -69,7 +69,7 @@ export default function Page() {
                   <div className="absolute inset-0 bg-primary/5 translate-x-4 translate-y-4 -z-10 group-hover:translate-x-6 group-hover:translate-y-6 transition-transform duration-500" />
                   <div className="aspect-square bg-surface-container-high relative overflow-hidden border border-white/10 p-1">
                     <div className="absolute inset-0 technical-grid opacity-20" />
-                    <div className="w-full h-full bg-cover bg-center" data-alt="A high-tech cinematic close-up of a high-performance electric drift trike motor and battery system. The components are sleek and metallic, with exposed copper windings and carbon fiber housings. Cool blue LED light strips trace the electrical pathways, suggesting immense power and cutting-edge engineering. The background is a clean, dark industrial laboratory setting with technical blueprint lines visible on a digital screen." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCQnla0R71Ir7h3vIQ3vG8ICCKbIg0AeU7438Uwyg_Qw9X4LwquROsqvDBMmYy4WSAPW5z1mbKMQoaATlZOCk9_EMTpB4WNRIXL37VtFjpFqsWSAwmoD3cRqNg0JeIx6-jYH3DrBywlfNl-euBSkEkcidjYymCc3V5LxzblvW4xJfWnWv2hW-Y0xD8MTc7nvruLbahKN1yVoafqo_rC52qIXcBr4frzkw_vc2esUKB9GJPH98I3I4YryQ")'}} />
+                    <div className="w-full h-full bg-cover bg-center" data-alt="A high-tech cinematic close-up of a high-performance electric drift trike motor and battery system. The components are sleek and metallic, with exposed copper windings and carbon fiber housings. Cool blue LED light strips trace the electrical pathways, suggesting immense power and cutting-edge engineering. The background is a clean, dark industrial laboratory setting with technical blueprint lines visible on a digital screen." style={{backgroundImage: 'url("/assets/parts-performance.jpg")'}} />
                     {/* Technical Overlays */}
                     <div className="absolute top-4 left-4 font-label-bold text-[10px] text-secondary opacity-50">SYSTEM_VOLTAGE: 72V_DC</div>
                     <div className="absolute bottom-4 right-4 font-label-bold text-[10px] text-secondary opacity-50">TORQUE_MAP: STAGE_03</div>
@@ -118,7 +118,7 @@ export default function Page() {
           <div className="grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-gutter h-auto md:h-[800px]">
             {/* Bento Item 1 */}
             <div className="md:col-span-2 md:row-span-2 relative group overflow-hidden border border-white/5">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A group of diverse, professional-looking drift riders standing together in an industrial warehouse setting. They are wearing high-end tactical gear and helmets with blue reflective visors. Several sleek black electric drift trikes are parked around them. The lighting is cinematic with deep shadows and vibrant blue neon accents casting a glow on the concrete floor. The mood is one of serious camaraderie and technical expertise." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuC4fGd_ulBlTKyOXvnxxRpXZlPifVTSpDBy0KEP_hZ4yfvMmpS9mGg--hYFBUEvffATKKafAa3lHfXC8Szv_uQPiaLKyScC6BCHvWXpJFlBkED_iJpXCJ8_YvBgac0UJH_Fnbjt2_G-lr6SokloXxMpptUBwdx_V1-HUkfgNU4hr5oMCcGis_p1jl9uMqxmOKTROhGe5ir3qCdPuBYiIEz5XjnHSz0M2BSp5jgfTt6ymSmGTIem1M1axw")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A group of diverse, professional-looking drift riders standing together in an industrial warehouse setting. They are wearing high-end tactical gear and helmets with blue reflective visors. Several sleek black electric drift trikes are parked around them. The lighting is cinematic with deep shadows and vibrant blue neon accents casting a glow on the concrete floor. The mood is one of serious camaraderie and technical expertise." style={{backgroundImage: 'url("/assets/trike-voltage-blue.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-80" />
               <div className="absolute bottom-0 left-0 p-8">
                 <div className="bg-secondary text-black font-label-bold uppercase px-3 py-1 inline-block mb-4">Elite Division</div>
@@ -127,7 +127,7 @@ export default function Page() {
             </div>
             {/* Bento Item 2 */}
             <div className="md:col-span-2 relative group overflow-hidden border border-white/5">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="An overhead cinematic shot of multiple electric drift trikes performing a synchronized tandem drift on a wet city street at night. The streaks of neon blue light from the trikes create beautiful kinetic patterns on the dark, reflective pavement. The surrounding architecture is modern and industrial, with high-contrast lighting creating a high-adrenaline motorsport atmosphere." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAFqOEN6ZqDU92oFkra6Zd1BW5AHCBunu5J4mCloVgcyyK9z44I4V5TOQ7vSNqyx86bLKyNE8iO-wmECZZtmfqJ3lc0c-vmRksMWDaLjpHac__ST2U8nejI29SSU-JiXhurNtVxh-a9pBgKCDxAxvjAP89r_vpuUsGl6SAjViyGErGTa_skn7X0mFw_QoMGmR6jzgVw03xJ-JreBlaoNmbwTpPgQdEgALrlyje_IZLjB68GFf79OH01hg")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="An overhead cinematic shot of multiple electric drift trikes performing a synchronized tandem drift on a wet city street at night. The streaks of neon blue light from the trikes create beautiful kinetic patterns on the dark, reflective pavement. The surrounding architecture is modern and industrial, with high-contrast lighting creating a high-adrenaline motorsport atmosphere." style={{backgroundImage: 'url("/assets/action-mid-slide.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-80" />
               <div className="absolute bottom-0 left-0 p-8">
                 <h3 className="font-headline-md text-headline-md uppercase italic">The Tandem Life</h3>
@@ -135,7 +135,7 @@ export default function Page() {
             </div>
             {/* Bento Item 3 */}
             <div className="md:col-span-1 relative group overflow-hidden border border-white/5">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="Close up of a customized electric drift trike seat featuring high-quality Alcantara fabric and contrast neon blue stitching. The background is a blurry workshop with tools and technical diagrams. The focus is on the craftsmanship and premium materials used in every build. The lighting is soft and focused, emphasizing the tactile quality of the materials." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBjpDpbJQdY_4AVgtEXpiv5_MPm2NGrPAKlErXaCwe7NaeFIZpdmWbdV88xLAIb125O_VrJrqrLqQWf4xFyEWKy6eW6YM2b-ZXWzAwB0LUKiJZTsVgUNXH0YIv6H1ucQ-VKpcAATMOxvWedh_1rllDza0XrCjT0ZgQUBmYKwgq2TCljV_Xk-3Ijw35Unl1Ur-VgaAES6RHuj8e-_qWdpf0mFxz9wzK_1_SGKzwi5nc0JDiBg5XGZeQZhw")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="Close up of a customized electric drift trike seat featuring high-quality Alcantara fabric and contrast neon blue stitching. The background is a blurry workshop with tools and technical diagrams. The focus is on the craftsmanship and premium materials used in every build. The lighting is soft and focused, emphasizing the tactile quality of the materials." style={{backgroundImage: 'url("/assets/trike-voltage-blue.jpg")'}} />
               <div className="absolute inset-0 bg-background/40 group-hover:bg-background/20 transition-colors" />
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="font-label-bold uppercase tracking-widest text-secondary group-hover:scale-110 transition-transform">Custom Garage</span>
@@ -188,9 +188,9 @@ export default function Page() {
           <div>
             <h4 className="font-label-bold uppercase text-secondary mb-6 tracking-widest">Support</h4>
             <ul className="space-y-4 font-body-md text-body-md">
-              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-transform inline-block" href="#">Shipping</a></li>
-              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-transform inline-block" href="#">Warranty</a></li>
-              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-transform inline-block" href="#">Contact</a></li>
+              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-transform inline-block" href="/shipping-warranty">Shipping</a></li>
+              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-transform inline-block" href="/shipping-warranty">Warranty</a></li>
+              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-transform inline-block" href="/support">Contact</a></li>
             </ul>
           </div>
           <div className="flex flex-col justify-between">

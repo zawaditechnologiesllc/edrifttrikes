@@ -6,11 +6,11 @@ export default function Page() {
       {/* TopNavBar */}
       <nav className="fixed top-0 w-full z-50 border-b border-white/10 bg-background/95 backdrop-blur-md">
         <div className="flex justify-between items-center px-margin-desktop py-4 max-w-max-width mx-auto">
-          <a className="font-headline-md text-headline-md text-secondary uppercase italic" href="#">VOLT DRIFT</a>
+          <a className="font-headline-md text-headline-md text-secondary uppercase italic" href="/product/volt-s1-pro">VOLT DRIFT</a>
           <div className="hidden md:flex items-center gap-8">
-            <a className="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="#">Trikes</a>
+            <a className="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="/shop">Trikes</a>
             <a className="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="#">Upgrades</a>
-            <a className="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="#">Gear</a>
+            <a className="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="/shop">Gear</a>
             <a className="font-headline-md text-headline-md tracking-tighter text-on-surface-variant hover:text-secondary duration-300 transition-colors" href="#">Tech</a>
             <a className="font-headline-md text-headline-md tracking-tighter text-secondary border-b-2 border-secondary pb-1 active:skew-x-[-12deg] transition-transform" href="#">Garage</a>
           </div>
@@ -38,7 +38,7 @@ export default function Page() {
               {/* Technical ID Background Decor */}
               <div className="absolute top-4 right-4 font-headline-md text-6xl opacity-[0.03] select-none pointer-events-none">S1-P01</div>
               <div className="w-full md:w-80 h-56 bg-surface-container-lowest overflow-hidden flex items-center justify-center border border-white/5 relative">
-                <img alt="VOLT-S1 Pro Side Profile" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida/AP1WRLtjcqP-c2qViuGZXkFfknrhIldv6fowsfOK6rICSRyVHo2O1BCDvxCUM1Kstt0YMANZSRJpLNJ_NkKCxpBR2y80gQkZOXl89GoffTtXn0Wr_VGahtmdDdemhiRkc1_8qebnndrmqB9uEBMjnCSpMUfMu3CVVxe2_H-DsGQI1JLYnsqJ7fcSzFXiOv9IPR-be7eCfmKZEpdPpiS3dlEXLDe_0ihCkbBBXNF_m5hvSzmb6Czu_bhrau_Pbrw" />
+                <img alt="VOLT-S1 Pro Side Profile" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/volt-s1-pro-hero.jpg" />
                 <div className="absolute bottom-2 left-2 bg-secondary text-on-secondary px-2 py-1 text-[10px] font-bold uppercase tracking-widest">SAVED CONFIG</div>
               </div>
               <div className="flex-1 space-y-4">
@@ -82,7 +82,7 @@ export default function Page() {
             <div className="group relative bg-surface-container-low border border-white/10 p-6 flex flex-col md:flex-row gap-8 items-center hover:border-secondary/50 transition-all duration-300 overflow-hidden">
               <div className="absolute top-4 right-4 font-headline-md text-6xl opacity-[0.03] select-none pointer-events-none">ACC-X2</div>
               <div className="w-full md:w-80 h-56 bg-surface-container-lowest overflow-hidden flex items-center justify-center border border-white/5 relative">
-                <img alt="Performance Sleeves and Motor" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida/AP1WRLuC11uU24NY8tt_G8g5ZXCZCkUFo0BJp5bFdRu4f1vp5qnn89hzzYaeH50T79MF5iS6dAxpddAvtFEzxS7MTv7rqfEPkCSqqyAN7T08iGTmE-_y5GKIZodTHrUfbLSlfXs1VstHec2rxh0NgzMJ_AXnsrafFKha841LV6zq9qB9YBXfyXYKnlDn_2nSzzYRI8RDPEqlTuWaNpoZKv5EFauwshJrYO511D5OtF1he-pSxGSWjZAM3J4APqLf" />
+                <img alt="Performance Sleeves and Motor" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/motor-72v-hub.jpg" />
                 <div className="absolute top-2 left-2 bg-primary text-on-primary px-2 py-1 text-[10px] font-bold uppercase tracking-widest">IN STOCK</div>
               </div>
               <div className="flex-1 space-y-4">
@@ -108,7 +108,7 @@ export default function Page() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-4 pt-2">
-                  <button className="bg-secondary text-on-secondary px-8 py-3 font-label-bold uppercase flex items-center gap-2 hover:bg-secondary/90 transition-all active:scale-95">
+                  <button className="bg-secondary text-on-secondary px-8 py-3 font-label-bold uppercase flex items-center gap-2 hover:bg-secondary/90 transition-all active:scale-95" data-nav="/cart">
                     <span className="material-symbols-outlined text-lg" data-icon="shopping_cart">shopping_cart</span>
                     ADD TO BUILD
                   </button>
@@ -172,9 +172,9 @@ export default function Page() {
           <div>
             <h4 className="font-label-bold text-secondary uppercase mb-6 tracking-widest">Support</h4>
             <ul className="space-y-4">
-              <li><a className="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="#">Shipping</a></li>
-              <li><a className="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="#">Warranty</a></li>
-              <li><a className="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="#">Contact</a></li>
+              <li><a className="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="/shipping-warranty">Shipping</a></li>
+              <li><a className="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="/shipping-warranty">Warranty</a></li>
+              <li><a className="text-body-md text-on-surface-variant hover:text-on-surface transition-all hover:translate-x-1 inline-block" href="/support">Contact</a></li>
             </ul>
           </div>
           <div>

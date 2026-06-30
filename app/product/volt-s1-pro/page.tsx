@@ -8,10 +8,10 @@ export default function Page() {
         <nav className="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
           <div className="font-headline-md text-headline-md text-secondary tracking-tighter uppercase">E-DRIFT</div>
           <div className="hidden md:flex gap-8 items-center">
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="#">TRIKES</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="#">PARTS</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="#">GEAR</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="#">THE GARAGE</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="/shop">TRIKES</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="/shop">PARTS</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="/shop">GEAR</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors active:scale-95 duration-75" href="/tech-lab">THE GARAGE</a>
           </div>
           <div className="flex items-center gap-6 text-primary dark:text-primary-fixed-dim">
             <button className="material-symbols-outlined hover:bg-white/5 p-2 rounded-full transition-all">shopping_cart</button>
@@ -26,17 +26,17 @@ export default function Page() {
           <div className="lg:col-span-7">
             <div className="grid grid-cols-6 grid-rows-6 gap-4 h-[700px]">
               <div className="col-span-4 row-span-4 bg-surface-container-low rounded-xl overflow-hidden border border-white/5 relative group">
-                <img alt="VOLT-S1 Main" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida/AP1WRLtjcqP-c2qViuGZXkFfknrhIldv6fowsfOK6rICSRyVHo2O1BCDvxCUM1Kstt0YMANZSRJpLNJ_NkKCxpBR2y80gQkZOXl89GoffTtXn0Wr_VGahtmdDdemhiRkc1_8qebnndrmqB9uEBMjnCSpMUfMu3CVVxe2_H-DsGQI1JLYnsqJ7fcSzFXiOv9IPR-be7eCfmKZEpdPpiS3dlEXLDe_0ihCkbBBXNF_m5hvSzmb6Czu_bhrau_Pbrw" />
+                <img alt="VOLT-S1 Main" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="/assets/volt-s1-pro-hero.jpg" />
                 <div className="absolute top-4 left-4 z-10">
                   <span className="bg-secondary text-on-secondary font-label-bold text-xs py-1 px-3 rounded uppercase tracking-wider">High Performance</span>
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
               </div>
               <div className="col-span-2 row-span-2 bg-surface-container-low rounded-xl overflow-hidden border border-white/5 group">
-                <img alt="Control detail" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida/AP1WRLtB3NxpC2pPy_HOuqqgxeOkBY0kIsCh4-STnwhxLxVDdzJQ701CZBxUTY9OIXXslyVNf5UGEeOPWHWWD56FzmonD4ftjgmfULAgM9m42k-n_PrJAF2HzTLBhJewPO-bj3-BVqqjGCVTN31hBB0ieFF2Vn_JPsaM9W0tV4gf2WeiW84aTraOnNniBHKP2Tgn0AZmIe86scFiV5Pug61swZchGelGZXARsoHGGeqZjQS6bWxMFudvZeTdpvsG" />
+                <img alt="Control detail" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="/assets/action-360-slide.jpg" />
               </div>
               <div className="col-span-2 row-span-2 bg-surface-container-low rounded-xl overflow-hidden border border-white/5 group">
-                <img alt="Wheel detail" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida/AP1WRLs5ZaM9RPZ6LzV__jLKdPJd4gEtlr2ugog5HEhNbzUY5WI0of540x8OVs3E2ZjjiPxLq9vaup44QwKn-vAVAAzPvTRTnRHvi4qe6H-bD_yMTpkcE6phxtMRLyw_MX1xf_JjQHvqRtvncHBBxfebQ2JBmopEsmpldSDvpj7fJ6-8EkgfXykXvvikJYUasLsKhfaHJHneni6hFUZfAgw3RR9azBbsRTYqERWEc8x7gUGGKtK2Yn4hlJFXmqoW" />
+                <img alt="Wheel detail" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="/assets/motor-72v-hub.jpg" />
               </div>
               <div className="col-span-2 row-span-2 bg-surface-container-low rounded-xl border border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container-high transition-colors">
                 <span className="material-symbols-outlined text-secondary text-3xl">play_circle</span>
@@ -217,8 +217,8 @@ export default function Page() {
             <div className="space-y-4">
               <h4 className="text-xs font-label-bold uppercase tracking-widest text-on-surface">Protocols</h4>
               <ul className="text-xs text-on-surface-variant space-y-2">
-                <li><a className="hover:text-secondary" href="#">Shipping</a></li>
-                <li><a className="hover:text-secondary" href="#">Returns</a></li>
+                <li><a className="hover:text-secondary" href="/shipping-warranty">Shipping</a></li>
+                <li><a className="hover:text-secondary" href="/shipping-warranty">Returns</a></li>
                 <li><a className="hover:text-secondary" href="#">Privacy</a></li>
               </ul>
             </div>
@@ -227,7 +227,7 @@ export default function Page() {
               <ul className="text-xs text-on-surface-variant space-y-2">
                 <li><a className="hover:text-secondary" href="#">Instagram</a></li>
                 <li><a className="hover:text-secondary" href="#">Discord</a></li>
-                <li><a className="hover:text-secondary" href="#">Support</a></li>
+                <li><a className="hover:text-secondary" href="/support">Support</a></li>
               </ul>
             </div>
           </div>

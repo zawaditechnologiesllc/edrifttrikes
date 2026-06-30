@@ -14,17 +14,17 @@ export default function Page() {
       <nav className="w-full top-0 sticky z-50 bg-surface/90 backdrop-blur-md border-b border-white/10 transition-all duration-300" id="main-nav">
         <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-6 max-w-max-width mx-auto transition-all duration-300" id="nav-container">
           {/* Brand Logo */}
-          <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="#">E-DRIFT</a>
+          <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="/">E-DRIFT</a>
           {/* Navigation Links with Mega Menu */}
           <div className="hidden md:flex gap-10">
             <div className="nav-item group h-full flex items-center">
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors pb-1 border-b-2 border-transparent group-hover:border-secondary" href="#">Trikes</a>
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors pb-1 border-b-2 border-transparent group-hover:border-secondary" href="/shop">Trikes</a>
               {/* Mega Menu */}
               <div className="mega-menu absolute left-0 top-full w-full bg-surface-container-lowest border-b border-white/10 p-10 grid-cols-4 gap-gutter z-50">
                 <div className="space-y-4">
                   <h4 className="font-label-bold text-label-bold text-secondary uppercase tracking-widest">Electric</h4>
                   <div className="flex flex-col gap-2">
-                    <a className="text-on-surface hover:text-white transition-colors" href="#">Volt-X Interceptor</a>
+                    <a className="text-on-surface hover:text-white transition-colors" href="/product/volt-s1-pro">Volt-X Interceptor</a>
                     <a className="text-on-surface hover:text-white transition-colors" href="#">Current Pro 72V</a>
                     <a className="text-on-surface hover:text-white transition-colors" href="#">Junior E-Spark</a>
                   </div>
@@ -52,24 +52,24 @@ export default function Page() {
               </div>
             </div>
             <div className="nav-item h-full flex items-center">
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="#">Parts</a>
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="/shop">Parts</a>
             </div>
             <div className="nav-item h-full flex items-center">
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="#">Gear</a>
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="/shop">Gear</a>
             </div>
             <div className="nav-item h-full flex items-center">
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="#">The Garage</a>
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="/tech-lab">The Garage</a>
             </div>
           </div>
           {/* Trailing Icons */}
           <div className="flex items-center gap-6">
-            <button className="text-on-surface hover:text-secondary transition-all p-2 rounded-full active:scale-95 duration-75 relative">
+            <button className="text-on-surface hover:text-secondary transition-all p-2 rounded-full active:scale-95 duration-75 relative" data-nav="/wishlist">
               <span className="material-symbols-outlined" data-icon="favorite">favorite</span>
             </button>
-            <button className="text-on-surface hover:text-secondary transition-all p-2 rounded-full active:scale-95 duration-75">
+            <button className="text-on-surface hover:text-secondary transition-all p-2 rounded-full active:scale-95 duration-75" data-nav="/cart">
               <span className="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
             </button>
-            <button className="text-on-surface hover:text-secondary transition-all p-2 rounded-full active:scale-95 duration-75">
+            <button className="text-on-surface hover:text-secondary transition-all p-2 rounded-full active:scale-95 duration-75" data-nav="/login">
               <span className="material-symbols-outlined" data-icon="person">person</span>
             </button>
             <button className="md:hidden text-on-surface p-2">
@@ -81,7 +81,7 @@ export default function Page() {
       {/* Hero Section */}
       <header className="relative w-full h-[90vh] flex items-center overflow-hidden bg-black power-slant-divider">
         <div className="absolute inset-0 z-0">
-          <img alt="High-action e-drift trike in motion" className="w-full h-full object-cover opacity-80 mix-blend-screen" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASILvKUpcCuCVuSBiJVcCa4AtvepujX1rHJpacx2BI4Cifox-qBSE_PosQGfD6KkWjHHu3aq30VMxwPt8QxlArGbNmjOUYUbZPXiebsF5mAx4KeTzYv6XK7W4t788BQprsim50gPccMV4kks3n7n_LCJGLMOQ4j9kwetrAhoN9oZJylzuOcqWZMb4jwD2ZC45DxPua5z9lbAYvGir3SrSWfKlFQA9v3MTVX4DM9c6tW-cMZjbVNqSWZw" />
+          <img alt="High-action e-drift trike in motion" className="w-full h-full object-cover opacity-80 mix-blend-screen" src="/assets/action-mid-slide.jpg" />
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-black/40" />
         </div>
         <div className="relative z-10 w-full max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
@@ -159,7 +159,7 @@ export default function Page() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
             {/* Card 1: TRIKES */}
             <div className="group relative aspect-[3/4] overflow-hidden rounded-lg hover-lift border-b-2 border-transparent hover:border-[#1e5bff]">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDiqSBXzDqQNj-KPplG0JL5sQLjjd7-hAMGUl4Alo29qaqMFQ4uwD7WkKslxm_9HW30JBftvQXhRMtPvc5P697pRo2-bOdEnrlugIzm21xJF5HEmYnET8ZiySM57mHL7gZaUYeZBJuQW2Yakt8296XKUaZhS7bKwI1gx_bM2JtJo2HO4qjvbL9nr_Xig1pqnNmX7kKY66IqURlQy14Ch2kQVs5nYMb21L1UM15dL2rf7G8iXynrf3sTXw")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: 'url("/assets/volt-s1-pro-cockpit.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 w-full p-8">
                 <h4 className="font-headline-md text-headline-md text-white uppercase">TRIKES</h4>
@@ -168,7 +168,7 @@ export default function Page() {
             </div>
             {/* Card 2: PARTS */}
             <div className="group relative aspect-[3/4] overflow-hidden rounded-lg hover-lift border-b-2 border-transparent hover:border-[#1e5bff]">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCP6CqAROaPbUHQ625lbbJU8xEDc4RRO5z-iXT1jjqa7nlmOpdETaF2MWDeK5cRQ1U77V_RXsrfn5aC-SLaBdniuZSwvZ2Sxvu0tK8f3GzyLOctS3UjBR24D9zRD2qll4DzTomnr5EJt5SDDqTVDaC9Ejh6DGJhrUbMFXg3nmp1giSZBquYBcI5My6upmqq0XyK8f9SuLI15UE_LtpB6OzvDcNIP2L5kuTB3oThuPEZOa7AlBTZm-TqrQ")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: 'url("/assets/motor-72v-hub.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 w-full p-8">
                 <h4 className="font-headline-md text-headline-md text-white uppercase">PARTS</h4>
@@ -177,7 +177,7 @@ export default function Page() {
             </div>
             {/* Card 3: GEAR */}
             <div className="group relative aspect-[3/4] overflow-hidden rounded-lg hover-lift border-b-2 border-transparent hover:border-[#1e5bff]">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuB4J49nLPNHv-wMdgKEJl0AXPVn6ATt17HpV_plq04wZepiRzCksKsD3PD3u3FDLgnx9Q56mDheBKg_lSqzWUnLnc63CNFlU9RL_PYVjdbAjQq_KOiSPAV_IpJdKfAmCQUGQ8ZuovoHtTxPx-zwEaAo8ybiI1oFUPVjnOKu-jqJIFYvR7BvPa5ccOrh9ZIwpovtNDxCuDpc5ia3N21R-8KQ2YY1wHijzoecGF_aGrNm2H8I7G3GnwJFVQ")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: 'url("/assets/garage-workshop-night.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 w-full p-8">
                 <h4 className="font-headline-md text-headline-md text-white uppercase">GEAR</h4>
@@ -186,7 +186,7 @@ export default function Page() {
             </div>
             {/* Card 4: THE GARAGE */}
             <div className="group relative aspect-[3/4] overflow-hidden rounded-lg hover-lift border-b-2 border-transparent hover:border-[#1e5bff]">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDlZyDAQhUF6RLeJustvEEA7_4Hns7ub4PMb8NKb6JvjnRzOg1ewBS_oHA2eNLaDLwUB5SPK6Nyx0p5GGWFOR-TmD9YrbAWN1uFmKF5wcBZsuprWGZ_0ioJIFdWqhUgVD-lH8zGyDoZW026zzMhYHdTBhoKoFvxlsbwgwOrQH66khaSLsXhy2QE7tMbI0OSMPN8oHy97LESadRN7Ky36sEAvv8BEBesWj6JFTi98T-T1yHUd3Rg_xy7DQ")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: 'url("/assets/mechanic-sleeve-install.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 w-full p-8">
                 <h4 className="font-headline-md text-headline-md text-white uppercase">THE GARAGE</h4>
@@ -212,7 +212,7 @@ export default function Page() {
             </div>
             <div className="grid grid-cols-6 grid-rows-6 h-[600px] gap-4">
               <div className="col-span-4 row-span-4 rounded-lg overflow-hidden border border-white/10 group">
-                <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtAvtNt1_P0jm1UK4wdl86_00mguXBRJdQ8xlGeQryYWPi6PERHaHwXRveErsLO_l8OWmEvA1InPd9Gx_zrv5bk3m-YnHoPDcZxlH9Kk_dUWpnev_KAqpBC43yS9In64f2DZal0vAmWjU47UNXe7_2RleC5YfvhBs1013x4WTqhxIbO3e6O1nhWb2RY4xQVfeN3B7LHsKbu_8ESFiDhBPhyiU2dX2ntu1byj9zJKHlaGe47xAwnFCmQw" />
+                <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="/assets/action-mid-slide.jpg" />
               </div>
               <div className="col-span-2 row-span-2 rounded-lg overflow-hidden border border-white/10">
                 <div className="w-full h-full bg-surface-container-high flex flex-col items-center justify-center p-4 text-center">
@@ -221,7 +221,7 @@ export default function Page() {
                 </div>
               </div>
               <div className="col-span-2 row-span-4 rounded-lg overflow-hidden border border-white/10">
-                <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-AskTbf5-JoBkuybkUx840ju7NcgvYt9OdZw6dl9pSKIYSFPMKktGWqBaSlnr2INCyCx9AZ1euO-eB_2zxeDjA51bjhRDO5ZNlXG4iLdy-T14yj0hgLMrJ3bTWtrcy_aDrq4k8pTMAeyJLje9R6YgW6L9dSXsI1VzA7kDL2kBkr5sRPmAm5-lL_ZAtib8jppzFBZpov9o8yUhcvlx8hank4p2Bc-PmGPWauErM7RVKbStkl5ZuMnRyQ" />
+                <img className="w-full h-full object-cover" src="/assets/action-360-slide.jpg" />
               </div>
               <div className="col-span-4 row-span-2 rounded-lg overflow-hidden border border-white/10 flex items-center justify-center bg-secondary/5 border-secondary/20">
                 <div className="text-secondary font-label-bold text-label-bold uppercase tracking-[0.2em] animate-pulse text-center p-4">
@@ -265,7 +265,7 @@ export default function Page() {
             <div className="space-y-6">
               <h4 className="font-label-bold text-label-bold text-white uppercase tracking-widest">CATALOG</h4>
               <nav className="flex flex-col gap-3">
-                <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="#">ELECTRIC TRIKES</a>
+                <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="/electric-trikes">ELECTRIC TRIKES</a>
                 <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="#">GAS POWERED</a>
                 <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="#">GRAVITY SLIDERS</a>
                 <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="#">CHASSIS ONLY</a>
@@ -275,9 +275,9 @@ export default function Page() {
               <h4 className="font-label-bold text-label-bold text-white uppercase tracking-widest">SUPPORT</h4>
               <nav className="flex flex-col gap-3">
                 <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="#">TECH MANUALS</a>
-                <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="#">SHIPPING LOGS</a>
-                <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="#">WARRANTY PROTOCOL</a>
-                <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="#">FAQ SYSTEM</a>
+                <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="/shipping-warranty">SHIPPING LOGS</a>
+                <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="/shipping-warranty">WARRANTY PROTOCOL</a>
+                <a className="text-on-surface-variant font-body-md hover:text-secondary transition-colors text-sm" href="/support">FAQ SYSTEM</a>
               </nav>
             </div>
             <div className="space-y-6">
@@ -302,10 +302,10 @@ export default function Page() {
           {/* Footer Bottom: Trust Marks & Copyright */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-10">
             <div className="flex items-center gap-6 opacity-40 hover:opacity-80 transition-opacity grayscale hover:grayscale-0">
-              <img alt="Visa" className="h-4" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDueLJ3tM92j6K9V5BeJIrHhYT-PtY4VdxaQx0_jxdrN_wDUwFWdVEnL1LJFi8HsN0jFiPQipnNgB6-8SUoDBBD_j7ZtdW0wYo0_IN6kFNd7ch5T29-1yPUvvGMyOHfE1H7f1j8HNlCuhVAVPzepm5fG8Rcbl3qYCH-yEwNDOAzPS83Sf2_dtekyUMZCoQrQQJfd5RCHcyr6Ad80mmzxJ7nfXnqDLRT4yPRH3cMJ-boROGISHZ-PI8lQg" />
-              <img alt="Mastercard" className="h-6" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1Q42tQAUEh_pM2JJdWL9BWK8cdvwo6FyPTYMVNRE9DPhnxmNWnilgxcEFMzV57Ub2BQ_kKO2-70TzT7oS-ogzpb3338bqH1Z6d3P0yoGt9eM0WT6Qx3Q6liOwJWBErxowOKlHFRDPcX6KuxETDBLyPVwrqmpWoIswNfxgO2RX3DpEQBSrRtPVYj8ushpJ8As3xarFIwjb2Uo7vOLMNTOKOl6GiIFKESHCDPsShwAJVWSwVITp1WMtnA" />
-              <img alt="PayPal" className="h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDphz4Qm8a7plEVAJlyTcZYy92YfZm5wScV_X807nxoP2hkrQ71LEuYnYD54uTSvYWBD1jpWcAW8cbti73ZYeR9p7kAhT4ZGJtCaKCz7_9uIiU04zQXYnwn_dmJJxAKWOqPZKMhfHNW6OfP8JnbK-k61TtPOo729IrK8kckIbROK1RBqLnFSKCXP5ExVTD69_F4DPdBKbTUibT6USHRyu8YYv6ZoHX-9o4hhKA9gi1BGnT0cZcuXOhpEw" />
-              <img alt="Apple Pay" className="h-6" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7WFj37rYfyA1ZYjPjYGaP03GJGKuK3BvOig38HMfItBvAppAspzrFdJcdq-QVamUFRBL2QjSqdDeDNH8TvAkiS4apLCB63Rc3ozlGj1k0JRBk_GTwjhMcL_6Fsv-P2Sq2OeOjD8iWwrBxXPqSAR79tmwpLNgm1fH6Jo8bY1z06AgU-PtLJ2UTR8G4Go2tsnBYcbdW0OA81ED54MvcVFPTui2JDIoVnzXq_WlpLx4Yc3QDZNaxy6kHpQ" />
+              <img alt="Visa" className="h-4" src="/assets/trike-voltage-blue.jpg" />
+              <img alt="Mastercard" className="h-6" src="/assets/parts-performance.jpg" />
+              <img alt="PayPal" className="h-5" src="/assets/trike-gas-charcoal.jpg" />
+              <img alt="Apple Pay" className="h-6" src="/assets/volt-s1-pro-hero.jpg" />
             </div>
             <div className="flex flex-col md:items-end gap-2 text-on-surface-variant font-label-bold text-[10px] tracking-[0.2em] uppercase">
               <span>© 2024 E-DRIFT MOTORS. ENGINEERED FOR ADRENALINE.</span>

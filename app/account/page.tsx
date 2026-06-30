@@ -12,7 +12,7 @@ export default function Page() {
           </div>
           <nav className="flex-1 px-4 space-y-2">
             {/* Dashboard Active State */}
-            <a className="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg transition-all duration-75 active:scale-95" href="#">
+            <a className="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg transition-all duration-75 active:scale-95" href="/account">
               <span className="material-symbols-outlined" data-icon="dashboard">dashboard</span>
               <span className="font-label-bold text-label-bold uppercase">Dashboard</span>
             </a>
@@ -24,7 +24,7 @@ export default function Page() {
               <span className="material-symbols-outlined" data-icon="settings_wrench">settings_alert</span>
               <span className="font-label-bold text-label-bold uppercase">My Builds</span>
             </a>
-            <a className="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-white/5 transition-all rounded-lg active:scale-95" href="#">
+            <a className="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-white/5 transition-all rounded-lg active:scale-95" href="/wishlist">
               <span className="material-symbols-outlined" data-icon="favorite">favorite</span>
               <span className="font-label-bold text-label-bold uppercase">Wishlist</span>
             </a>
@@ -132,7 +132,7 @@ export default function Page() {
                     </div>
                   </div>
                   <div className="md:w-1/2 relative bg-surface-container-lowest min-h-[400px]">
-                    <img className="w-full h-full object-cover opacity-80 mix-blend-screen" data-alt="Technical detail shot of the 72V brushless rear hub motor and custom PVC slide sleeves on the VOLT-S1 Pro, sparks of static blue, high-precision engineering aesthetic, white background. Volt-S1 Pro colors." src="https://lh3.googleusercontent.com/aida/AP1WRLs5ZaM9RPZ6LzV__jLKdPJd4gEtlr2ugog5HEhNbzUY5WI0of540x8OVs3E2ZjjiPxLq9vaup44QwKn-vAVAAzPvTRTnRHvi4qe6H-bD_yMTpkcE6phxtMRLyw_MX1xf_JjQHvqRtvncHBBxfebQ2JBmopEsmpldSDvpj7fJ6-8EkgfXykXvvikJYUasLsKhfaHJHneni6hFUZfAgw3RR9azBbsRTYqERWEc8x7gUGGKtK2Yn4hlJFXmqoW" />
+                    <img className="w-full h-full object-cover opacity-80 mix-blend-screen" data-alt="Technical detail shot of the 72V brushless rear hub motor and custom PVC slide sleeves on the VOLT-S1 Pro, sparks of static blue, high-precision engineering aesthetic, white background. Volt-S1 Pro colors." src="/assets/motor-72v-hub.jpg" />
                     <div className="absolute inset-0 bg-gradient-to-r from-surface-container-highest to-transparent pointer-events-none" />
                     {/* Technical Grid Overlay */}
                     <div className="absolute inset-0 technical-grid opacity-20 pointer-events-none" />
@@ -254,9 +254,9 @@ export default function Page() {
                   <p className="text-secondary dark:text-secondary-fixed font-body-md text-body-md uppercase font-bold mb-4">© 2024 E-DRIFT MOTORS. ENGINEERED FOR ADRENALINE.</p>
                 </div>
                 <div className="flex gap-8 z-10">
-                  <a className="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="#">Support</a>
+                  <a className="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="/support">Support</a>
                   <a className="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="#">Privacy</a>
-                  <a className="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="#">Shipping</a>
+                  <a className="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="/shipping-warranty">Shipping</a>
                   <a className="text-on-surface-variant font-body-md text-body-md hover:text-primary transition-colors active:opacity-80" href="#">Terms</a>
                 </div>
               </div>

@@ -8,10 +8,10 @@ export default function Page() {
         <div className="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
           <div className="font-headline-md text-headline-md text-secondary tracking-tighter">E-DRIFT</div>
           <div className="hidden md:flex gap-8 items-center">
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">TRIKES</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">PARTS</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">GEAR</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="#">THE GARAGE</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">TRIKES</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="/tech-lab">THE GARAGE</a>
           </div>
           <div className="flex gap-6 items-center">
             <span className="material-symbols-outlined cursor-pointer hover:bg-white/5 p-2 rounded-full transition-all active:scale-95">shopping_cart</span>
@@ -146,7 +146,7 @@ export default function Page() {
         {/* Aesthetic Decorative Section */}
         <section className="mt-24 mb-16 relative h-96 w-full">
           <div className="absolute inset-0 overflow-hidden diagonal-divider h-full w-full">
-            <div className="w-full h-full grayscale opacity-30 hover:grayscale-0 transition-all duration-700 bg-cover bg-center" data-alt="A high-performance electric drift trike performing a sharp 45-degree angle drift on a damp asphalt track at night. The scene is illuminated by neon blue and hazard lime green lights reflecting off the wet surface. Motion blur emphasizes the speed and raw energy of the motorsport, while technical grid overlays suggest precision engineering. Dark industrial background with subtle lens flares." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuC-rDnj25OX5IVs1I_BmkNNCnj5twbee49PDGq6ZewPh53hiT95nRfJhcH8Rg_otc8MRd-NaftCkcIq8veXmXjsvjyrDSLZClDMkjoCK9VIr6AYQfdRgJ5N36HssLaSqNObHLN0XQZMy5WtBMxmZ_1xMx72kRi8f7EfEwrpWeRUtNmVG-BBCXUaXaFKyhybdcHcuqSsuVYPUsbTgR4dVBH47eqiobiUwuK3I1Pq6h6oMfhgFJJPzarjFQ")'}} />
+            <div className="w-full h-full grayscale opacity-30 hover:grayscale-0 transition-all duration-700 bg-cover bg-center" data-alt="A high-performance electric drift trike performing a sharp 45-degree angle drift on a damp asphalt track at night. The scene is illuminated by neon blue and hazard lime green lights reflecting off the wet surface. Motion blur emphasizes the speed and raw energy of the motorsport, while technical grid overlays suggest precision engineering. Dark industrial background with subtle lens flares." style={{backgroundImage: 'url("/assets/action-mid-slide.jpg")'}} />
           </div>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-white text-[15vw] font-display-lg opacity-5 leading-none select-none tracking-tight">ADRENALINE</div>
@@ -164,9 +164,9 @@ export default function Page() {
           <div className="grid grid-cols-2 md:flex gap-12">
             <div className="flex flex-col gap-3">
               <p className="font-label-bold text-secondary uppercase mb-2">Company</p>
-              <a className="text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Support</a>
+              <a className="text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/support">Support</a>
               <a className="text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy</a>
-              <a className="text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Shipping</a>
+              <a className="text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/shipping-warranty">Shipping</a>
               <a className="text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Terms</a>
             </div>
             <div className="flex flex-col gap-3">

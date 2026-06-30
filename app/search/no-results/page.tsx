@@ -7,12 +7,12 @@ export default function Page() {
       <header className="w-full top-0 sticky z-50 bg-surface dark:bg-surface-container-lowest border-b border-white/10">
         <nav className="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
           <div className="flex items-center gap-8">
-            <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="#">E-DRIFT</a>
+            <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="/">E-DRIFT</a>
             <div className="hidden md:flex gap-6">
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">TRIKES</a>
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">PARTS</a>
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">GEAR</a>
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">THE GARAGE</a>
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">TRIKES</a>
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/tech-lab">THE GARAGE</a>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -50,7 +50,7 @@ export default function Page() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
             {/* Card 1: Electric Trikes */}
             <div className="group relative aspect-[4/5] bg-surface-container-low border border-white/10 rounded-lg overflow-hidden power-on-glow transition-all duration-500">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A high-performance electric drift trike with a lime green frame, wide rear PVC sleeves, and glowing LED accents, photographed in a dark industrial garage with concrete textures and technical blueprint lines visible on the floor." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuB_TV2fQRbOmt5jjcDLun9vdru32Jfm7ijI1eMJuRavyfjyDbOjHgymbc7l3-vWt5S-ppAHJ8LPut9WSxRBFaRiGktzkuw8Cez0NrLDSUhat6bXEyAIVo3k7hcjZo81aNMvbkDAjCzVGA5GYp81Rf6nqOwDXG2-IHCUmWWoCinYPNdXx2uZXU4fPmI6pxU1L5Nxh7wx0yfqjRatqHIAy2v-cbiUnJtPIFZfleUKctXhAENRCcV5-9ZLbg")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A high-performance electric drift trike with a lime green frame, wide rear PVC sleeves, and glowing LED accents, photographed in a dark industrial garage with concrete textures and technical blueprint lines visible on the floor." style={{backgroundImage: 'url("/assets/motor-72v-hub.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
               <div className="absolute bottom-0 left-0 w-full p-8">
                 <h3 className="font-headline-md text-headline-md text-white uppercase mb-2">ELECTRIC TRIKES</h3>
@@ -61,7 +61,7 @@ export default function Page() {
             </div>
             {/* Card 2: Drift Sleeves */}
             <div className="group relative aspect-[4/5] bg-surface-container-low border border-white/10 rounded-lg overflow-hidden power-on-glow transition-all duration-500">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="Close-up of premium black PVC drift sleeves being fitted onto a high-performance tire, with sparks flying in the background to suggest a workshop environment. The lighting is moody and focused on the technical texture of the materials." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBtk4fgDoocK05q5m3b0gHzaS9KfHrOAX35FgxAtXXAtX11W8n90lIPkd8xqQuUschNrO-l8xsnCzO5by8O-1EprVhX53FFX8T7pNvc1ig4lxXVSi66DitSASTkg8A0XkQV3WCUQPrN7MmrPA24g1ZPj4i5fKfC19LRbliA0od6N2Srz0-U1kRp6M9SKYW-6_lUf__pJALp_IYvZQQmBkDkrPtPTYzyBgJ8RHkHEqhti6fl_s6JqUVpkQ")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="Close-up of premium black PVC drift sleeves being fitted onto a high-performance tire, with sparks flying in the background to suggest a workshop environment. The lighting is moody and focused on the technical texture of the materials." style={{backgroundImage: 'url("/assets/action-mid-slide.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
               <div className="absolute bottom-0 left-0 w-full p-8">
                 <h3 className="font-headline-md text-headline-md text-white uppercase mb-2">DRIFT SLEEVES</h3>
@@ -72,7 +72,7 @@ export default function Page() {
             </div>
             {/* Card 3: The Garage */}
             <div className="group relative aspect-[4/5] bg-surface-container-low border border-white/10 rounded-lg overflow-hidden power-on-glow transition-all duration-500">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A wide angle view of a professional high-tech motorsport garage featuring rows of custom electric trikes, neon overhead lighting, tool chests organized with precision, and a large digital screen displaying telemetry data. The color palette is dark charcoal and voltage blue." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBbj3wwq9KksMYAPDjYfP-wqEWbveKuSrUO-jZ2RIjZqEnP4I6yVIaq7H0T9p0WHiGeIwYJ4sWkrlKUkPGUkBJLAnWJZ7aFkIt6rP6JQniG6VnM0o2T5v_H4SnQ3MkbLwBW_QNX9HjJaBjyw9AKAjynORTBWJ5DgUvrwFx77GEMF2TuM-p5zCcoCNHDDpSVYARPnmlXyji0mej6FEQUpmf3PRxHJaxpDFYOpmdBC2AmxInhFBOubLKOWA")'}} />
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A wide angle view of a professional high-tech motorsport garage featuring rows of custom electric trikes, neon overhead lighting, tool chests organized with precision, and a large digital screen displaying telemetry data. The color palette is dark charcoal and voltage blue." style={{backgroundImage: 'url("/assets/volt-s1-pro-hero.jpg")'}} />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
               <div className="absolute bottom-0 left-0 w-full p-8">
                 <h3 className="font-headline-md text-headline-md text-white uppercase mb-2">THE GARAGE</h3>
@@ -110,9 +110,9 @@ export default function Page() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             <div className="flex flex-col gap-4">
               <span className="font-label-bold text-label-bold uppercase text-white tracking-widest">LINKS</span>
-              <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Support</a>
+              <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/support">Support</a>
               <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy</a>
-              <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Shipping</a>
+              <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/shipping-warranty">Shipping</a>
               <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Terms</a>
             </div>
             <div className="flex flex-col gap-4">

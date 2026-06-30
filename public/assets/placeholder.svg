@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#0e0e11"/>
+  <rect width="800" height="600" fill="url(#grid)"/>
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <text x="50%" y="48%" text-anchor="middle" font-family="Anton, sans-serif" font-size="64" fill="#c4f731" letter-spacing="2">E-DRIFT</text>
+  <text x="50%" y="58%" text-anchor="middle" font-family="Inter, sans-serif" font-size="16" fill="#8d90a2" letter-spacing="6">VOLTAGE DRIFT</text>
+</svg>

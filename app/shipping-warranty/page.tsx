@@ -6,11 +6,11 @@ export default function Page() {
       {/* Top Navigation Bar */}
       <nav className="fixed top-0 w-full z-50 border-b border-white/10 bg-background/95 backdrop-blur-md">
         <div className="flex justify-between items-center px-margin-desktop py-4 max-w-max-width mx-auto">
-          <a className="font-headline-md text-headline-md text-secondary uppercase italic tracking-tighter" href="#">VOLT DRIFT</a>
+          <a className="font-headline-md text-headline-md text-secondary uppercase italic tracking-tighter" href="/product/volt-s1-pro">VOLT DRIFT</a>
           <div className="hidden md:flex gap-8 items-center">
-            <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Trikes</a>
+            <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="/shop">Trikes</a>
             <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Upgrades</a>
-            <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Gear</a>
+            <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="/shop">Gear</a>
             <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Tech</a>
             <a className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors duration-300" href="#">Garage</a>
           </div>
@@ -83,7 +83,7 @@ export default function Page() {
                     </div>
                   </div>
                   <div className="w-full h-48 bg-background/50 rounded-lg border border-white/10 overflow-hidden relative">
-                    <div className="absolute inset-0 bg-cover bg-center" data-alt="A futuristic dark map interface with glowing blue lines connecting major global cities, showing a network of logistics routes with high-tech HUD elements, data points, and technical readouts on a deep charcoal background with subtle electric grid patterns." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCDPBWTSsDh1iKawwJRxE9MiT0YbXR9BFSBEQ5kFC6tJR0FDFYXtHBv0qraSVWi2zDiq7jw7Ry7kQveq598Xy8jm5bXg--rnpzNKZ1OyOfMs9wqxdWO7WdSYr0kbAKRaK6-mY1oTna841o-1soCp_PMPy2xUwXUGd6zXnapJJ9ULKdWa5zPOc-KISQ6XcaiPtqiX_jW_aLdd4JE6HSldlpPWf3tSEXFpM-Dj4zecYJebpZNhiJdd68CIw")'}} />
+                    <div className="absolute inset-0 bg-cover bg-center" data-alt="A futuristic dark map interface with glowing blue lines connecting major global cities, showing a network of logistics routes with high-tech HUD elements, data points, and technical readouts on a deep charcoal background with subtle electric grid patterns." style={{backgroundImage: 'url("/assets/trike-voltage-blue.jpg")'}} />
                     <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
                     <div className="absolute bottom-4 left-4 flex gap-2">
                       <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
@@ -163,7 +163,7 @@ export default function Page() {
               {/* Right Illustration Column */}
               <div className="lg:col-span-8">
                 <div className="bg-surface-container-low p-1 rounded-lg border border-white/5 relative aspect-video overflow-hidden">
-                  <div className="absolute inset-0 bg-cover bg-center" data-alt="A technical blueprint rendering of a high-performance electric drift trike on a dark gray surface, highlighting the motor, battery pack, and frame with glowing blue and green callout lines and labels, reflecting a precision engineering and high-tech automotive aesthetic." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuC5BaLpO2afZlU6HGnNOKi7ICEK6mOfF3m0d9g4N5irk64tmF4QRFGe2bhCaiZM4LOCVfZUALKIEyEJ1QMYgIIB66axpqopx0GnjWIyrw9pSra_ItHpvLc0456w5LLNGOmJmEtb5ohx3uUCrDXtSaiCz2jaj0RXh3P2LRb3I_FKg4AUokZhZ0NG5KU0CykJpKpEIuUBoMj0Fe_wjHZzFuzFLd9QJe8ChYGGUikL5RIu4ANcYDnyjIYzmA")'}} />
+                  <div className="absolute inset-0 bg-cover bg-center" data-alt="A technical blueprint rendering of a high-performance electric drift trike on a dark gray surface, highlighting the motor, battery pack, and frame with glowing blue and green callout lines and labels, reflecting a precision engineering and high-tech automotive aesthetic." style={{backgroundImage: 'url("/assets/parts-performance.jpg")'}} />
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="w-full h-full border-[20px] border-background/20" />
                   </div>
@@ -222,9 +222,9 @@ export default function Page() {
           </div>
           <div className="flex flex-col gap-4">
             <h4 className="text-primary font-label-bold uppercase mb-4">Support</h4>
-            <a className="text-on-surface-variant hover:text-on-surface transition-transform hover:translate-x-1" href="#">Shipping</a>
-            <a className="text-on-surface-variant hover:text-on-surface transition-transform hover:translate-x-1" href="#">Warranty</a>
-            <a className="text-on-surface-variant hover:text-on-surface transition-transform hover:translate-x-1" href="#">Contact</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-transform hover:translate-x-1" href="/shipping-warranty">Shipping</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-transform hover:translate-x-1" href="/shipping-warranty">Warranty</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-transform hover:translate-x-1" href="/support">Contact</a>
           </div>
           <div className="flex flex-col gap-6">
             <h4 className="text-primary font-label-bold uppercase mb-4">HQ Dispatch</h4>

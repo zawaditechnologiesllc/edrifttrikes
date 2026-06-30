@@ -6,11 +6,11 @@ export default function Page() {
       {/* Top Navigation Bar */}
       <nav className="w-full top-0 sticky z-50 border-b border-outline-variant bg-background/95 backdrop-blur-md">
         <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-4 max-w-max-width mx-auto">
-          <a className="font-display-lg text-headline-md text-primary tracking-tighter italic" href="#">VOLT DRIFT</a>
+          <a className="font-display-lg text-headline-md text-primary tracking-tighter italic" href="/product/volt-s1-pro">VOLT DRIFT</a>
           <div className="hidden md:flex gap-8 items-center">
-            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold" href="#">TRIKES</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold" href="/shop">TRIKES</a>
             <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold" href="#">UPGRADES</a>
-            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold" href="#">GEAR</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold" href="/shop">GEAR</a>
             <a className="text-secondary-fixed font-bold border-b-2 border-secondary-fixed pb-1 font-label-bold text-label-bold" href="#">TECH</a>
             <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold text-label-bold" href="#">GARAGE</a>
           </div>
@@ -25,7 +25,7 @@ export default function Page() {
         <section className="mb-16 relative">
           <div className="relative w-full h-[500px] md:h-[600px] overflow-hidden rounded-xl border border-outline-variant group">
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10" />
-            <img alt="DIY Build Guide" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdEjVPn7mOkuAmwOOBSC1SMRM9E0YkltsqkecDgtaCETW38QCNPFLd9lw2hqE3wUrItitTSqQUP5-YHdH5VWIUMIqq5QKNQzPFF-ouL4avD1w1bDdu3LN4l1yNSNIe7qdzKbk15ptOTNHLV6k4sfr7cLrzGgvfv3RnXJotrw-TyPdM5wixuO_hSk-k0vTbb992VbXNfRTHt-QfR2s413aImAH1Bz32ojDPXLpeZJ3SFInP22BiRoTq0g" />
+            <img alt="DIY Build Guide" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/mechanic-sleeve-install.jpg" />
             <div className="absolute bottom-0 left-0 p-8 md:p-12 z-20 max-w-3xl">
               <span className="inline-block bg-secondary text-on-secondary px-3 py-1 text-label-bold font-label-bold mb-4 rounded-sm tracking-widest">FEATURED TECH</span>
               <h1 className="font-display-lg text-display-lg-mobile md:text-headline-xl text-on-surface mb-4 leading-none">MASTER THE DRIFT: THE ULTIMATE DIY BUILD GUIDE</h1>
@@ -60,7 +60,7 @@ export default function Page() {
               {/* Card 1 */}
               <article className="group border border-outline-variant bg-surface-container-low rounded-xl overflow-hidden hover:border-secondary transition-all flex flex-col">
                 <div className="relative h-56 w-full overflow-hidden">
-                  <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="High-detail technical macro shot of an electric motor winding with glowing blue electric arcs, blueprints visible in a blurred background, industrial aesthetic, high-contrast, professional photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbeTeYqYcHI3WBnLTozvYJ9Fxl6670ZBUgMYqGFbZVLJ2YZ61Le2n9WLvU-0pjAl3FAWmlk8Qh52A_Rz594E_lEeZOlxW9GVKKGmT2gv6eQLtBwZwb0blsrQqizUifMLkR5ViEWFoCzXVitPktAOX2KLAqnDdhBSFrmS5vs1N3TM6w6EDCkq8-p8k_crBvJKkJglU4aL_Skvh6JkMQtaVLyZQWZUnNPcjirUvinOzZxjomL5SC367YOA" />
+                  <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="High-detail technical macro shot of an electric motor winding with glowing blue electric arcs, blueprints visible in a blurred background, industrial aesthetic, high-contrast, professional photography." src="/assets/trike-voltage-blue.jpg" />
                   <div className="absolute top-4 left-4">
                     <span className="bg-surface-container-highest/80 backdrop-blur-md text-on-surface text-[10px] px-2 py-1 rounded border border-outline-variant">TECHNICAL</span>
                   </div>
@@ -77,7 +77,7 @@ export default function Page() {
               {/* Card 2 */}
               <article className="group border border-outline-variant bg-surface-container-low rounded-xl overflow-hidden hover:border-secondary transition-all flex flex-col">
                 <div className="relative h-56 w-full overflow-hidden">
-                  <img alt="Fitting drift sleeves" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHlm9L14L2yxsiG13bEJL382g8uxb5RQ37YZkvdLfSN_h3pfEIZcQzW1WRl98E_47uRCgCe-LUvloh7IJ5P8hcYMsB9insnVLTtc3y7gDjIakgNw46idD6mQ_V1pj8zMaWmm3R519o1M5uBJaaOP8qE7BOzNMcpSG8SHpclJb6B4mI58hvVNV7X_msznEYp4JP5PYu0ICLMszaahluB_ECLmgD1iiZGNF2QyHdFneNgm1e5Us9AKJ3Ow" />
+                  <img alt="Fitting drift sleeves" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="/assets/motor-72v-hub.jpg" />
                   <div className="absolute top-4 left-4">
                     <span className="bg-surface-container-highest/80 backdrop-blur-md text-on-surface text-[10px] px-2 py-1 rounded border border-outline-variant">MAINTENANCE</span>
                   </div>
@@ -95,7 +95,7 @@ export default function Page() {
             {/* Card 3 (Asymmetric/Full Width in section) */}
             <article className="group grid grid-cols-1 md:grid-cols-5 border border-outline-variant bg-surface-container-low rounded-xl overflow-hidden hover:border-primary transition-all">
               <div className="md:col-span-2 relative h-64 md:h-full">
-                <img className="w-full h-full object-cover" data-alt="Dramatic side-by-side comparison of two high-voltage lithium batteries, 72V vs 96V, set on a dark technical metal grid table, sparks of energy between them, cinematic studio lighting, voltage blue and neon green accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_DVfxPYwOohgYbp1BVhRLU1g75L1nx2EK1BCVRX-5Rwa-x4OMp3fYtkrExLrql8VAdrc0WTjrq--DkKziOvjnpuNq00AIPxTLbWaTykmxDQgqWxQRmv9js1DqMdxoQgSdzT7zvWf39sxPzsoj8C0gpv0SERrr4ErvkuXW4NhHj-vIkQf9jjgkpfOrpYVjLxTT_ToYAqCQbIO3kzjy5FIyVcwiqWeOCt0hkuPZn8rq1OkoKRXNw-A93w" />
+                <img className="w-full h-full object-cover" data-alt="Dramatic side-by-side comparison of two high-voltage lithium batteries, 72V vs 96V, set on a dark technical metal grid table, sparks of energy between them, cinematic studio lighting, voltage blue and neon green accents." src="/assets/trike-voltage-blue.jpg" />
               </div>
               <div className="md:col-span-3 p-8 flex flex-col justify-center">
                 <span className="text-secondary font-label-bold text-[12px] mb-2 uppercase tracking-widest">Power Systems</span>
@@ -204,14 +204,14 @@ export default function Page() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
             <div className="flex flex-col gap-4">
               <h5 className="text-secondary font-label-bold text-label-bold uppercase tracking-widest">EXPLORE</h5>
-              <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#">TRIKES</a>
+              <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="/shop">TRIKES</a>
               <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#">UPGRADES</a>
               <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#">TRACK FINDER</a>
             </div>
             <div className="flex flex-col gap-4">
               <h5 className="text-secondary font-label-bold text-label-bold uppercase tracking-widest">SUPPORT</h5>
-              <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#">WARRANTY</a>
-              <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#">SHIPPING</a>
+              <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="/shipping-warranty">WARRANTY</a>
+              <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="/shipping-warranty">SHIPPING</a>
               <a className="text-on-surface-variant hover:text-secondary transition-colors font-body-md" href="#">DEALERS</a>
             </div>
             <div className="flex flex-col gap-4 col-span-2 md:col-span-1">

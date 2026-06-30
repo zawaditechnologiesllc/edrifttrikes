@@ -6,12 +6,12 @@ export default function Page() {
       {/* TopNavBar */}
       <header className="w-full top-0 sticky bg-surface dark:bg-surface-container-lowest border-b border-white/10 z-50">
         <div className="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
-          <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="#">E-DRIFT</a>
+          <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="/">E-DRIFT</a>
           <nav className="hidden md:flex items-center gap-8">
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">TRIKES</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">PARTS</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">GEAR</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="#">THE GARAGE</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">TRIKES</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="/tech-lab">THE GARAGE</a>
           </nav>
           <div className="flex items-center gap-6">
             <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all active:scale-90" data-icon="search">search</button>
@@ -63,7 +63,7 @@ export default function Page() {
                 {/* Item 1 */}
                 <div className="bg-surface-container border border-white/10 flex gap-6 p-6 group relative">
                   <div className="w-40 h-40 bg-black overflow-hidden flex-shrink-0 border border-white/5">
-                    <img className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWc0jnIfvQLoRotfwnwLeeAtM0XBgz8qMjslhzHL31hOcnzxd5ZqUia5NY9W_rOtHWYpRJ2wdRXIgUZsXccgWT1DoytTu4paxQQe4zQCZxFc5DwRwX4EnutMq7jYr12ikHYXDWcNJP8tL_g4T8kBGDhRl-ibdn9fwSRb462ZKCSYY4SWfMaRg4s9WIyNdn_xHqbpLdVqim-Lc19UxiKLRsFzCEurFTCIQFj_dvGZCjafgb9qfw7VG0iw" />
+                    <img className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" src="/assets/trike-voltage-blue.jpg" />
                   </div>
                   <div className="flex-grow flex flex-col justify-between">
                     <div className="flex justify-between items-start">
@@ -94,7 +94,7 @@ export default function Page() {
                 {/* Item 2 (Out of Stock Example) */}
                 <div className="bg-surface-container/50 border border-white/10 flex gap-6 p-6 group relative opacity-80 grayscale">
                   <div className="w-40 h-40 bg-black overflow-hidden flex-shrink-0 border border-white/5 relative">
-                    <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2nMSkgJt7KTVDS2ja6IeRwCEPdKfAmF0skcQooGjAvvTQttDJ4D3xhnrfBMKnHF3c7K7fJyUxxtREWtUidyWSyvEw5UDdXnNbeu2m-f6LT_akykWAOI2vbA6XpId2j8jRFZ20n9EPs2_nVmrjeeotppd7EqSxXjXVDEUphLqpe5X_E3sRcJZbcjuXJgKsMS6dfm7bbBI-bBx-qWhh2Po7KZfWEzRp_bksZEHawbPm2pjmJMAuTuSQaw" />
+                    <img className="w-full h-full object-cover" src="/assets/parts-performance.jpg" />
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                       <span className="border-2 border-error text-error font-headline-md px-4 py-1 -rotate-12 uppercase text-sm tracking-widest">DECOMMISSIONED</span>
                     </div>
@@ -120,7 +120,7 @@ export default function Page() {
               {/* Empty State (Hidden by default) */}
               <div className="hidden animate-fadeIn" id="empty-garage">
                 <div className="bg-surface-container relative overflow-hidden border border-white/10 rounded-lg group">
-                  <img alt="Empty Workshop" className="w-full aspect-video object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000" src="https://lh3.googleusercontent.com/aida/AP1WRLtUMtTahjWdiPH21ccw4ff5eZlRxZ-FEevYf0fQeCUFi7dhrrZufKZT9ZnJEu1aYkIykeowJlgBrBETy3ky8lEIhpNnt9eQ2DkGDDxgaxPq1fXbpMpraxVQOY0PPmiLuKWbYG0_mV0A4ee1gbdfVBP-oXfPBxfbd9q7pXlJYmo47FxaAhKHmoO04Nvdlw3_FrNxgla8E3AjzWFfp8CIArNL9DeSiBRpZrnAExkteBvQsVxGxaZqZrSQpkmH" />
+                  <img alt="Empty Workshop" className="w-full aspect-video object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000" src="/assets/garage-workshop-night.jpg" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-12 bg-gradient-to-t from-surface to-transparent">
                     <h2 className="font-headline-xl text-headline-xl mb-4">GARAGE IS OFFLINE</h2>
                     <p className="font-body-md text-on-surface-variant max-w-md mb-8">No active assets detected in your manifest. Return to base to select your gear.</p>
@@ -225,9 +225,9 @@ export default function Page() {
             <div className="space-y-4">
               <h4 className="font-label-bold text-label-bold text-on-surface uppercase mb-4">RESOURCES</h4>
               <ul className="space-y-2">
-                <li><a className="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="#">Support</a></li>
+                <li><a className="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="/support">Support</a></li>
                 <li><a className="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="#">Privacy</a></li>
-                <li><a className="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="#">Shipping</a></li>
+                <li><a className="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="/shipping-warranty">Shipping</a></li>
                 <li><a className="text-on-surface-variant hover:text-primary transition-colors text-body-md" href="#">Terms</a></li>
               </ul>
             </div>

@@ -12,10 +12,10 @@ export default function Page() {
           </div>
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-8">
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">TRIKES</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="#">PARTS</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">GEAR</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">THE GARAGE</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">TRIKES</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="/shop">PARTS</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/tech-lab">THE GARAGE</a>
           </nav>
           {/* Active Search & Actions */}
           <div className="flex items-center gap-6 relative">
@@ -30,7 +30,7 @@ export default function Page() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 p-2 hover:bg-white/5 transition-all cursor-pointer rounded">
                       <div className="w-10 h-10 bg-surface-container rounded border border-white/10 flex-shrink-0">
-                        <img className="w-full h-full object-cover rounded" data-alt="Close-up shot of a high-performance 72V electric motor for drift trikes. The motor has a sleek black finish with exposed copper windings and a brushed metal housing. Industrial dark atmosphere with sharp neon blue lighting reflecting off the metallic surfaces. High-tech engineering aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOwBFA7PIpzBMb5mcyy7x0EIqyRMmtr6PR2wOoFISQhudw9blsm4p5GoEx_UjGn35ZNUmxQw9pTac_3u-gU5JD7Q5jt201chqRJuu1JN8o_qMKQDyX29VeHXVBwyV4Rwhbb7V_tEzYsT6Dpr5FhLUGZfZpAltQP5Gg00nkvJiQl8tdnZsU8WKHUzlZGAoIqliXqWtdsSoH4omxP0GcNtpUofZMYVr_TIiVXMQIVNUnYaw8lFAPytfrrw" />
+                        <img className="w-full h-full object-cover rounded" data-alt="Close-up shot of a high-performance 72V electric motor for drift trikes. The motor has a sleek black finish with exposed copper windings and a brushed metal housing. Industrial dark atmosphere with sharp neon blue lighting reflecting off the metallic surfaces. High-tech engineering aesthetic." src="/assets/trike-voltage-blue.jpg" />
                       </div>
                       <div>
                         <p className="text-body-md font-bold text-secondary">VOLT-S1 Pro (72V)</p>
@@ -39,7 +39,7 @@ export default function Page() {
                     </div>
                     <div className="flex items-center gap-3 p-2 hover:bg-white/5 transition-all cursor-pointer rounded">
                       <div className="w-10 h-10 bg-surface-container rounded border border-white/10 flex-shrink-0">
-                        <img className="w-full h-full object-cover rounded" data-alt="A rugged brushless 72V spare hub motor for heavy-duty electric drift trikes. Detailed view of the hub assembly with integrated cooling fins and high-torque design. Set against a dark, technical blueprint background with subtle Hazard Lime accents. Sharp focus on the precision-machined steel parts." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXY-zlR0MMlWci5NHzZWD5-K2vHSK3O7_HSc9LDT0OGDD48Jz7dXnW2nrYyZwIsjYpoix_fRkU1S19TJw3G83l5u_LJSyK9PSihQN0zk8MvFLcT5e7GPc8fLIhAAH_N3OOzWOf5NnrTr3CciC-6ufUX3AnRs9O_rCNqIKZwDQ1hpu-Nvo-y6hg6aWKDdA8CVuBBTM4RG3I7s7Zc8GiotTnKLI0Lnz0c7oqDov8dAb7PRCn2sqO2Qx2Fg" />
+                        <img className="w-full h-full object-cover rounded" data-alt="A rugged brushless 72V spare hub motor for heavy-duty electric drift trikes. Detailed view of the hub assembly with integrated cooling fins and high-torque design. Set against a dark, technical blueprint background with subtle Hazard Lime accents. Sharp focus on the precision-machined steel parts." src="/assets/parts-performance.jpg" />
                       </div>
                       <div>
                         <p className="text-body-md font-bold text-on-surface">Brushless Spare Hub (72V)</p>
@@ -51,7 +51,7 @@ export default function Page() {
                 <div className="p-4 bg-surface-container-highest/30">
                   <p className="text-[10px] font-label-bold text-outline uppercase tracking-widest mb-3">Guides</p>
                   <div className="space-y-2">
-                    <a className="flex items-center gap-2 text-body-md text-on-surface-variant hover:text-secondary transition-colors" href="#">
+                    <a className="flex items-center gap-2 text-body-md text-on-surface-variant hover:text-secondary transition-colors" href="/tech-lab">
                       <span className="material-symbols-outlined text-sm">article</span>
                       72V Battery Maintenance
                     </a>
@@ -135,7 +135,7 @@ export default function Page() {
               {/* Item 1: VOLT-S1 Pro */}
               <div className="group bg-surface-container-low border border-white/10 rounded-lg overflow-hidden transition-all hover:border-secondary/50 relative">
                 <div className="aspect-video relative overflow-hidden">
-                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Full view of the VOLT-S1 Pro electric drift trike, a beast of engineering with a carbon fiber frame and a massive 72V rear-mounted motor. The trike is staged in a dark industrial garage with wet concrete floors and vibrant Voltage Blue lighting streaks. Dynamic 15-degree angle shot highlighting the aggressive stance and performance tires." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXX430ThCd2IgpICYtm3igc8R_4FIlF5U2uhpVTzlPFQ84LJ3Lo-cHyOQNX3xho3ltmeDG2riggV6wFXxxIXSl-rEHNwL__TSeB8dbWkSKU_czxPyDQMKL_VUQmaF89kgO5BXBPgoEb3Afll9nkjyoQgvWF7lPunt32g3TtCSEatd-4xWUUEdpA-EVpYs15QM6DDVoTb0AWEGCFCNbhk3aBPmZLfmRiqOrWeP2ndIOJ5Hhq4qD2NwxrA" />
+                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Full view of the VOLT-S1 Pro electric drift trike, a beast of engineering with a carbon fiber frame and a massive 72V rear-mounted motor. The trike is staged in a dark industrial garage with wet concrete floors and vibrant Voltage Blue lighting streaks. Dynamic 15-degree angle shot highlighting the aggressive stance and performance tires." src="/assets/volt-s1-pro-hero.jpg" />
                   <div className="absolute top-4 left-4 bg-secondary text-black font-label-bold text-[10px] px-3 py-1 rounded-sm uppercase tracking-widest">In Stock</div>
                 </div>
                 <div className="p-6">
@@ -156,7 +156,7 @@ export default function Page() {
               {/* Item 2: Spare Hub */}
               <div className="group bg-surface-container-low border border-white/10 rounded-lg overflow-hidden transition-all hover:border-secondary/50 relative">
                 <div className="aspect-video relative overflow-hidden">
-                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Technical product shot of a 72V brushless hub motor for electric drifting. The component is isolated on a dark metallic surface with technical grid lines. Sharp industrial lighting highlights the machined cooling fins and heavy-duty cabling. High-contrast neon accents create a futuristic, professional engineering vibe. Minimalist and powerful presentation." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQ-7AcAa_cFJHlEybO4CmnlofpVf_t0O1B2ZEDXgc6BBAWJsNkQZy-hapPKTZnpNU44lWV0AaCogtEDubiFUe0g1XvBgoMxNCvjwlzhDbL5ZGkVlOUoAXyKlpP-pDVyg5OiDqubYXHXnSPeSurXllAnoMYQyvM8VSbmusOQymKcuGFPRXAyz4WxRWUlF_KHWkPd-KaIAJoANM42Vwte5d-I3vd5QBNvEHiJctV0T5uq4-AeeqEKBpRAg" />
+                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Technical product shot of a 72V brushless hub motor for electric drifting. The component is isolated on a dark metallic surface with technical grid lines. Sharp industrial lighting highlights the machined cooling fins and heavy-duty cabling. High-contrast neon accents create a futuristic, professional engineering vibe. Minimalist and powerful presentation." src="/assets/parts-performance.jpg" />
                   <div className="absolute top-4 left-4 bg-secondary text-black font-label-bold text-[10px] px-3 py-1 rounded-sm uppercase tracking-widest">Precision Kit</div>
                 </div>
                 <div className="p-6">
@@ -177,7 +177,7 @@ export default function Page() {
               {/* Item 3: 72V Battery Pack */}
               <div className="group bg-surface-container-low border border-white/10 rounded-lg overflow-hidden transition-all hover:border-secondary/50 relative">
                 <div className="aspect-video relative overflow-hidden">
-                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="High-capacity 72V lithium-ion battery pack for electric drift trikes. The battery is encased in a ruggedized, matte-black weather-sealed housing with a glowing LED voltage display. Set against a dark industrial workshop backdrop with subtle grid-line textures and Hazard Lime lighting accents. Professional high-performance power equipment aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqWfJNhb2s0RSHCF7_JBoKfiNpP3bWJt7PJPg66dvp67iaehcbMPbIjrhr9vKVfH1HJw08ujSttjn_f8xT0FcPK6ffdWDBgHE_sSKhQ4H4tEdevr4WBKMP5Gc6jsizv0JzxCITKXkVm_w8ru2ty74hHK9o_UioSB0K1H5v7v82F7PHqtIpeflDNnunrcfk4xO0t9-WzC1RnY0JAHJsPzGqD-r7dq-se4rcpCo9c5BdfSC-udKTZYYWkg" />
+                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="High-capacity 72V lithium-ion battery pack for electric drift trikes. The battery is encased in a ruggedized, matte-black weather-sealed housing with a glowing LED voltage display. Set against a dark industrial workshop backdrop with subtle grid-line textures and Hazard Lime lighting accents. Professional high-performance power equipment aesthetic." src="/assets/volt-s1-pro-cockpit.jpg" />
                 </div>
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-2">
@@ -197,7 +197,7 @@ export default function Page() {
               {/* Item 4: Heavy Duty Motor Mount */}
               <div className="group bg-surface-container-low border border-white/10 rounded-lg overflow-hidden transition-all hover:border-secondary/50 relative">
                 <div className="aspect-video relative overflow-hidden">
-                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A heavy-duty steel motor mount for high-torque 72V electric trike motors. Precision CNC-machined part with a textured black powder coat finish. Shot in a macro style showing the fine details of the welds and mounting points. The lighting is clinical and sharp, using Voltage Blue tones against a dark technical background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWY1zgAlK8YAEcfySi3nFLwAVoKHnAVyvRv1_y68MjzgXmJFQ-OPQJYcp0KWhIJKComVqAtd1vMwNqRFdZBrkFUIcJKLWlWz-T6K7y3K_m1a6A_bHM7PhTpn4kH-FSK2yvQPnmwh1uW-PvecHgdnUbI_cmwdqjYU_GSYCzzPNC3xg4-ZFuRuzaMLdIns-T7YFOUHQqL8xZtUL_RMXOgRlTq8GE4W9jYH6Yg29hiNs3zIFK75659-vNmA" />
+                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="A heavy-duty steel motor mount for high-torque 72V electric trike motors. Precision CNC-machined part with a textured black powder coat finish. Shot in a macro style showing the fine details of the welds and mounting points. The lighting is clinical and sharp, using Voltage Blue tones against a dark technical background." src="/assets/parts-performance.jpg" />
                   <div className="absolute top-4 left-4 bg-tertiary-container text-white font-label-bold text-[10px] px-3 py-1 rounded-sm uppercase tracking-widest">Limited</div>
                 </div>
                 <div className="p-6">
@@ -270,7 +270,7 @@ export default function Page() {
               <h4 className="font-label-bold text-label-bold uppercase text-on-surface">Support</h4>
               <a className="text-on-surface-variant hover:text-primary transition-colors" href="#">Tech Hub</a>
               <a className="text-on-surface-variant hover:text-primary transition-colors" href="#">Manuals</a>
-              <a className="text-on-surface-variant hover:text-primary transition-colors" href="#">Returns</a>
+              <a className="text-on-surface-variant hover:text-primary transition-colors" href="/shipping-warranty">Returns</a>
             </div>
             <div className="flex flex-col gap-4">
               <h4 className="font-label-bold text-label-bold uppercase text-on-surface">Privacy</h4>
@@ -285,7 +285,7 @@ export default function Page() {
             <div className="flex flex-col gap-4">
               <h4 className="font-label-bold text-label-bold uppercase text-on-surface">Terms</h4>
               <a className="text-on-surface-variant hover:text-primary transition-colors" href="#">Service</a>
-              <a className="text-on-surface-variant hover:text-primary transition-colors" href="#">Warranty</a>
+              <a className="text-on-surface-variant hover:text-primary transition-colors" href="/shipping-warranty">Warranty</a>
             </div>
           </div>
         </div>

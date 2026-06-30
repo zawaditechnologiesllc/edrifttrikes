@@ -8,10 +8,10 @@ export default function Page() {
         <div className="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
           <div className="font-headline-md text-headline-md text-secondary tracking-tighter">E-DRIFT</div>
           <div className="hidden md:flex gap-8 items-center">
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">TRIKES</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">PARTS</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">GEAR</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">THE GARAGE</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">TRIKES</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/tech-lab">THE GARAGE</a>
           </div>
           <div className="flex items-center gap-6">
             <button className="material-symbols-outlined text-on-surface hover:text-secondary transition-colors" data-icon="shopping_cart">shopping_cart</button>
@@ -217,7 +217,7 @@ export default function Page() {
                 <div className="space-y-6 mb-8">
                   <div className="flex gap-4">
                     <div className="w-20 h-20 bg-surface-container-highest rounded border border-white/10 p-2 overflow-hidden flex-shrink-0">
-                      <img className="w-full h-full object-cover" data-alt="Close-up of a high-performance electric drift trike frame with carbon fiber parts and neon hazard lime accents. The machine is shot in a clinical industrial studio with dramatic high-contrast lighting emphasizing the metallic textures and electric engineering details. Background shows subtle engineering technical grid lines." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKhlj8dVEdMWG_9ydDiwKnCY8bfwMe62O_sbkesOfabHmEbi70XTQ9usSSHDMPy8CQiifmnex_ex73dkBg0T50fguG6whWqC4USdthGnoVwSzNfA31Q_aby3UHxwAnWiRAYPgvio2trOSHuU00ksoNb4H4Kczl0abYop1muOK_Mp5hr4DEtmzCFyX2GvmCgRnzVuMmrru-Y_xxyH351tE7BtVkPrv2wmgGWz47AdvyLUT57dSY77FF2Q" />
+                      <img className="w-full h-full object-cover" data-alt="Close-up of a high-performance electric drift trike frame with carbon fiber parts and neon hazard lime accents. The machine is shot in a clinical industrial studio with dramatic high-contrast lighting emphasizing the metallic textures and electric engineering details. Background shows subtle engineering technical grid lines." src="/assets/parts-performance.jpg" />
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between">
@@ -230,7 +230,7 @@ export default function Page() {
                   </div>
                   <div className="flex gap-4">
                     <div className="w-20 h-20 bg-surface-container-highest rounded border border-white/10 p-2 overflow-hidden flex-shrink-0">
-                      <img className="w-full h-full object-cover" data-alt="High-tech performance drifting wheels for an electric trike, featuring specialized rubber texture and a hazard lime alloy rim. Professional studio photography with technical blueprints visible in the blurred background. Moody electric atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhSgdKyIYL1Y6N9-HeeeUuXISBMGtBxQZv-JcCwiZ5_k28OhayO6wTdV_sQvYfARxX1dmkAsdVsmlOFnuYqmk0RJpz8-BKZxrFi3jOqkA1a_jG1LuEqotj9FrmRTjOJoXu609_fzZ9SzNxqh1OcnNi0RLNf5ajiuq_l4fSGJZ_PAYuc2g-92c7Zf7Jy9mbSUscdaM74ugq6IbkTK-zxh6wrSfux9AX6hHLEmGJ0hZ6ivHtYskD8jMwyg" />
+                      <img className="w-full h-full object-cover" data-alt="High-tech performance drifting wheels for an electric trike, featuring specialized rubber texture and a hazard lime alloy rim. Professional studio photography with technical blueprints visible in the blurred background. Moody electric atmosphere." src="/assets/action-mid-slide.jpg" />
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between">
@@ -301,15 +301,15 @@ export default function Page() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             <div className="flex flex-col gap-4">
               <h5 className="text-secondary font-label-bold uppercase text-xs tracking-widest">SUPPORT</h5>
-              <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">FAQ</a>
+              <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="/support">FAQ</a>
               <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">MANUALS</a>
-              <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">CONTACT</a>
+              <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="/support">CONTACT</a>
             </div>
             <div className="flex flex-col gap-4">
               <h5 className="text-secondary font-label-bold uppercase text-xs tracking-widest">LEGAL</h5>
               <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">PRIVACY</a>
               <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">TERMS</a>
-              <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">SHIPPING</a>
+              <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="/shipping-warranty">SHIPPING</a>
             </div>
             <div className="flex flex-col gap-4">
               <h5 className="text-secondary font-label-bold uppercase text-xs tracking-widest">SOCIAL</h5>
@@ -319,7 +319,7 @@ export default function Page() {
             </div>
             <div className="flex flex-col gap-4">
               <h5 className="text-secondary font-label-bold uppercase text-xs tracking-widest">TECH</h5>
-              <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">VOLT-SYSTEM</a>
+              <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="/product/volt-s1-pro">VOLT-SYSTEM</a>
               <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">BATTERY CORE</a>
               <a className="text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">TELEMETRY</a>
             </div>

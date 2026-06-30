@@ -6,10 +6,10 @@ export default function Page() {
       {/* Global Navigation */}
       <nav className="bg-surface dark:bg-surface-container-lowest w-full top-0 sticky z-50 border-b border-white/10 group/nav">
         <div className="flex justify-between items-center w-full px-margin-desktop py-4 max-w-max-width mx-auto">
-          <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="#">E-DRIFT</a>
+          <a className="font-headline-md text-headline-md text-secondary tracking-tighter" href="/">E-DRIFT</a>
           <div className="hidden md:flex items-center gap-8">
             <div className="group/item">
-              <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1 flex items-center gap-1" href="#">
+              <a className="font-label-bold text-label-bold uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1 flex items-center gap-1" href="/shop">
                 TRIKES <span className="material-symbols-outlined text-xs transition-transform group-hover/item:rotate-180">expand_more</span>
               </a>
               {/* Mega Menu: Trikes */}
@@ -18,8 +18,8 @@ export default function Page() {
                   <div className="col-span-1">
                     <h4 className="font-label-bold text-xs text-secondary tracking-[0.2em] mb-6 border-b border-white/10 pb-4">ELECTRIC PERFORMANCE</h4>
                     <ul className="space-y-4">
-                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="#">VOLT-S1 PRO</a></li>
-                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="#">VOLT-E CORE</a></li>
+                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="/product/volt-s1-pro">VOLT-S1 PRO</a></li>
+                      <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="/product/volt-s1-pro">VOLT-E CORE</a></li>
                       <li><a className="text-on-surface-variant hover:text-white transition-colors text-sm font-label-bold" href="#">STORM CHASER</a></li>
                     </ul>
                   </div>
@@ -34,7 +34,7 @@ export default function Page() {
                   <div className="col-span-2 bg-white/5 p-8 border border-white/5 rounded">
                     <div className="flex gap-6 items-center">
                       <div className="w-1/2 aspect-video bg-surface-container rounded overflow-hidden">
-                        <img alt="Featured" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvNf87_k0qlUq1GmgWTl677btLklR2y8-uYhJu-a6KgtYcZuxGDWKAb3HfTpjSpxIdMipbimTJPXcCIpy5eopwSpjQFZw52WWo9Ru3d7K7ZkPj76zhCuR_16bnQmRJVhhwnCBSpS0EIUtSFw-ciDFAmehjG2mxY8pZkBBHAjL6WSSixKCK0aUfnv-V3pdZBK82VKv5s3bLL_XGGlLR7DNulZEp2v-rVidOYyupxOdmlSpFL62aqVAHYQ" />
+                        <img alt="Featured" className="w-full h-full object-cover" src="/assets/action-mid-slide.jpg" />
                       </div>
                       <div className="w-1/2">
                         <span className="text-secondary text-[10px] font-label-bold tracking-widest block mb-2 uppercase">New Release</span>
@@ -47,9 +47,9 @@ export default function Page() {
                 </div>
               </div>
             </div>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">PARTS</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">GEAR</a>
-            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="#">THE GARAGE</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">PARTS</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/shop">GEAR</a>
+            <a className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors" href="/tech-lab">THE GARAGE</a>
           </div>
           <div className="flex items-center gap-6">
             <div className="relative hidden sm:block">
@@ -147,7 +147,7 @@ export default function Page() {
             {/* Product Card 1: VOLT-S1 Pro */}
             <article className="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col hover:shadow-xl transition-all duration-500">
               <div className="relative aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
-                <img alt="The VOLT-S1 Pro electric drift trike, featuring a sleek Voltage Blue aerodynamic frame with carbon fiber accents." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvNf87_k0qlUq1GmgWTl677btLklR2y8-uYhJu-a6KgtYcZuxGDWKAb3HfTpjSpxIdMipbimTJPXcCIpy5eopwSpjQFZw52WWo9Ru3d7K7ZkPj76zhCuR_16bnQmRJVhhwnCBSpS0EIUtSFw-ciDFAmehjG2mxY8pZkBBHAjL6WSSixKCK0aUfnv-V3pdZBK82VKv5s3bLL_XGGlLR7DNulZEp2v-rVidOYyupxOdmlSpFL62aqVAHYQ" />
+                <img alt="The VOLT-S1 Pro electric drift trike, featuring a sleek Voltage Blue aerodynamic frame with carbon fiber accents." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/trike-voltage-blue.jpg" />
                 <div className="absolute top-4 left-4">
                   <span className="bg-secondary text-surface-container-lowest px-3 py-1 font-label-bold text-xs uppercase tracking-widest rounded-sm">NEW</span>
                 </div>
@@ -173,7 +173,7 @@ export default function Page() {
             {/* Product Card 2: INTERCEPTOR-G */}
             <article className="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col hover:shadow-xl transition-all duration-500">
               <div className="relative aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
-                <img alt="The INTERCEPTOR-G gas-powered drift trike, showing its rugged steel tube frame in charcoal black with Hazard Lime accents." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEhdVLdAZChQkUKv4ll2LTn5esZhbp6LgwCKEwEib8_fhDi2pY72FhGuAB8IkyNRRQTwa0yDitsm5wuL_1sK_2YbBqgCEvbEmACg87AF-UzPAKK4-95egA6-_S6GgZGME9xEnZlwOnDvUKy0pDlkgBbFZ1T1LcSBMN8qFhSMdq51x1w9sYjeZM6lbJELTO0AaX5HyRD8oCDopOwWBXXH3eLDJXFtd52YPeTpmDR6K1cbd_z3yVg4V-xg" />
+                <img alt="The INTERCEPTOR-G gas-powered drift trike, showing its rugged steel tube frame in charcoal black with Hazard Lime accents." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/trike-gas-charcoal.jpg" />
               </div>
               <div className="p-8 flex flex-col flex-grow">
                 <div className="flex justify-between items-start mb-4">
@@ -197,7 +197,7 @@ export default function Page() {
             <article className="group bg-white border border-surface-container-lowest/5 rounded-lg overflow-hidden flex flex-col lg:col-span-2 hover:shadow-xl transition-all duration-500">
               <div className="flex flex-col md:flex-row">
                 <div className="relative w-full md:w-1/2 aspect-[1.49] overflow-hidden bg-[#F0F0F0]">
-                  <img alt="A detailed technical close-up of high-performance drift trike parts on a white studio background." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiE-jOzVIqf-yscisl4KsmFL92K7BJCNqaaVojAvKD2rtVzqVtAzUDbQJEAPMtNCbIIH4qXkJWlNL6tuodLDYncy3otZl46d1HDI53assXw9qdz3qjhoTo0ZwXCapRCwOKZHSB8nZHhSNXZCvwX8GnpAc251OyvE7RK1IrTupObQDBrcbSw5Bx5XNRsBAZS06zCXYs6DB3IDwbQc8DjuFGj1GFL-5AexHyyob6kDxrIDx26DMqAf37Ig" />
+                  <img alt="A detailed technical close-up of high-performance drift trike parts on a white studio background." className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="/assets/parts-performance.jpg" />
                   <div className="absolute top-4 left-4">
                     <span className="bg-[#ffb4ab] text-error-container px-3 py-1 font-label-bold text-xs uppercase tracking-widest rounded-sm">LOW STOCK</span>
                   </div>
@@ -230,13 +230,13 @@ export default function Page() {
                 <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Electric Series</a></li>
                 <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Gas Performance</a></li>
                 <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Gravity Gravity</a></li>
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Custom Shop</a></li>
+                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="/shop">Custom Shop</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-label-bold text-xs tracking-widest uppercase mb-8 text-white">RESOURCES</h4>
               <ul className="space-y-4">
-                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Tech Support</a></li>
+                <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="/support">Tech Support</a></li>
                 <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Drift Academy</a></li>
                 <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Find a Dealer</a></li>
                 <li><a className="text-on-surface-variant hover:text-secondary text-sm transition-colors uppercase tracking-wider" href="#">Maintenance</a></li>

@@ -8,9 +8,9 @@ export default function Page() {
         <div className="flex justify-between items-center px-margin-desktop py-4 max-w-max-width mx-auto">
           <div className="font-headline-md text-headline-md text-secondary uppercase italic">VOLT DRIFT</div>
           <div className="hidden md:flex items-center gap-8">
-            <a className="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="#">Trikes</a>
+            <a className="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="/shop">Trikes</a>
             <a className="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="#">Upgrades</a>
-            <a className="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="#">Gear</a>
+            <a className="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="/shop">Gear</a>
             <a className="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="#">Tech</a>
             <a className="text-on-surface-variant hover:text-primary transition-colors hover:text-secondary duration-300 active:skew-x-[-12deg] transition-transform" href="#">Garage</a>
           </div>
@@ -156,7 +156,7 @@ export default function Page() {
                 </div>
               </div>
               <div className="mt-16 rounded-lg overflow-hidden border border-white/10 group">
-                <div className="w-full h-48 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" data-alt="A high-contrast macro shot of a disassembled electric drift trike hub motor, revealing copper coils and precision engineering, styled with industrial blueprint lines and a tech-noir lighting palette." style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBFAqxlGYYNTakfhZffoBwpEVf09O7fP_F_P6jmhQtIfGb05DUs5pNWK1oGXLrjoKeQDS2VZRiK4f8shv0kBhItjNvUVoRM-f07GV44EFtiYcXAxWPtG89VOvr2bLLPQwFRZMG7WpZ56i2GQVt1s29_UWZwgF7fk-TGajsrayGO9jGoOk-9dIVlrK_XMiAJYmBCgufLfvJwECIu0OuXdl7-cpkflvQwErgmtWEwnEjc1GNJX7xVYmQ1wA")'}} />
+                <div className="w-full h-48 bg-cover bg-center group-hover:scale-105 transition-transform duration-700" data-alt="A high-contrast macro shot of a disassembled electric drift trike hub motor, revealing copper coils and precision engineering, styled with industrial blueprint lines and a tech-noir lighting palette." style={{backgroundImage: 'url("/assets/motor-72v-hub.jpg")'}} />
               </div>
             </div>
             <div className="bg-surface-container-low p-10 rounded-lg border border-white/10 voltage-glow transition-all">
@@ -242,9 +242,9 @@ export default function Page() {
           <div>
             <h5 className="text-secondary font-label-bold uppercase mb-6 tracking-widest text-xs">Support</h5>
             <ul className="space-y-3">
-              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="#">Shipping</a></li>
-              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="#">Warranty</a></li>
-              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="#">Contact</a></li>
+              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="/shipping-warranty">Shipping</a></li>
+              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="/shipping-warranty">Warranty</a></li>
+              <li><a className="text-on-surface-variant hover:text-on-surface hover:translate-x-1 transition-all inline-block" href="/support">Contact</a></li>
             </ul>
           </div>
           <div>

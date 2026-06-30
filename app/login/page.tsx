@@ -7,7 +7,7 @@ export default function Page() {
         {/* LEFT SIDE: High-Energy Action Canvas */}
         <section className="relative w-full md:w-1/2 lg:w-3/5 h-[40vh] md:h-screen overflow-hidden group">
           <div className="absolute inset-0 bg-black/40 z-10" />
-          <img className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-1000" src="https://lh3.googleusercontent.com/aida/AP1WRLsPJSo_koPIorscaYNiOLFHpifFN45G8TOBTWlMVOMLLBlRhvaiFdZNmgPS2vgPhoNFU2dQ4mNVEer7scBLajgp_Njue1CIs1O_O3gU-WBJpgLpRLsINzZ_M-0whblHIiSOO4x5ew0VatHxVQrgBiH5u4puzyGy9u0YXVfyPwola83hHCOQZLRFZ-20r4p2788m19Id_EUsAVc0LSQ1UfAvQvt5e6cZ1ItkNdAWWORLtjBGjozLvo7Ppkdn" />
+          <img className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-1000" src="/assets/trike-gas-charcoal.jpg" />
           {/* Branding Overlay */}
           <div className="absolute bottom-12 left-margin-desktop z-20">
             <h1 className="font-display-lg text-display-lg text-white tracking-tighter leading-none mb-4">
@@ -39,7 +39,7 @@ export default function Page() {
             {/* Social Authentication */}
             <div className="grid grid-cols-2 gap-gutter mb-8">
               <button className="flex items-center justify-center gap-3 bg-surface-container-high py-3 px-6 rounded hover:bg-surface-variant transition-colors border border-white/5 active:scale-95 duration-75">
-                <img alt="Google" className="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyxeurBp2DPVERZHrySe2oX0B3mZXJKMXELCLSmSIt3CXlOHpH251e8N_FRYlVifLUnJwS6MN4G3PZkD2w1nHL8nS7lmWbPDPGNKCH-bUR-ipYuBKxeFylj7xutoPym6mGWaS0zpiq3MwSTGSOgtQI4esen_oSEWZOC-wgRiiuhb1t91R7xtgRcwC_J7cVsHO6OY7VeYWwvFia-CBOq66Y41huelfOS5MIy9DaC6Y7qJuXnW6itSTKZQ" />
+                <img alt="Google" className="w-5 h-5" src="/assets/volt-s1-pro-hero.jpg" />
                 <span className="font-label-bold text-xs">GOOGLE</span>
               </button>
               <button className="flex items-center justify-center gap-3 bg-surface-container-high py-3 px-6 rounded hover:bg-surface-variant transition-colors border border-white/5 active:scale-95 duration-75">

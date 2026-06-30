@@ -126,13 +126,20 @@ component, [`components/Enhancements.tsx`](./components/Enhancements.tsx):
   (`data-remove-closest`), back navigation (`data-history-back`)
 - sticky-nav "tighten on scroll" effect
 
+## Imagery
+
+All imagery from the Stitch export is bundled locally under
+[`public/assets/`](./public/assets) (optimized JPGs, ~1.3 MB total) and wired
+into the pages by content — no external/expiring CDN URLs. Any image that fails
+to load falls back to a branded placeholder (`Enhancements.tsx`). Swap these for
+final product photography (or serve from Supabase Storage) when ready.
+
 ## Known limitations / next steps
 
-- **Imagery** references Stitch's Google-hosted CDN (`lh3.googleusercontent.com`).
-  Those `aida-public` URLs can expire — replace them with your own assets
-  (e.g. Supabase Storage or `/public`) for production.
-- **Navigation links** are the Stitch placeholders (`href="#"`). Wiring them to
-  the routes above, plus connecting product/cart/auth flows to Supabase + the
-  Render API, is the natural next iteration.
-- A handful of bespoke per-page micro-interactions (e.g. auth login/register tab
-  switch) render in their default state; they can be wired up as needed.
+- **Data is still static.** Product listings, cart, search, and account content
+  are the design's placeholder content. Connecting them to Supabase + the Render
+  API (`lib/api.ts`) is the natural next iteration.
+- **Auth is UI-only.** The login/register screens render; wiring them to
+  Supabase Auth (the clients + middleware are already in place) is next.
+- A few bespoke per-page micro-interactions (e.g. the auth login/register tab
+  switch) render in their default state and can be wired up as needed.

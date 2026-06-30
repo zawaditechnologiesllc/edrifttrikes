@@ -8,9 +8,9 @@ export default function NotFound() {
             VOLT DRIFT
           </div>
           <div className="hidden md:flex items-center gap-8">
-            <a className="font-body-md text-on-surface-variant hover:text-secondary duration-300 transition-colors uppercase tracking-widest text-sm" href="#">Trikes</a>
+            <a className="font-body-md text-on-surface-variant hover:text-secondary duration-300 transition-colors uppercase tracking-widest text-sm" href="/shop">Trikes</a>
             <a className="font-body-md text-on-surface-variant hover:text-secondary duration-300 transition-colors uppercase tracking-widest text-sm" href="#">Upgrades</a>
-            <a className="font-body-md text-on-surface-variant hover:text-secondary duration-300 transition-colors uppercase tracking-widest text-sm" href="#">Gear</a>
+            <a className="font-body-md text-on-surface-variant hover:text-secondary duration-300 transition-colors uppercase tracking-widest text-sm" href="/shop">Gear</a>
             <a className="font-body-md text-on-surface-variant hover:text-secondary duration-300 transition-colors uppercase tracking-widest text-sm" href="#">Tech</a>
             <a className="font-body-md text-on-surface-variant hover:text-secondary duration-300 transition-colors uppercase tracking-widest text-sm" href="#">Garage</a>
           </div>
@@ -25,7 +25,7 @@ export default function NotFound() {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/90 z-10" />
           <div className="absolute inset-0 bg-black/60 z-10 backdrop-blur-sm" />
-          <div className="absolute inset-0 opacity-40 z-0" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida/AP1WRLuHgQ0BmBrdPK5lfcRXc3tbbZOeBTW_Nq2jInp3WliSPMH7FG4_OggE20QGCMOUWIZZ9ImNat9NOx8LDgGbX2fITmpEWiVRL8OTCuA2RtxROiomBqOGVqFpVydNT5ZXfzWXRMCDZoY25fKI1Jt3DxX8WKwylqDvGFNjQ3ko5amktzj9iY9pb4XsX6Lbmr61NsVIGPAYkW1ehiinQWJFhr6FwGrtxY7YLdsFXkmpHhRYqOF2O-ncFsSQ43w")', backgroundSize: 'cover', backgroundPosition: 'center'}} />
+          <div className="absolute inset-0 opacity-40 z-0" style={{backgroundImage: 'url("/assets/volt-s1-pro-cockpit.jpg")', backgroundSize: 'cover', backgroundPosition: 'center'}} />
           {/* Technical Grid Overlay */}
           <div className="absolute inset-0 z-[5] opacity-10 pointer-events-none" style={{backgroundImage: 'linear-gradient(#b7c4ff 1px, transparent 1px), linear-gradient(90deg, #b7c4ff 1px, transparent 1px)', backgroundSize: '40px 40px'}}>
           </div>
@@ -49,10 +49,10 @@ export default function NotFound() {
               <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-[-20deg]" />
             </a>
             <div className="flex items-center gap-4">
-              <a className="px-6 py-4 border border-white/20 text-white font-label-bold uppercase tracking-widest rounded-lg hover:border-primary hover:text-primary transition-all duration-300" href="#">
+              <a className="px-6 py-4 border border-white/20 text-white font-label-bold uppercase tracking-widest rounded-lg hover:border-primary hover:text-primary transition-all duration-300" href="/shop">
                 Trikes
               </a>
-              <a className="px-6 py-4 border border-white/20 text-white font-label-bold uppercase tracking-widest rounded-lg hover:border-primary hover:text-primary transition-all duration-300" href="#">
+              <a className="px-6 py-4 border border-white/20 text-white font-label-bold uppercase tracking-widest rounded-lg hover:border-primary hover:text-primary transition-all duration-300" href="/tech-lab">
                 The Tech Lab
               </a>
             </div>
@@ -95,9 +95,9 @@ export default function NotFound() {
           </div>
           <div className="flex flex-col gap-4">
             <div className="text-white font-label-bold uppercase tracking-widest mb-2">Support</div>
-            <a className="text-on-surface-variant hover:text-secondary transition-all hover:translate-x-1 font-body-md" href="#">Shipping</a>
-            <a className="text-on-surface-variant hover:text-secondary transition-all hover:translate-x-1 font-body-md" href="#">Warranty</a>
-            <a className="text-on-surface-variant hover:text-secondary transition-all hover:translate-x-1 font-body-md" href="#">Contact</a>
+            <a className="text-on-surface-variant hover:text-secondary transition-all hover:translate-x-1 font-body-md" href="/shipping-warranty">Shipping</a>
+            <a className="text-on-surface-variant hover:text-secondary transition-all hover:translate-x-1 font-body-md" href="/shipping-warranty">Warranty</a>
+            <a className="text-on-surface-variant hover:text-secondary transition-all hover:translate-x-1 font-body-md" href="/support">Contact</a>
           </div>
         </div>
       </footer>

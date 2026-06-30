@@ -12,9 +12,9 @@ export default function Page() {
         <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-4 max-w-max-width mx-auto">
           <div className="font-display-lg text-headline-md text-primary tracking-tighter italic">VOLT DRIFT</div>
           <div className="hidden md:flex items-center gap-8">
-            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold" href="#">TRIKES</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold" href="/shop">TRIKES</a>
             <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold" href="#">UPGRADES</a>
-            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold" href="#">GEAR</a>
+            <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold" href="/shop">GEAR</a>
             <a className="text-secondary-fixed font-bold border-b-2 border-secondary-fixed pb-1 font-label-bold" href="#">TECH</a>
             <a className="text-on-surface-variant hover:text-on-surface transition-colors font-label-bold" href="#">GARAGE</a>
           </div>
@@ -49,7 +49,7 @@ export default function Page() {
       </header>
       {/* Hero Image */}
       <section className="w-full relative h-[60vh] md:h-[80vh] overflow-hidden">
-        <img alt="Technical DIY installation" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHlm9L14L2yxsiG13bEJL382g8uxb5RQ37YZkvdLfSN_h3pfEIZcQzW1WRl98E_47uRCgCe-LUvloh7IJ5P8hcYMsB9insnVLTtc3y7gDjIakgNw46idD6mQ_V1pj8zMaWmm3R519o1M5uBJaaOP8qE7BOzNMcpSG8SHpclJb6B4mI58hvVNV7X_msznEYp4JP5PYu0ICLMszaahluB_ECLmgD1iiZGNF2QyHdFneNgm1e5Us9AKJ3Ow" />
+        <img alt="Technical DIY installation" className="w-full h-full object-cover" src="/assets/mechanic-sleeve-install.jpg" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
       </section>
       {/* Content Area */}
@@ -144,7 +144,7 @@ export default function Page() {
               <div className="tech-grid p-1 border-2 border-primary-container group relative">
                 <div className="bg-surface-container-low p-6 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
                   <div className="w-full md:w-1/3 aspect-square relative bg-surface-container-highest rounded-lg overflow-hidden">
-                    <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="A studio product shot of a Hazard Lime PVC drift sleeve, isolated on a dark technical background with subtle blue rim lighting and technical specs text overlays. High performance aesthetic, 8k resolution." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnMEza6Yc9Mn0RcdXMhMmcD9fcTcTyCLUx9JctGlzVaxTgzHsw9rz_nBnioAZPYVyhmZ3u86SZkxHNQRVGxAI-OFuwpbrpOYsGWOdTGY7xZ-KHVAKWRFV0k9LvUWJYzTLq7wmlSqYFArTIXWDuEK0wHGTt-Gz_qM0nGl-NFxQjkeXObf-sBlPpIM8bq6eWtUBBWAwwTCW9kZkdcs74SzYih05jBx8Sc4n2F_iOfHMm6Te3oU6FeDkIEw" />
+                    <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="A studio product shot of a Hazard Lime PVC drift sleeve, isolated on a dark technical background with subtle blue rim lighting and technical specs text overlays. High performance aesthetic, 8k resolution." src="/assets/action-mid-slide.jpg" />
                     <div className="absolute top-2 left-2 bg-secondary text-on-secondary px-2 py-0.5 font-label-bold text-[10px] rounded-sm">NEW GEAR</div>
                   </div>
                   <div className="flex-1 space-y-4">
@@ -174,7 +174,7 @@ export default function Page() {
               <h5 className="font-label-bold text-on-surface-variant uppercase text-xs mb-6 tracking-widest border-b border-outline-variant pb-2">CONTRIBUTOR</h5>
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-full bg-surface-container-highest border border-outline overflow-hidden">
-                  <img className="w-full h-full object-cover" data-alt="A portrait of a male mechanic in his late 30s with short hair and safety goggles resting on his forehead, looking directly at the camera with a confident, expert expression. Workshop background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzW3uGDJ-CplyenZUgiU9IKAbqgFHMG3Dg1vylhFeKAbJjKF2vrfOYVeR8osO90D4O4UebLd7MdytNkkYMUMv5AaM8nRYhKNdjrpoFhvrGvx4E_Tzz-VqvEFlIxFKtvQRspXjUCKV0dR5yqMv8T4UsMEQHlmKuCJy_-9jJOgT_tO80UczC2IPYuzvaMXzyum-nX4flsiDQsqRphDCr1KVbcMZtWNPwrzF-MxL2uNu85NCZjxVPfoYd3Q" />
+                  <img className="w-full h-full object-cover" data-alt="A portrait of a male mechanic in his late 30s with short hair and safety goggles resting on his forehead, looking directly at the camera with a confident, expert expression. Workshop background." src="/assets/garage-workshop-night.jpg" />
                 </div>
                 <div>
                   <div className="font-label-bold text-on-surface">ELIAS "DR. DRIFT" VANCE</div>
@@ -212,7 +212,7 @@ export default function Page() {
             {/* Related Card 1 */}
             <div className="group cursor-pointer">
               <div className="aspect-[16/10] bg-surface-container-highest mb-4 overflow-hidden relative">
-                <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Action shot of an electric drift trike performing a high-speed slide on a wet asphalt track at night. Neon lights reflect off the surface. Cinematic wide shot, professional automotive photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBD4fqJFy_v6o7Te7hD2kj5FKKphA2EpxNUqAlFMm396yxuJZyTCmzmIctfEc7eJ5sp1KNuVzYj40CnlxLfzaKExjmuchbeijS0jdKBYivJI4Kz25itcOquM7d8ybC26QdoMIZDxDeEd-qwgZzchMK4E1B7dIXmqBfkJmDLx_itsJYhZLpkQEVjZRRDKf5ZUYPFzpXbDirTH2eyUA7prS0fpY_ux3Ref3UDKrD03WMByfKpogW4SB0VQQ" />
+                <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Action shot of an electric drift trike performing a high-speed slide on a wet asphalt track at night. Neon lights reflect off the surface. Cinematic wide shot, professional automotive photography." src="/assets/action-mid-slide.jpg" />
                 <div className="absolute bottom-0 left-0 bg-secondary text-on-secondary font-label-bold text-[10px] px-3 py-1">TECH GUIDE</div>
               </div>
               <h3 className="font-headline-md text-headline-md text-on-surface mb-2 group-hover:text-secondary transition-colors">ADJUSTING AXLE WIDTH</h3>
@@ -221,7 +221,7 @@ export default function Page() {
             {/* Related Card 2 */}
             <div className="group cursor-pointer">
               <div className="aspect-[16/10] bg-surface-container-highest mb-4 overflow-hidden relative">
-                <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Technical close-up of a brushless electric motor with its outer casing removed, showing high-precision copper windings and silver components. Industrial macro photography, clean lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDvUylrczKftHrgkzmVYcCJhtwtS2-x55pwgn5utYsYaaUSS9q3OjO8FyzNAds1RhdIecddezXJIq_Z4D4fScldqWgPntejoZqlG2jTKeP1Jg2czUGmE_2eZHW_K0Md8g1CsmYCH6ZS29uVNBs9sowE16qr0HnCpi9iAXu3lIuvgSimsDGKUK49plL-uZTT7lyMuoeRKGAKJHsuIec59TvqjOenoTDrop5aBVOycl3LXuEQhL94wlUhw" />
+                <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Technical close-up of a brushless electric motor with its outer casing removed, showing high-precision copper windings and silver components. Industrial macro photography, clean lighting." src="/assets/parts-performance.jpg" />
                 <div className="absolute bottom-0 left-0 bg-secondary text-on-secondary font-label-bold text-[10px] px-3 py-1">DIY BUILD</div>
               </div>
               <h3 className="font-headline-md text-headline-md text-on-surface mb-2 group-hover:text-secondary transition-colors">MOTOR COOLING MODS</h3>
@@ -230,7 +230,7 @@ export default function Page() {
             {/* Related Card 3 */}
             <div className="group cursor-pointer">
               <div className="aspect-[16/10] bg-surface-container-highest mb-4 overflow-hidden relative">
-                <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Close-up of a handlebar set with high-tech digital display, leather grips, and various control buttons. Shot in a minimalist white-walled garage environment. Sharp focus, clean lines." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgFx0W6oXCv1uwM4jmNhFiibHr3E3JsaTUw2vi4TSP8asdAPL4v-PpWvuMVcXbJ8nb5tEPM4SHJpFsW0qbRV0OZxBeuwsofaWUkhPd3W6LvCzyZHKGoInBZ4QtDjfIKxHlH6dqLbKCWk1l_VNn_I6UgasBXSwA6rMsYEYmoymDew_iMR1qmM4bQYBMhCeKfa8JnoWVdRJrauBUvrbJyIno-25QyZCSpLj3XiPc6oJNXBvzUdJTS8mYug" />
+                <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Close-up of a handlebar set with high-tech digital display, leather grips, and various control buttons. Shot in a minimalist white-walled garage environment. Sharp focus, clean lines." src="/assets/volt-s1-pro-cockpit.jpg" />
                 <div className="absolute bottom-0 left-0 bg-secondary text-on-secondary font-label-bold text-[10px] px-3 py-1">UPGRADES</div>
               </div>
               <h3 className="font-headline-md text-headline-md text-on-surface mb-2 group-hover:text-secondary transition-colors">PRECISION STEERING</h3>
@@ -250,8 +250,8 @@ export default function Page() {
             <div className="flex flex-col gap-4">
               <span className="font-label-bold text-xs text-secondary-fixed uppercase tracking-widest">SUPPORT</span>
               <a className="text-on-surface-variant hover:text-secondary transition-colors text-sm font-label-bold" href="#">TECHNICAL MANUALS</a>
-              <a className="text-on-surface-variant hover:text-secondary transition-colors text-sm font-label-bold" href="#">WARRANTY</a>
-              <a className="text-on-surface-variant hover:text-secondary transition-colors text-sm font-label-bold" href="#">SHIPPING POLICY</a>
+              <a className="text-on-surface-variant hover:text-secondary transition-colors text-sm font-label-bold" href="/shipping-warranty">WARRANTY</a>
+              <a className="text-on-surface-variant hover:text-secondary transition-colors text-sm font-label-bold" href="/shipping-warranty">SHIPPING POLICY</a>
             </div>
             <div className="flex flex-col gap-4">
               <span className="font-label-bold text-xs text-secondary-fixed uppercase tracking-widest">COMMUNITY</span>
