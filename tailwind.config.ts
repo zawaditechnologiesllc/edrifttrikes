@@ -1,0 +1,120 @@
+import type { Config } from "tailwindcss";
+
+/**
+ * Voltage Drift design system — extracted from the E-Drift Trikes Stitch export
+ * (voltage_drift/DESIGN.md + per-screen tailwind.config blocks), unified into a
+ * single superset so every exported screen renders faithfully.
+ */
+const config: Config = {
+  darkMode: "class",
+  content: [
+    "./app/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Material-style tonal palette (the core Voltage Drift theme)
+        surface: "#131316",
+        "surface-dim": "#131316",
+        "surface-bright": "#39393c",
+        "surface-container-lowest": "#0e0e11",
+        "surface-container-low": "#1b1b1e",
+        "surface-container": "#1f1f22",
+        "surface-container-high": "#2a2a2d",
+        "surface-container-highest": "#353438",
+        "surface-variant": "#353438",
+        "surface-tint": "#b7c4ff",
+        "on-surface": "#e4e1e6",
+        "on-surface-variant": "#c3c5d9",
+        "inverse-surface": "#e4e1e6",
+        "inverse-on-surface": "#303033",
+        background: "#131316",
+        "on-background": "#e4e1e6",
+        outline: "#8d90a2",
+        "outline-variant": "#434656",
+        primary: "#b7c4ff",
+        "on-primary": "#002681",
+        "primary-container": "#1e5bff",
+        "on-primary-container": "#ecedff",
+        "inverse-primary": "#004cec",
+        "primary-fixed": "#dce1ff",
+        "primary-fixed-dim": "#b7c4ff",
+        "on-primary-fixed": "#001551",
+        "on-primary-fixed-variant": "#0039b5",
+        secondary: "#c4f731",
+        "on-secondary": "#273500",
+        "secondary-container": "#a9da00",
+        "on-secondary-container": "#455c00",
+        "secondary-fixed": "#c1f42e",
+        "secondary-fixed-dim": "#a6d700",
+        "on-secondary-fixed": "#151f00",
+        "on-secondary-fixed-variant": "#3a4d00",
+        tertiary: "#ffb59e",
+        "on-tertiary": "#5e1700",
+        "tertiary-container": "#c53a00",
+        "on-tertiary-container": "#ffeae4",
+        "tertiary-fixed": "#ffdbd0",
+        "tertiary-fixed-dim": "#ffb59e",
+        "on-tertiary-fixed": "#3a0b00",
+        "on-tertiary-fixed-variant": "#852400",
+        error: "#ffb4ab",
+        "on-error": "#690005",
+        "error-container": "#93000a",
+        "on-error-container": "#ffdad6",
+        // Named brand tokens used by individual screens
+        "off-white": "#f6f6f3",
+        charcoal: "#0e0e11",
+        voltage: "#1e5bff",
+        "voltage-blue": "#1e5bff",
+        "hazard-lime": "#c4f731",
+        "signal-orange": "#ff8c00",
+        "slate-gray": "#6b7280",
+      },
+      borderRadius: {
+        DEFAULT: "0.25rem",
+        sm: "0.25rem",
+        md: "0.75rem",
+        lg: "0.5rem",
+        xl: "0.75rem",
+        full: "9999px",
+      },
+      spacing: {
+        unit: "4px",
+        gutter: "24px",
+        "margin-mobile": "16px",
+        "margin-desktop": "64px",
+        "max-width": "1440px",
+      },
+      maxWidth: {
+        "max-width": "1440px",
+      },
+      fontFamily: {
+        "display-lg": ["Anton", "sans-serif"],
+        "display-lg-mobile": ["Anton", "sans-serif"],
+        "headline-xl": ["Anton", "sans-serif"],
+        "headline-md": ["Anton", "sans-serif"],
+        "body-lg": ["Inter", "sans-serif"],
+        "body-md": ["Inter", "sans-serif"],
+        "label-bold": ["Inter", "sans-serif"],
+        sans: ["Inter", "sans-serif"],
+        anton: ["Anton", "sans-serif"],
+      },
+      fontSize: {
+        "display-lg": ["84px", { lineHeight: "1.0", letterSpacing: "0.02em", fontWeight: "400" }],
+        "display-lg-mobile": ["48px", { lineHeight: "1.1", fontWeight: "400" }],
+        "headline-xl": ["48px", { lineHeight: "1.1", fontWeight: "400" }],
+        "headline-md": ["32px", { lineHeight: "1.2", fontWeight: "400" }],
+        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+        "body-md": ["16px", { lineHeight: "1.5", fontWeight: "400" }],
+        "label-bold": ["14px", { lineHeight: "1.0", letterSpacing: "0.05em", fontWeight: "700" }],
+      },
+    },
+  },
+  plugins: [
+    require("@tailwindcss/forms"),
+    require("@tailwindcss/container-queries"),
+  ],
+};
+
+export default config;
