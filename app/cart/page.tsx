@@ -6,6 +6,7 @@ import SiteFooter from "@/components/storefront/SiteFooter";
 import { useCart } from "@/components/cart/CartProvider";
 import { formatMoney } from "@/lib/format";
 import { computeTotals } from "@/lib/totals";
+import { Icon } from "@/components/Icon";
 
 export default function CartPage() {
   const { items, subtotalCents, setQty, remove } = useCart();
@@ -24,7 +25,7 @@ export default function CartPage() {
 
         {items.length === 0 ? (
           <div className="text-center py-24 border border-dashed border-white/10 rounded-lg">
-            <span className="material-symbols-outlined text-6xl text-outline">shopping_cart</span>
+            <Icon name="shopping_cart" className="w-16 h-16 text-outline" />
             <p className="font-headline-md text-2xl uppercase text-white mt-4">Your manifest is empty</p>
             <Link href="/shop" className="inline-block mt-6 bg-primary-container text-white px-8 py-4 rounded-lg font-label-bold uppercase tracking-widest hover:brightness-110 transition-all">
               Shop rigs

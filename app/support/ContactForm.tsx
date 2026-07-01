@@ -2,6 +2,7 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 import { submitContact } from "@/lib/actions/contact";
+import { Icon } from "@/components/Icon";
 
 const input = "w-full bg-surface-container border border-white/10 text-white p-4 rounded focus:border-secondary focus:ring-0";
 
@@ -19,7 +20,7 @@ export default function ContactForm() {
   if (state.ok)
     return (
       <div className="bg-surface-container border border-secondary/30 rounded-lg p-8 text-center">
-        <span className="material-symbols-outlined text-5xl text-secondary">mark_email_read</span>
+        <Icon name="mark_email_read" className="w-12 h-12 text-secondary" />
         <p className="text-white font-headline-md text-xl uppercase mt-3">Message sent</p>
         <p className="text-on-surface-variant mt-1">The garage crew will reply within one business day.</p>
       </div>

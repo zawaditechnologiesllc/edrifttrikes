@@ -4,6 +4,7 @@ import SiteFooter from "@/components/storefront/SiteFooter";
 import { getOrderByNumber } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 import ClearCartOnMount from "./ClearCartOnMount";
+import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "Order Confirmed" };
 
@@ -19,7 +20,7 @@ export default async function OrderConfirmation({
       <ClearCartOnMount />
       <SiteHeader />
       <main className="flex-1 max-w-3xl w-full mx-auto px-margin-mobile md:px-margin-desktop py-16 text-center">
-        <span className="material-symbols-outlined text-6xl text-secondary">check_circle</span>
+        <Icon name="check_circle" className="w-16 h-16 text-secondary" />
         <h1 className="font-display-lg text-display-lg-mobile md:text-headline-xl text-white uppercase mt-4">
           Order Confirmed
         </h1>

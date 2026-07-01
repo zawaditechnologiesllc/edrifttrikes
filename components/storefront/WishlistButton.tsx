@@ -1,4 +1,5 @@
 import { toggleWishlist } from "@/lib/actions/wishlist";
+import { HeartIcon } from "@/components/Icon";
 
 export default function WishlistButton({
   productId,
@@ -17,14 +18,12 @@ export default function WishlistButton({
       {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
       {variant === "full" ? (
         <button className="flex items-center gap-2 border border-white/20 text-white px-6 py-4 rounded-lg font-label-bold text-label-bold uppercase tracking-widest hover:border-secondary hover:text-secondary transition-all">
-          <span className={`material-symbols-outlined ${saved ? "text-secondary" : ""}`} style={saved ? { fontVariationSettings: '"FILL" 1' } : undefined}>
-            favorite
-          </span>
+          <HeartIcon filled={saved} className={`w-6 h-6 ${saved ? "text-secondary" : ""}`} />
           {saved ? "Saved" : "Save"}
         </button>
       ) : (
-        <button aria-label={saved ? "Remove from wishlist" : "Save to wishlist"} className="text-on-surface-variant hover:text-secondary transition-colors">
-          <span className="material-symbols-outlined" style={saved ? { fontVariationSettings: '"FILL" 1' } : undefined}>favorite</span>
+        <button aria-label={saved ? "Remove from wishlist" : "Save to wishlist"} className={`hover:text-secondary transition-colors ${saved ? "text-secondary" : "text-on-surface-variant"}`}>
+          <HeartIcon filled={saved} />
         </button>
       )}
     </form>

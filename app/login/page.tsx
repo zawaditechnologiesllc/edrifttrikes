@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import AuthForm from "./AuthForm";
 import { getCurrentProfile } from "@/lib/db";
+import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "Rider Authentication" };
 
@@ -41,7 +42,7 @@ export default async function LoginPage() {
           <AuthForm />
           <Link href="/" className="mt-10 text-on-surface-variant hover:text-secondary font-label-bold text-xs uppercase tracking-widest flex items-center gap-2">
             Continue as guest
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            <Icon name="arrow_forward" className="w-4 h-4" />
           </Link>
         </section>
       </main>

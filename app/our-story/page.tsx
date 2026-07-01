@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
+import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "Our Story" };
 
@@ -57,7 +58,7 @@ export default function OurStory() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
           {VALUES.map((v) => (
             <div key={v.title} className="bg-surface-container-low border border-white/10 rounded-lg p-8">
-              <span className="material-symbols-outlined text-secondary !text-4xl">{v.icon}</span>
+              <Icon name={v.icon} className="w-10 h-10 text-secondary" />
               <h3 className="font-headline-md text-xl text-white uppercase mt-4">{v.title}</h3>
               <p className="text-on-surface-variant mt-2 leading-relaxed">{v.body}</p>
             </div>

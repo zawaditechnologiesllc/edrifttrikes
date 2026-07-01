@@ -2,6 +2,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ContactForm from "./ContactForm";
+import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "Support Hub" };
 
@@ -35,7 +36,7 @@ export default function SupportPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-16">
           {CHANNELS.map((c) => (
             <Link key={c.title} href={c.href} className="bg-surface-container border border-white/10 rounded-lg p-6 hover:border-secondary/50 transition-all">
-              <span className="material-symbols-outlined text-secondary text-3xl">{c.icon}</span>
+              <Icon name={c.icon} className="w-8 h-8 text-secondary" />
               <h3 className="font-headline-md text-xl text-white uppercase mt-3">{c.title}</h3>
               <p className="text-on-surface-variant mt-1">{c.value}</p>
             </Link>
@@ -50,7 +51,7 @@ export default function SupportPage() {
                 <details key={i} className="accordion-item bg-surface-container border border-white/10 rounded-lg group">
                   <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
                     <span className="font-label-bold uppercase tracking-wide text-white">{f.q}</span>
-                    <span className="material-symbols-outlined text-secondary transition-transform group-open:rotate-180">expand_more</span>
+                    <Icon name="expand_more" className="w-6 h-6 text-secondary transition-transform group-open:rotate-180" />
                   </summary>
                   <p className="px-5 pb-5 text-on-surface-variant leading-relaxed">{f.a}</p>
                 </details>

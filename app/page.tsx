@@ -3,6 +3,7 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
 import { getFeaturedProducts, getCategories } from "@/lib/db";
+import { Icon } from "@/components/Icon";
 
 const FEATURES = [
   { icon: "bolt", title: "High-Torque Motor", body: "72V custom-wound brushless motors delivering instant 150Nm torque for immediate break-loose capability." },
@@ -62,7 +63,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
             {FEATURES.map((f) => (
               <div key={f.title} className="bg-surface-container p-10 border border-white/10 hover:border-secondary/50 transition-all">
-                <span className="material-symbols-outlined !text-5xl text-secondary mb-8">{f.icon}</span>
+                <Icon name={f.icon} className="w-12 h-12 text-secondary mb-8" />
                 <h3 className="font-headline-md text-headline-md text-white uppercase mb-4">{f.title}</h3>
                 <p className="text-on-surface-variant leading-relaxed">{f.body}</p>
               </div>

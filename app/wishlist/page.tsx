@@ -6,6 +6,7 @@ import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
 import { getCurrentProfile, getWishlist } from "@/lib/db";
 import { supabaseConfigured } from "@/lib/supabase/admin";
+import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "Your Parts Bin" };
 
@@ -24,14 +25,14 @@ export default async function WishlistPage() {
 
         {!profile ? (
           <div className="text-center py-24 border border-dashed border-white/10 rounded-lg">
-            <span className="material-symbols-outlined text-6xl text-outline">favorite</span>
+            <Icon name="favorite" className="w-16 h-16 text-outline" />
             <p className="font-headline-md text-2xl uppercase text-white mt-4">Sign in to save builds</p>
             <p className="text-on-surface-variant mt-2">Your parts bin syncs across devices once you&apos;re signed in.</p>
             <Link href="/login" className="inline-block mt-6 bg-primary-container text-white px-8 py-4 rounded-lg font-label-bold uppercase tracking-widest hover:brightness-110 transition-all">Sign in</Link>
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-24 border border-dashed border-white/10 rounded-lg">
-            <span className="material-symbols-outlined text-6xl text-outline">favorite</span>
+            <Icon name="favorite" className="w-16 h-16 text-outline" />
             <p className="font-headline-md text-2xl uppercase text-white mt-4">Your parts bin is empty</p>
             <Link href="/shop" className="inline-block mt-6 bg-primary-container text-white px-8 py-4 rounded-lg font-label-bold uppercase tracking-widest hover:brightness-110 transition-all">Find rigs to save</Link>
           </div>

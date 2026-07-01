@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
+import { Icon } from "@/components/Icon";
 
 export default async function AdminOverview() {
   const admin = createAdminClient();
@@ -32,7 +33,7 @@ export default async function AdminOverview() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-gutter mb-12">
         {stats.map((s) => (
           <div key={s.label} className="bg-surface-container border border-white/10 rounded-lg p-6">
-            <span className="material-symbols-outlined text-secondary">{s.icon}</span>
+            <Icon name={s.icon} className="w-6 h-6 text-secondary" />
             <p className="text-3xl font-headline-md text-white mt-3">{s.value}</p>
             <p className="text-on-surface-variant text-xs uppercase tracking-widest font-label-bold mt-1">{s.label}</p>
           </div>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/db";
 import { supabaseConfigured } from "@/lib/supabase/admin";
 import { signOut } from "@/app/login/actions";
+import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "Admin" };
 
@@ -50,18 +51,18 @@ export default async function AdminLayout({
               href={n.href}
               className="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant hover:bg-white/5 hover:text-white font-label-bold text-sm uppercase tracking-widest transition-colors"
             >
-              <span className="material-symbols-outlined text-lg">{n.icon}</span>
+              <Icon name={n.icon} className="w-5 h-5" />
               {n.label}
             </Link>
           ))}
         </nav>
         <div className="p-4 border-t border-white/10 space-y-2">
           <Link href="/" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-white text-sm font-label-bold uppercase tracking-widest">
-            <span className="material-symbols-outlined text-lg">storefront</span> View store
+            <Icon name="storefront" className="w-5 h-5" /> View store
           </Link>
           <form action={signOut}>
             <button className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-error text-sm font-label-bold uppercase tracking-widest w-full">
-              <span className="material-symbols-outlined text-lg">logout</span> Sign out
+              <Icon name="logout" className="w-5 h-5" /> Sign out
             </button>
           </form>
         </div>
