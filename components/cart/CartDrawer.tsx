@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCart } from "./CartProvider";
 import { formatMoney } from "@/lib/format";
+import { CloseIcon, CartIcon } from "@/components/Icon";
 
 export default function CartDrawer() {
   const { items, subtotalCents, setQty, remove, open, setOpen, count } = useCart();
@@ -28,16 +29,17 @@ export default function CartDrawer() {
           </h2>
           <button
             onClick={() => setOpen(false)}
-            className="material-symbols-outlined text-on-surface-variant hover:text-white"
+            className="h-10 w-10 flex items-center justify-center text-on-surface-variant hover:text-white"
             aria-label="Close cart"
           >
-            close
+            <CloseIcon />
           </button>
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {items.length === 0 ? (
             <div className="text-center py-20">
+              <CartIcon className="w-12 h-12 mx-auto text-outline mb-4" />
               <p className="text-on-surface-variant font-label-bold uppercase tracking-widest">
                 Your garage manifest is empty
               </p>
