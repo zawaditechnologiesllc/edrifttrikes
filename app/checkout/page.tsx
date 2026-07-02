@@ -118,7 +118,7 @@ export default function CheckoutPage() {
               {items.map((i) => (
                 <div key={i.productId} className="flex gap-3 items-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={i.imageUrl ?? "/assets/placeholder.svg"} alt={i.name} className="w-14 h-14 object-cover rounded bg-surface-container-high" />
+                  <img loading="lazy" decoding="async" src={i.imageUrl ?? "/assets/placeholder.svg"} alt={i.name} className="w-14 h-14 object-cover rounded bg-surface-container-high" />
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-label-bold uppercase truncate">{i.name}</p>
                     <p className="text-on-surface-variant text-xs">Qty {i.qty}</p>

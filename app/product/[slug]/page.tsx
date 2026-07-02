@@ -6,8 +6,11 @@ import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import WishlistButton from "@/components/storefront/WishlistButton";
-import { getProductBySlug, getProducts, isInWishlist } from "@/lib/db";
+import { getProductBySlug, getProducts } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
+
+// Product pages are ISR-cached; per-user wishlist state loads client-side.
+export const revalidate = 120;
 
 export async function generateMetadata({
   params,
@@ -32,7 +35,6 @@ export default async function ProductPage({
       : [product.hero_image || "/assets/placeholder.svg"];
   const related = (await getProducts({ limit: 3 })).filter((p) => p.id !== product.id).slice(0, 3);
   const lowStock = product.stock > 0 && product.stock <= 5;
-  const saved = await isInWishlist(product.id);
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
@@ -110,7 +112,7 @@ export default async function ProductPage({
               >
                 Checkout
               </Link>
-              <WishlistButton productId={product.id} saved={saved} redirectTo={`/product/${product.slug}`} variant="full" />
+              <WishlistButton productId={product.id} variant="full" />
             </div>
 
             <p className="text-on-surface-variant leading-relaxed pt-2">{product.description}</p>

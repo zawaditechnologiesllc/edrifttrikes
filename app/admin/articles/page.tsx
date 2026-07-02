@@ -1,13 +1,20 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { saveArticle, deleteArticle } from "../actions";
 
 const input = "w-full bg-surface-container-highest border border-white/10 text-white p-3 rounded focus:border-secondary focus:ring-0";
 const lbl = "block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest";
 
 export default async function AdminArticles() {
+  if (!adminConfigured()) {
+    return (
+      <p className="p-8 text-on-surface-variant">
+        Connect Supabase (URL + service role key) to manage the store.
+      </p>
+    );
+  }
   const admin = createAdminClient();
   const { data: articles } = await admin.from("articles").select("*").order("published_at", { ascending: false });
 

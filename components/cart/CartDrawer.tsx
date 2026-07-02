@@ -58,6 +58,8 @@ export default function CartDrawer() {
                 <img
                   src={i.imageUrl ?? "/assets/placeholder.svg"}
                   alt={i.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-20 h-20 object-cover rounded border border-white/10 bg-surface-container"
                 />
                 <div className="flex-1 min-w-0">

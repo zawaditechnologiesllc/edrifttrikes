@@ -25,3 +25,11 @@ export function supabaseConfigured() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 }
+
+/** True when the server-side service role is also present (admin features). */
+export function adminConfigured() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}

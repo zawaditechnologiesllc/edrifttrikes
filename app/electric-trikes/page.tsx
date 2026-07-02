@@ -4,6 +4,9 @@ import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
 import { getProducts } from "@/lib/db";
 
+// ISR: serve cached HTML, refresh in the background.
+export const revalidate = 120;
+
 export const metadata = { title: "Electric Drift Trikes" };
 
 export default async function ElectricTrikes() {

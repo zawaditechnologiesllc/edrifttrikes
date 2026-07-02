@@ -5,6 +5,9 @@ import ProductCard from "@/components/storefront/ProductCard";
 import { getFeaturedProducts, getCategories } from "@/lib/db";
 import { Icon } from "@/components/Icon";
 
+// ISR: serve cached HTML, refresh in the background.
+export const revalidate = 120;
+
 const FEATURES = [
   { icon: "bolt", title: "High-Torque Motor", body: "72V custom-wound brushless motors delivering instant 150Nm torque for immediate break-loose capability." },
   { icon: "rebase", title: "Slide-Sleeves", body: "UHMWPE rear sleeves designed for buttery-smooth transitions and extreme durability." },
@@ -105,7 +108,7 @@ export default async function HomePage() {
             ]).map((c) => (
               <Link key={c.id} href={`/shop?category=${c.slug}`} className="group relative aspect-[3/4] overflow-hidden rounded-lg hover-lift border-b-2 border-transparent hover:border-primary-container">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.image_url || "/assets/trike-voltage-blue.jpg"} alt={c.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                <img loading="lazy" decoding="async" src={c.image_url || "/assets/trike-voltage-blue.jpg"} alt={c.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 w-full p-8">
                   <h4 className="font-headline-md text-headline-md text-white uppercase">{c.name}</h4>
@@ -133,7 +136,7 @@ export default async function HomePage() {
           </div>
           <div className="rounded-lg overflow-hidden border border-white/10 aspect-video">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/garage-workshop-night.jpg" alt="The garage" className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src="/assets/garage-workshop-night.jpg" alt="The garage" className="w-full h-full object-cover" />
           </div>
         </div>
       </section>

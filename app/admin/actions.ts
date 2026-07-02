@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 
 async function requireAdmin() {
+  if (!adminConfigured()) redirect("/login");
   const supabase = createClient();
   const {
     data: { user },

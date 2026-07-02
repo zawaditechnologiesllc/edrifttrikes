@@ -1,11 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
 import { deleteProduct } from "../actions";
 
 export default async function AdminProducts() {
+  if (!adminConfigured()) {
+    return (
+      <p className="p-8 text-on-surface-variant">
+        Connect Supabase (URL + service role key) to manage the store.
+      </p>
+    );
+  }
   const admin = createAdminClient();
   const { data: products } = await admin
     .from("products")
@@ -39,7 +46,7 @@ export default async function AdminProducts() {
                 <td className="p-4">
                   <div className="flex items-center gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.hero_image || "/assets/placeholder.svg"} alt="" className="w-12 h-12 object-cover rounded bg-surface-container-high" />
+                    <img loading="lazy" decoding="async" src={p.hero_image || "/assets/placeholder.svg"} alt="" className="w-12 h-12 object-cover rounded bg-surface-container-high" />
                     <span className="text-white font-label-bold uppercase">{p.name}</span>
                   </div>
                 </td>

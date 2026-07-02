@@ -3,6 +3,9 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import { getArticles } from "@/lib/db";
 
+// ISR: serve cached HTML, refresh in the background.
+export const revalidate = 120;
+
 export const metadata = { title: "The Tech Lab" };
 
 export default async function TechLab() {
@@ -46,7 +49,7 @@ export default async function TechLab() {
                 <Link key={a.id} href={`/tech-lab/${a.slug}`} className="group bg-surface-container border border-white/10 rounded-lg overflow-hidden hover-lift hover:border-secondary/50">
                   <div className="aspect-video overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.cover_url || "/assets/garage-workshop-night.jpg"} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img loading="lazy" decoding="async" src={a.cover_url || "/assets/garage-workshop-night.jpg"} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <div className="p-6">
                     <span className="font-label-bold text-[10px] text-secondary uppercase tracking-widest">{a.category} · {a.read_minutes} min</span>

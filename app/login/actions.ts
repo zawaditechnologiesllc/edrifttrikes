@@ -2,14 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { supabaseConfigured } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/email";
 
 export type AuthState = { error?: string; message?: string };
+
+const NOT_CONFIGURED =
+  "Accounts aren't live yet — the store hasn't been connected to Supabase.";
 
 export async function signIn(
   _prev: AuthState,
   formData: FormData
 ): Promise<AuthState> {
+  if (!supabaseConfigured()) return { error: NOT_CONFIGURED };
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   if (!email || !password) return { error: "Email and password are required." };
@@ -24,6 +29,7 @@ export async function signUp(
   _prev: AuthState,
   formData: FormData
 ): Promise<AuthState> {
+  if (!supabaseConfigured()) return { error: NOT_CONFIGURED };
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const fullName = String(formData.get("full_name") || "").trim();
@@ -59,7 +65,9 @@ export async function signUp(
 }
 
 export async function signOut() {
-  const supabase = createClient();
-  await supabase.auth.signOut();
+  if (supabaseConfigured()) {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+  }
   redirect("/");
 }

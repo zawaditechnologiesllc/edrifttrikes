@@ -1,11 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import ProductForm from "../ProductForm";
 import type { Category, Product } from "@/lib/types";
 
 export default async function EditProduct({ params }: { params: { id: string } }) {
+  if (!adminConfigured()) {
+    return (
+      <p className="p-8 text-on-surface-variant">
+        Connect Supabase (URL + service role key) to manage the store.
+      </p>
+    );
+  }
   const admin = createAdminClient();
   const [{ data: product }, { data: categories }] = await Promise.all([
     admin.from("products").select("*").eq("id", params.id).maybeSingle(),

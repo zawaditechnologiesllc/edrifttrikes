@@ -1,16 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { supabaseConfigured } from "@/lib/supabase/admin";
 import type { Article, Category, Order, Product, Profile } from "@/lib/types";
 
 /**
- * Server-side data access. All reads go through the cookie-aware client so RLS
- * applies. Every function degrades gracefully to empty/null when Supabase isn't
- * configured yet, so the storefront still renders during previews.
+ * Server-side data access. Every function degrades gracefully to empty/null
+ * when Supabase isn't configured yet, so the storefront still renders.
+ *
+ * Public catalog/content reads use the cookie-free anon client so the pages
+ * that call them can be statically rendered and ISR-cached (fast TTFB).
+ * User-specific reads (profile, orders, wishlist) use the cookie-aware client.
  */
 
 export async function getCategories(): Promise<Category[]> {
   if (!supabaseConfigured()) return [];
-  const supabase = createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("categories")
     .select("*")
@@ -25,7 +29,7 @@ export async function getProducts(opts?: {
   limit?: number;
 }): Promise<Product[]> {
   if (!supabaseConfigured()) return [];
-  const supabase = createClient();
+  const supabase = createPublicClient();
   let query = supabase
     .from("products")
     .select("*, category:categories(*)")
@@ -57,7 +61,7 @@ export async function getFeaturedProducts(limit = 4): Promise<Product[]> {
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   if (!supabaseConfigured()) return null;
-  const supabase = createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("products")
     .select("*, category:categories(*), images:product_images(*), specs:product_specs(*)")
@@ -72,7 +76,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 
 export async function searchProducts(q: string): Promise<Product[]> {
   if (!supabaseConfigured() || !q.trim()) return [];
-  const supabase = createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("products")
     .select("*, category:categories(*)")
@@ -84,7 +88,7 @@ export async function searchProducts(q: string): Promise<Product[]> {
 
 export async function getArticles(limit?: number): Promise<Article[]> {
   if (!supabaseConfigured()) return [];
-  const supabase = createClient();
+  const supabase = createPublicClient();
   let query = supabase
     .from("articles")
     .select("*")
@@ -97,7 +101,7 @@ export async function getArticles(limit?: number): Promise<Article[]> {
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
   if (!supabaseConfigured()) return null;
-  const supabase = createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("articles")
     .select("*")

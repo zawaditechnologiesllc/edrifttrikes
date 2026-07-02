@@ -5,6 +5,9 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import { getArticleBySlug } from "@/lib/db";
 
+// ISR: serve cached HTML, refresh in the background.
+export const revalidate = 300;
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const a = await getArticleBySlug(params.slug);
   return { title: a ? a.title : "Article" };

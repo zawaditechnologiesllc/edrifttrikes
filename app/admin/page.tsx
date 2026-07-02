@@ -1,11 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
 import { Icon } from "@/components/Icon";
 
 export default async function AdminOverview() {
+  if (!adminConfigured()) {
+    return (
+      <p className="p-8 text-on-surface-variant">
+        Connect Supabase (URL + service role key) to manage the store.
+      </p>
+    );
+  }
   const admin = createAdminClient();
 
   const [{ count: products }, { count: orders }, { count: customers }, { data: paid }, { data: recent }] =
