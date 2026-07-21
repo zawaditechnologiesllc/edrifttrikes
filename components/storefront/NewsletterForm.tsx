@@ -3,6 +3,9 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { subscribeNewsletter } from "@/lib/actions/newsletter";
+import Turnstile from "@/components/Turnstile";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 function SubmitBtn() {
   const { pending } = useFormStatus();
@@ -37,6 +40,7 @@ export default function NewsletterForm() {
         />
         <SubmitBtn />
       </div>
+      <Turnstile siteKey={TURNSTILE_SITE_KEY} />
       {state.error && <p className="text-error text-xs">{state.error}</p>}
     </form>
   );

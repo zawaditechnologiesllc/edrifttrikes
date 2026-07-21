@@ -21,6 +21,12 @@ const nextConfig = {
         key: "Permissions-Policy",
         value: "camera=(), microphone=(), geolocation=()",
       },
+      // Force HTTPS for 2 years (safe: the site is always served over HTTPS via
+      // Cloudflare). Belt-and-suspenders with Cloudflare's edge HSTS setting.
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
     ];
     return [{ source: "/:path*", headers: securityHeaders }];
   },

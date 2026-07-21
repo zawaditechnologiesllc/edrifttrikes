@@ -4,6 +4,9 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { submitContact } from "@/lib/actions/contact";
 import { Icon } from "@/components/Icon";
+import Turnstile from "@/components/Turnstile";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 const input = "w-full bg-surface-container border border-white/10 text-white p-4 rounded focus:border-secondary focus:ring-0";
 
@@ -34,6 +37,7 @@ export default function ContactForm() {
       </div>
       <input name="subject" placeholder="Subject" className={input} />
       <textarea name="message" required rows={5} placeholder="How can we help?" className={input} />
+      <Turnstile siteKey={TURNSTILE_SITE_KEY} />
       {state.error && <p className="text-error font-label-bold text-sm">{state.error}</p>}
       <Submit />
     </form>
