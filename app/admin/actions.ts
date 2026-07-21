@@ -69,12 +69,48 @@ export async function saveProduct(formData: FormData) {
     hero_image: hero,
   };
 
-  if (id) await admin.from("products").update(row).eq("id", id);
-  else await admin.from("products").insert(row);
+  let productId = id;
+  if (id) {
+    await admin.from("products").update(row).eq("id", id);
+  } else {
+    const { data: created } = await admin.from("products").insert(row).select("id").single();
+    productId = created?.id ?? "";
+  }
+
+  // Gallery images (product_images): remove ticked ones, then append uploads.
+  if (productId) {
+    const removeIds = formData.getAll("remove_image").map(String).filter(Boolean);
+    if (removeIds.length) {
+      await admin.from("product_images").delete().in("id", removeIds);
+    }
+
+    const galleryFiles = formData
+      .getAll("gallery")
+      .filter((f): f is File => f instanceof File && f.size > 0);
+    if (galleryFiles.length) {
+      const { data: last } = await admin
+        .from("product_images")
+        .select("position")
+        .eq("product_id", productId)
+        .order("position", { ascending: false })
+        .limit(1);
+      let pos = last && last.length ? (last[0].position ?? 0) + 1 : 0;
+
+      const name = String(formData.get("name") || "").trim();
+      const newRows: { product_id: string; url: string; alt: string; position: number }[] = [];
+      for (const file of galleryFiles) {
+        const url = await uploadImage(file);
+        if (url) newRows.push({ product_id: productId, url, alt: name, position: pos++ });
+      }
+      if (newRows.length) await admin.from("product_images").insert(newRows);
+    }
+  }
 
   revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/products");
   revalidatePath("/shop");
+  const slug = String(formData.get("slug") || "").trim();
+  if (productId && slug) revalidatePath(`/product/${slug}`);
   redirect("/admin/products");
 }
 

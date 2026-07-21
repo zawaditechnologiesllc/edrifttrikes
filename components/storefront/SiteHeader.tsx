@@ -22,7 +22,7 @@ const SHOP = [
 ];
 const EXPLORE = [
   { label: "The Tech Lab", href: "/tech-lab" },
-  { label: "Our Story", href: "/our-story" },
+  { label: "About Us", href: "/our-story" },
   { label: "Support", href: "/support" },
   { label: "Shipping & Warranty", href: "/shipping-warranty" },
 ];
@@ -30,7 +30,7 @@ const NAV = [
   { label: "Trikes", href: "/shop?category=trikes" },
   { label: "Parts", href: "/shop?category=parts" },
   { label: "Gear", href: "/shop?category=gear" },
-  { label: "The Garage", href: "/tech-lab" },
+  { label: "About Us", href: "/our-story" },
 ];
 
 export default function SiteHeader({ light = false }: { light?: boolean }) {
@@ -56,8 +56,13 @@ export default function SiteHeader({ light = false }: { light?: boolean }) {
     <>
       <nav className={`w-full top-0 sticky z-50 border-b ${bg}`}>
         <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-3 md:py-4 max-w-max-width mx-auto gap-4">
-          <Link href="/" className="font-headline-md text-2xl md:text-headline-md text-secondary tracking-tighter shrink-0">
-            E-DRIFT
+          <Link href="/" aria-label="E-Drift Trikes home" className="flex items-center gap-2.5 shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/edrift-logo.svg" alt="E-Drift Trikes" className="h-9 w-9 md:h-10 md:w-10" />
+            <span className="font-headline-md text-xl md:text-2xl tracking-tighter leading-none">
+              <span className="text-secondary">E-DRIFT</span>
+              <span className="hidden sm:inline text-white"> TRIKES</span>
+            </span>
           </Link>
 
           <div className="hidden md:flex gap-10">
@@ -101,7 +106,11 @@ export default function SiteHeader({ light = false }: { light?: boolean }) {
           }`}
         >
           <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 shrink-0">
-            <span className="font-headline-md text-2xl text-secondary tracking-tighter">E-DRIFT</span>
+            <span className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/edrift-logo.svg" alt="E-Drift Trikes" className="h-8 w-8" />
+              <span className="font-headline-md text-2xl text-secondary tracking-tighter">E-DRIFT</span>
+            </span>
             <button onClick={() => setMenu(false)} aria-label="Close menu" className="h-11 w-11 flex items-center justify-center rounded-full text-on-surface hover:text-secondary">
               <CloseIcon className="w-7 h-7" />
             </button>

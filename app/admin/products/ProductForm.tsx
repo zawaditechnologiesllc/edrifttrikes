@@ -130,7 +130,27 @@ export default function ProductForm({
           {p?.hero_image && <img src={p.hero_image} alt="" className="w-20 h-20 object-cover rounded border border-white/10" />}
           <input name="image" type="file" accept="image/*" className="text-on-surface-variant text-sm" />
         </div>
-        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Uploads to Supabase Storage. Leave empty to keep current.</p>
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Main image, shown on cards. Uploads to Supabase Storage. Leave empty to keep current.</p>
+      </div>
+
+      <div>
+        <label className={lbl}>Gallery images (product page)</label>
+        {p?.images && p.images.length > 0 && (
+          <div className="flex flex-wrap gap-3 mb-3">
+            {p.images.map((img) => (
+              <div key={img.id} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img.url} alt={img.alt ?? ""} className="w-24 h-24 object-cover rounded border border-white/10" />
+                <label className="absolute -top-2 -right-2 flex items-center gap-1 bg-surface-container-highest border border-white/10 rounded-full px-2 py-1 cursor-pointer" title="Remove on save">
+                  <input type="checkbox" name="remove_image" value={img.id} className="w-3.5 h-3.5 accent-red-500" />
+                  <span className="text-[9px] font-label-bold uppercase tracking-widest text-on-surface-variant">Del</span>
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+        <input name="gallery" type="file" accept="image/*" multiple className="text-on-surface-variant text-sm" />
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Add one or more images for the product-page gallery. Tick existing images to remove them on save.</p>
       </div>
 
       <div className="flex items-center gap-4 pt-4">

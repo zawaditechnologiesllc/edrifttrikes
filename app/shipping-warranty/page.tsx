@@ -8,13 +8,13 @@ const SHIPPING = [
   { title: "Free shipping over $1,500", body: "Orders of $1,500 or more ship free within the continental US. Below that, a flat $50 rate applies." },
   { title: "Dispatch times", body: "Trikes leave the garage in 5–7 business days. Parts and gear ship in 2–3. Custom builds: 2–4 weeks." },
   { title: "Tracking", body: "Every order gets a tracking link by email the moment it ships. Track status anytime from your dashboard." },
-  { title: "International", body: "We ship to 30+ countries. Duties and taxes are calculated at checkout where supported." },
+  { title: "Worldwide shipping", body: "We manufacture and ship direct to every country. Duties and taxes are calculated at checkout where supported, or billed by your local customs." },
 ];
 
 const WARRANTY = [
   { title: "2-year frame warranty", body: "Every E-Drift frame is covered against manufacturing defects for two years from delivery." },
   { title: "1-year drivetrain & electronics", body: "Motors, controllers and batteries are covered for one year under normal riding conditions." },
-  { title: "30-day returns", body: "Unused rigs can be returned within 30 days for a full refund, minus return shipping. Custom builds are final sale." },
+  { title: "30-day returns", body: "Unused rigs can be returned within 30 days for a refund, minus return shipping and any restocking fee. Custom builds are final sale. See Returns & Refunds for full details." },
   { title: "Crash replacement", body: "Riders get discounted crash-replacement pricing on frames and sleeves. Contact support to claim." },
 ];
 
@@ -50,9 +50,15 @@ export default function ShippingWarranty() {
           <Section title="Shipping" items={SHIPPING} />
           <Section title="Warranty & Returns" items={WARRANTY} />
         </div>
-        <div className="mt-16 text-center">
-          <p className="text-on-surface-variant">Still have a question?</p>
-          <Link href="/support" className="inline-block mt-3 bg-primary-container text-white px-8 py-4 rounded-lg font-label-bold uppercase tracking-widest hover:brightness-110 transition-all">
+        <div className="mt-16 rounded-lg border border-secondary/30 bg-surface-container p-6 md:p-8 text-center max-w-2xl mx-auto">
+          <p className="text-white font-label-bold uppercase tracking-widest text-sm">Something wrong with an order?</p>
+          <p className="text-on-surface-variant mt-2">
+            Contact our support crew first — we&apos;ll make it right faster than any bank dispute.
+            Full details are in our{" "}
+            <Link href="/returns" className="text-secondary underline underline-offset-2">Returns &amp; Refunds</Link>{" "}and{" "}
+            <Link href="/terms" className="text-secondary underline underline-offset-2">Terms of Service</Link>.
+          </p>
+          <Link href="/support" className="inline-block mt-5 bg-primary-container text-white px-8 py-4 rounded-lg font-label-bold uppercase tracking-widest hover:brightness-110 transition-all">
             Contact support
           </Link>
         </div>

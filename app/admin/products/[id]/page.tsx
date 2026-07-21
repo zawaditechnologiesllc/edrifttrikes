@@ -15,14 +15,20 @@ export default async function EditProduct({ params }: { params: { id: string } }
   }
   const admin = createAdminClient();
   const [{ data: product }, { data: categories }] = await Promise.all([
-    admin.from("products").select("*").eq("id", params.id).maybeSingle(),
+    admin
+      .from("products")
+      .select("*, images:product_images(*)")
+      .eq("id", params.id)
+      .maybeSingle(),
     admin.from("categories").select("*").order("position"),
   ]);
   if (!product) notFound();
+  const p = product as Product;
+  p.images = (p.images ?? []).sort((a, b) => a.position - b.position);
   return (
     <div className="p-8">
       <h1 className="font-display-lg text-display-lg-mobile text-white uppercase mb-8">Edit Product</h1>
-      <ProductForm product={product as Product} categories={(categories as Category[]) ?? []} />
+      <ProductForm product={p} categories={(categories as Category[]) ?? []} />
     </div>
   );
 }

@@ -24,6 +24,11 @@ export const metadata: Metadata = {
       "The frontier of electric street motorsport. Built for the adrenaline-fueled expert.",
     type: "website",
   },
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/assets/edrift-logo.svg",
+  },
 };
 
 export const viewport: Viewport = {

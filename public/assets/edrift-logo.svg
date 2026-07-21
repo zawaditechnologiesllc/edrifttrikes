@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="E-Drift Trikes">
+  <circle cx="120" cy="120" r="118" fill="#0b0b0d" stroke="#c4f731" stroke-width="4"/>
+  <circle cx="120" cy="120" r="105" fill="none" stroke="#c4f731" stroke-width="2" opacity="0.45"/>
+  <g fill="#c4f731">
+    <polygon points="84,72 102,72 102,168 84,168"/>
+    <polygon points="84,72 156,72 138,92 84,92"/>
+    <polygon points="84,110 140,110 124,128 84,128"/>
+    <polygon points="84,148 156,148 138,168 84,168"/>
+  </g>
+</svg>
