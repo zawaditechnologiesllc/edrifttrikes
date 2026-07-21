@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { subscribeNewsletter } from "@/lib/actions/newsletter";
 
 function SubmitBtn() {
@@ -17,7 +18,7 @@ function SubmitBtn() {
 }
 
 export default function NewsletterForm() {
-  const [state, formAction] = useFormState(subscribeNewsletter, {});
+  const [state, formAction] = useActionState(subscribeNewsletter, {});
   if (state.ok)
     return (
       <p className="text-secondary font-label-bold text-label-bold uppercase tracking-widest">

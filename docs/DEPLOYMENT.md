@@ -4,30 +4,33 @@ Complete, end-to-end deployment for the full stack:
 
 | Layer | Service | What it runs |
 | --- | --- | --- |
-| Storefront + admin + checkout | **Vercel** | the Next.js app in this repo root |
+| Storefront + admin + checkout | **Cloudflare** (Workers, via OpenNext) | the Next.js app in this repo root |
 | Auth · Database · Image storage | **Supabase** | schema in `supabase/migrations` |
 | Email · Stripe webhook · contact | **Render** | the Node service in `/server` |
-| Payments | **Stripe** | checkout + webhook |
+| Payments | **Stripe** and/or **PayPal** | checkout + capture/webhook |
 | Transactional email | **Resend** | sent from the Render service |
 
 Deploy order matters — do it top to bottom. You'll create Supabase first (it
-issues the keys everything else needs), then Render (it issues a URL Vercel
-needs), then Vercel, then wire Stripe's webhook back to Render.
+issues the keys everything else needs), then Render (it issues a URL the app
+needs), then Cloudflare, then wire Stripe's webhook back to Render.
 
-> **One-time cost reality check:** Vercel's free **Hobby** plan is for
-> non-commercial use. A store that takes payments is commercial, so plan to be
-> on **Vercel Pro (~$20/mo)** once you go live. Supabase and Render can start on
-> free tiers — see [`SCALING.md`](./SCALING.md) for when to upgrade each.
+> **Why Cloudflare instead of Vercel:** Vercel's free Hobby plan forbids
+> commercial use (a store taking payments), which would force Vercel Pro
+> (~$20/mo) on day one. Cloudflare's free tier **allows** commercial use — static
+> page serving is unlimited/free and Workers include 100,000 requests/day free —
+> so a real store can launch at $0 and scale far before paying. The app runs on
+> Cloudflare through the [OpenNext](https://opennext.js.org/cloudflare) adapter.
+> See [`SCALING.md`](./SCALING.md) for the capacity math and upgrade triggers.
 
 ---
 
 ## 0. Prerequisites
 
-- Accounts: **GitHub** (this fork), **Supabase**, **Render**, **Vercel**,
-  **Stripe**, **Resend**.
-- The repo pushed to your GitHub account.
+- Accounts: **GitHub** (this fork), **Supabase**, **Render**, **Cloudflare**,
+  **Stripe** and/or **PayPal**, **Resend**.
+- Node 20+ locally, and the repo pushed to your GitHub account.
 - Generate one shared secret now — you'll paste the *same* value into both Render
-  and Vercel later as `INTERNAL_API_KEY`:
+  and Cloudflare later as `INTERNAL_API_KEY`:
   ```bash
   openssl rand -hex 32
   ```
@@ -68,9 +71,9 @@ Run `supabase/seed.sql`. It creates the three **categories** (`trikes`, `parts`,
 
 ### 1e. Auth redirect URL
 **Authentication → URL Configuration**:
-- **Site URL**: `https://YOUR-APP.vercel.app` (update after Vercel is live, or set
-  to your custom domain).
-- **Redirect URLs**: add `https://YOUR-APP.vercel.app/auth/callback`.
+- **Site URL**: `https://YOUR-WORKER.workers.dev` (update after Cloudflare is
+  live, or set to your custom domain).
+- **Redirect URLs**: add `https://YOUR-WORKER.workers.dev/auth/callback`.
 
 > You'll come back in **Step 6** to promote your own account to admin — you can't
 > do it until you've signed up once on the live site.
@@ -89,8 +92,8 @@ form. `render.yaml` in the repo root is a blueprint Render reads automatically.
 
    | Variable | Value |
    | --- | --- |
-   | `SITE_URL` | `https://YOUR-APP.vercel.app` (fill after Vercel, or your domain) |
-   | `INTERNAL_API_KEY` | the shared secret from Step 0 *(blueprint can also generate one — if so, copy it for Vercel)* |
+   | `SITE_URL` | `https://YOUR-WORKER.workers.dev` (fill after Cloudflare, or your domain) |
+   | `INTERNAL_API_KEY` | the shared secret from Step 0 *(blueprint can also generate one — if so, copy it for Cloudflare)* |
    | `SUPABASE_URL` | Supabase Project URL |
    | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key |
    | `RESEND_API_KEY` | from Resend (Step 5) |
@@ -108,53 +111,87 @@ form. `render.yaml` in the repo root is a blueprint Render reads automatically.
 
 ---
 
-## 3. Vercel (storefront + admin)
+## 3. Cloudflare (storefront + admin)
 
-1. Vercel → **Add New… → Project** → import this repo. Framework auto-detects as
-   Next.js; root directory is the repo root (not `/server`).
-2. Add environment variables (**Project Settings → Environment Variables**),
-   for Production (and Preview if you use it):
+The app runs on Cloudflare Workers via the OpenNext adapter. Two ways to deploy —
+pick one:
+
+**Option A — Git-connected (recommended).**
+1. Cloudflare dashboard → **Workers & Pages → Create → Workers → Connect to Git**
+   → pick this repo. (Choose *Workers*, not *Pages* — OpenNext outputs a Worker.)
+2. Build settings:
+   - **Build command:** `npm run cf:build`
+   - **Deploy command:** `npx wrangler deploy`
+   - **Root directory:** repo root (leave default; `/server` is ignored here — it
+     deploys to Render on its own).
+3. Add the environment variables below, then trigger a deploy. Every push to your
+   branch redeploys.
+
+**Option B — Deploy from your machine.**
+```bash
+npm install
+npx wrangler login
+npm run deploy      # = opennextjs-cloudflare build && ... deploy
+```
+
+**Environment variables** (dashboard → your Worker → **Settings → Variables**;
+mark secrets as *Encrypted*):
 
    | Variable | Value |
    | --- | --- |
-   | `NEXT_PUBLIC_SITE_URL` | `https://YOUR-APP.vercel.app` (or your domain) |
+   | `NEXT_PUBLIC_SITE_URL` | `https://YOUR-WORKER.workers.dev` (or your domain) |
    | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-   | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key (secret) |
    | `RENDER_API_URL` | the Render URL from Step 2 |
-   | `INTERNAL_API_KEY` | **exact same** shared secret as Render |
-   | `STRIPE_SECRET_KEY` | Stripe secret key |
-   | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
+   | `INTERNAL_API_KEY` | **exact same** shared secret as Render (secret) |
+   | `STRIPE_SECRET_KEY` | Stripe secret key (secret) — if using Stripe |
+   | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key — if using Stripe |
+   | `PAYPAL_CLIENT_ID` / `PAYPAL_SECRET` / `PAYPAL_ENV` | if using PayPal (secret) |
 
-3. Deploy. Note the production URL.
-4. Go back and set `SITE_URL` (Render) and the Supabase **Site URL / Redirect
-   URL** (Step 1e) to this real URL if you used a placeholder. Add a custom domain
-   in Vercel → **Domains** when ready, then update those three places to the
-   domain.
+> `NEXT_PUBLIC_*` vars are baked in at **build** time, so a change to them needs a
+> redeploy. Server-only secrets are read at runtime.
+
+After the first deploy, set `SITE_URL` (Render) and the Supabase **Site URL /
+Redirect URL** (Step 1e) to your real Worker/domain URL. Add a custom domain
+under the Worker's **Domains & Routes** when ready, then update those places.
 
 > If a value is missing the app degrades gracefully rather than crashing (e.g.
-> no Stripe key → order is placed and emailed directly; no Render URL → emails
+> no payment keys → order is placed and emailed directly; no Render URL → emails
 > are skipped and logged). "Degrades" is for local/preview — for a live store,
 > set them all.
 
 ---
 
-## 4. Stripe (payments)
+## 4. Payments (Stripe and/or PayPal)
 
-1. Stripe Dashboard → **Developers → API keys**: copy **Secret key**
-   (`sk_...`) and **Publishable key** (`pk_...`).
-   - `STRIPE_SECRET_KEY` → Vercel **and** Render.
-   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` → Vercel.
+Checkout automatically shows whichever providers are connected — **both** (buyer
+chooses), **one** (that one), or **neither** (order placed + emailed directly).
+
+### 4a. Stripe
+1. Stripe Dashboard → **Developers → API keys**: copy **Secret key** (`sk_...`)
+   and **Publishable key** (`pk_...`).
+   - `STRIPE_SECRET_KEY` → **Cloudflare and Render** (yes, both — the app creates
+     the session, Render's webhook confirms it).
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` → Cloudflare.
 2. Create the webhook → **Developers → Webhooks → Add endpoint**:
-   - **Endpoint URL**: `https://edrift-backend.onrender.com/stripe/webhook`
-     (your Render URL + `/stripe/webhook`).
+   - **Endpoint URL**: `https://<your-render-url>/stripe/webhook`.
    - **Events**: `checkout.session.completed`.
-   - Save, reveal the **Signing secret** (`whsec_...`) → set as
-     `STRIPE_WEBHOOK_SECRET` on **Render**, and redeploy Render.
-3. Flow: Vercel creates the Checkout Session → Stripe processes payment →
-   Stripe calls the Render webhook → Render marks the order `paid` and sends the
-   confirmation email. Test with Stripe **test mode** keys and card
-   `4242 4242 4242 4242` before switching to live keys.
+   - Save, reveal the **Signing secret** (`whsec_...`) → set `STRIPE_WEBHOOK_SECRET`
+     on **Render**, and redeploy Render.
+3. Flow: app creates the Checkout Session → Stripe processes payment → Stripe
+   calls the **Render** webhook → Render marks the order `paid` and emails the
+   receipt. Test with **test mode** keys and card `4242 4242 4242 4242`.
+
+### 4b. PayPal (optional)
+1. PayPal Developer dashboard → **Apps & Credentials** → create an app → copy the
+   **Client ID** and **Secret**.
+2. On **Cloudflare** set `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, and `PAYPAL_ENV`
+   (`sandbox` to test, `live` to go live). No Render webhook is needed — the app
+   creates *and* captures the PayPal order itself on return.
+3. Flow: app creates a PayPal order → buyer approves on PayPal → PayPal returns to
+   `/api/paypal/capture` → the app captures, marks the order `paid`, and emails
+   the receipt. Test in `sandbox` with a PayPal sandbox buyer account first.
 
 ---
 
@@ -190,14 +227,13 @@ creates a profile with role `customer`, so promote yourself once:
 - Product pages, `/shop`, and the homepage refresh within seconds (cache tags
   bust on save).
 
-**Good to know about the current admin form:**
-- It handles the **core product + one hero image**. That's enough for a complete,
-  sellable listing.
-- The schema also supports a **multi-image gallery** (`product_images`) and a
-  **spec table** (`product_specs`), but those aren't in the form yet. To add them
-  today, insert rows via the Supabase **Table editor** (see `seed.sql` for the
-  shape). Ask and I can extend the admin form to manage gallery images and specs
-  directly.
+**Good to know about the admin form:**
+- It handles the **core product + hero image + a multi-image gallery**. Use the
+  **Gallery images** field to upload several photos for the product page, and tick
+  a gallery image's **Del** box to remove it on save.
+- The schema also supports a **spec table** (`product_specs`), which isn't in the
+  form yet — add spec rows via the Supabase **Table editor** (see `seed.sql` for
+  the shape) if you want the spec list on a product page.
 
 **Is Supabase ready?** Yes — once Steps 1–1e are done and you've promoted your
 account (this step), the database, RLS, storage bucket, and admin upload flow are
@@ -224,14 +260,16 @@ spike.
 - [ ] Migrations `0001` + `0002` run; `seed.sql` run (categories exist).
 - [ ] Supabase **Site URL** + **Redirect URL** point at the real domain.
 - [ ] Render deployed; `/health` returns ok; all env vars set.
-- [ ] Vercel deployed; all env vars set; custom domain (optional) wired.
-- [ ] `INTERNAL_API_KEY` is **identical** on Render and Vercel.
-- [ ] Stripe webhook → Render `/stripe/webhook`, `STRIPE_WEBHOOK_SECRET` set.
+- [ ] Cloudflare Worker deployed; all env vars set; custom domain (optional) wired.
+- [ ] `INTERNAL_API_KEY` is **identical** on Render and Cloudflare.
+- [ ] At least one payment provider connected (Stripe and/or PayPal).
+- [ ] Stripe webhook → Render `/stripe/webhook`, `STRIPE_WEBHOOK_SECRET` set (if
+      using Stripe).
 - [ ] Resend domain verified; test email received.
 - [ ] Your account promoted to **admin**; a real product uploaded and visible.
 - [ ] `RENDER_BACKEND_URL` variable set; keep-warm workflow green.
-- [ ] **Test purchase** end-to-end in Stripe test mode (order → paid → email),
-      then switch to live keys.
+- [ ] **Test purchase** end-to-end (Stripe test card / PayPal sandbox: order →
+      paid → email), then switch to live keys.
 - [ ] Ran the load test in [`SCALING.md`](./SCALING.md) before posting to
       Instagram.
 
@@ -239,7 +277,7 @@ spike.
 
 ## 9. Environment variables at a glance
 
-**Vercel (Next.js app):**
+**Cloudflare (Next.js app):**
 ```
 NEXT_PUBLIC_SITE_URL
 NEXT_PUBLIC_SUPABASE_URL
@@ -247,21 +285,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 RENDER_API_URL
 INTERNAL_API_KEY
-STRIPE_SECRET_KEY
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+STRIPE_SECRET_KEY                    # if using Stripe
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY   # if using Stripe
+PAYPAL_CLIENT_ID                     # if using PayPal
+PAYPAL_SECRET                        # if using PayPal
+PAYPAL_ENV                           # sandbox | live
 ```
 
 **Render (`/server`):**
 ```
 SITE_URL
-INTERNAL_API_KEY            # same value as Vercel
+INTERNAL_API_KEY            # same value as Cloudflare
 SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
 RESEND_API_KEY
 EMAIL_FROM
 ORDERS_NOTIFICATION_EMAIL
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
+STRIPE_SECRET_KEY           # if using Stripe
+STRIPE_WEBHOOK_SECRET       # if using Stripe
 ```
 
 **GitHub Actions (keep-warm):**

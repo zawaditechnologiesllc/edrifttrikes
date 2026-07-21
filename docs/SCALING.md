@@ -1,8 +1,14 @@
 # Scaling & Capacity Runbook
 
 Goal: survive **~2,000 users/hour** — and short Instagram-driven bursts on top
-of that — on the **free tiers** of Vercel, Supabase, and Render, without the
+of that — on the **free tiers** of Cloudflare, Supabase, and Render, without the
 site going down before you decide to pay for premium.
+
+> Platform note: the app runs on **Cloudflare** (Next.js on Workers via the
+> OpenNext adapter). The winning move on Cloudflare is that **static page serving
+> is unlimited and free**, and **Workers include 100,000 requests/day free** —
+> so the strategy is to keep browsing on static/cached responses and spend Worker
+> requests only on the small commerce/auth slice.
 
 This document explains where the load actually lands, what has been hardened to
 absorb it, the one-time setup you must do, and the concrete signals that tell
@@ -26,14 +32,15 @@ becomes one database query (or one auth call) per visitor.
 
 ## 2. Where each request goes
 
-| Request | Served by | Hits Supabase? | Hits Render? |
-| --- | --- | --- | --- |
-| Home, product, shop, tech-lab, our-story, etc. (logged out) | **Vercel CDN** (ISR/cached HTML) | Only on cache refresh | No |
-| Catalog/content data behind those pages | **`unstable_cache`** data layer | Only on cache miss/refresh | No |
-| Static assets (images, CSS, JS) | **Vercel CDN** | No | No |
-| Login / account / orders / wishlist | Vercel function + Supabase (per user) | Yes | No |
-| Checkout (create order + Stripe session) | Vercel function + Supabase | Yes | No |
-| Stripe webhook, order/welcome/newsletter email, contact form | **Render** | Yes (service role) | Yes |
+| Request | Served by | Worker request? | Hits Supabase? | Hits Render? |
+| --- | --- | --- | --- | --- |
+| Home, product, tech-lab, our-story, legal, etc. (logged out) | **Cloudflare static assets / ISR** | No (or cache-hit) | Only on cache refresh | No |
+| Static assets (images, CSS, JS) | **Cloudflare assets** (unlimited) | No | No | No |
+| Catalog/content data behind pages | **`unstable_cache`** data layer | — | Only on cache miss/refresh | No |
+| Shop filters / search (dynamic) | Worker + Supabase (cached reads) | Yes | Cache miss only | No |
+| Login / account / wishlist / checkout | Worker + Supabase (per user) | Yes | Yes | No |
+| Stripe webhook, order/welcome/newsletter email, contact | **Render** | No | Yes (service role) | Yes |
+| PayPal capture (on return from PayPal) | Worker + Supabase | Yes | Yes | via email call |
 
 **Key point:** the browse path — which is 95%+ of an Instagram spike — is
 CDN + in-memory cache. Supabase and Render are only in the *commerce/auth*
@@ -43,13 +50,14 @@ path, which is a tiny fraction of traffic.
 
 ## 3. What has been hardened (and why)
 
-1. **Middleware skips Supabase Auth for anonymous visitors.**
-   `middleware.ts` runs on every request, even cached ones. It used to call
-   Supabase Auth (`getUser()`) on *every* request. It now returns immediately
-   when the request has no Supabase auth cookie — i.e. for every logged-out
-   visitor. A spike of anonymous traffic no longer touches Supabase Auth at all,
-   and every cached page loses that network round-trip of latency.
-   → `lib/supabase/middleware.ts`
+1. **Middleware only runs on logged-in routes.** The Supabase session refresh in
+   `middleware.ts` is scoped (via its `matcher`) to `/account`, `/admin`,
+   `/wishlist`, and `/api/wishlist`. Public catalog/marketing pages don't invoke
+   the Worker at all — Cloudflare serves them as static assets (unlimited, free),
+   which is what keeps an Instagram-scale spike inside the free tier. On the
+   routes it does run, it still skips the Supabase Auth network call for requests
+   with no auth cookie.
+   → `middleware.ts`, `lib/supabase/middleware.ts`
 
 2. **Shared cached data layer.**
    Public catalog/content reads (products, categories, articles, search) are
@@ -59,14 +67,14 @@ path, which is a tiny fraction of traffic.
    `revalidateTag()` so changes still show up immediately.
    → `lib/db.ts`, `app/admin/actions.ts`
 
-3. **ISR on all public pages.** Home, product, shop-linked, and tech-lab pages
-   render to static HTML and refresh in the background, so the CDN serves them.
+3. **ISR / static on public pages.** Home, product, electric-trikes, tech-lab,
+   and the marketing/legal pages render to static HTML and refresh in the
+   background, so Cloudflare's asset layer serves them without a Worker.
    → `export const revalidate` in the page files.
 
 4. **Backend calls are time-bounded.** Calls to the Render backend now abort
    after 8s (`AbortController`). A cold Render instance can no longer hang a
-   Vercel function until *its* timeout. Email is best-effort and degrades
-   quietly.
+   Worker until *its* timeout. Email is best-effort and degrades quietly.
    → `lib/email.ts`, `lib/api.ts`
 
 5. **Render kept warm.** A GitHub Action pings `/health` every ~10 min so the
@@ -77,7 +85,7 @@ path, which is a tiny fraction of traffic.
    malformed query can't error-storm the database under load.
    → `searchProducts` in `lib/db.ts`
 
-7. **Plain `<img>` with lazy loading, not `next/image`.** Deliberate: Vercel's
+7. **Plain `<img>` with lazy loading, not `next/image`.** Deliberate: hosted
    image optimization has hard free-tier limits and would itself become the
    bottleneck. Images are served directly (from Supabase Storage's CDN) and lazy
    loaded.
@@ -109,28 +117,33 @@ path, which is a tiny fraction of traffic.
 
 ## 5. When to upgrade (concrete triggers)
 
-> **Read this first — Vercel Hobby is for non-commercial use.** A storefront
-> that takes payments is commercial use, which Vercel's Hobby (free) plan does
-> **not** permit. Technically you should be on **Vercel Pro ($20/mo)** the day
-> you start selling, independent of traffic. The hardening here keeps you from
-> *also* needing bigger Supabase/Render tiers, but budget for Vercel Pro as the
-> real floor.
+> **Good news vs. Vercel:** Cloudflare's free tier **allows commercial use**, so
+> unlike Vercel Hobby you can launch a paid store on it at $0. The main free-tier
+> ceiling to watch is the **Workers 100,000 requests/day** cap — but because
+> browsing is served as static assets (which don't count), you only spend Worker
+> requests on dynamic/commerce routes, so 2,000 users/hour stays well under it.
 
 Approximate free-tier ceilings (verify current numbers — providers change
 them):
 
 | Service | Free tier gives you | Upgrade when you see… | First paid tier |
 | --- | --- | --- | --- |
-| **Vercel** | ~100 GB bandwidth/mo, generous function invocations, CDN | Commercial use (day one), bandwidth warnings, or function/concurrency throttling in the dashboard | Pro, ~$20/mo |
+| **Cloudflare** | Unlimited static requests & bandwidth; Workers **100k requests/day**; free deploys | Sustained Worker traffic approaching 100k/day (dynamic routes), or you need higher limits/observability | Workers Paid, ~$5/mo (10M requests/mo included) |
 | **Supabase** | 500 MB DB, ~5 GB egress/mo, shared (Nano) compute, ~50K MAU, project pauses after 7 days idle | Egress warnings, slow queries under load, connection errors, or you need it to never pause | Pro, ~$25/mo |
 | **Render** | 512 MB RAM, spins down after 15 min idle, 750 hrs/mo | Cold starts still hurting despite keep-warm, OOM/restarts, or webhook/email latency complaints | Starter, ~$7/mo |
 
-At the traffic you're describing, the sequence that gives the most headroom per
-dollar is usually: **Vercel Pro first** (it's required for commerce anyway and
-removes the biggest single point of throttling), then **Render Starter** (kills
-cold starts on the checkout/email path — cheap), then **Supabase Pro** (removes
-pausing + gives real compute) once catalog size, media egress, or user count
-grows.
+At the traffic you're describing, you can likely launch entirely free. The first
+dollars, when you need them, are best spent on **Render Starter** (~$7/mo — kills
+cold starts on the checkout/email path), then **Cloudflare Workers Paid** (~$5/mo
+— only if dynamic Worker requests approach 100k/day), then **Supabase Pro**
+(removes the idle pause + gives real compute) as catalog size, media egress, or
+user count grows.
+
+> **To stay static-and-free longer:** the more of the catalog that's served as
+> ISR/static (vs. dynamic Worker rendering), the fewer Worker requests you spend.
+> If dynamic routes ever push you toward the daily cap, enabling the R2
+> incremental cache (see `open-next.config.ts` / `docs/DEPLOYMENT.md`) lets more
+> responses be cache-served.
 
 ---
 
@@ -141,11 +154,11 @@ Don't guess — hit it. From a machine (not the target's own network):
 ```bash
 # ~50 concurrent users hammering the homepage for 30s.
 # Install: https://github.com/rakyll/hey  (or use k6, artillery, oha)
-hey -z 30s -c 50 https://YOUR-VERCEL-APP.vercel.app/
+hey -z 30s -c 50 https://YOUR-SITE/
 
 # Then a product page and the shop page:
-hey -z 30s -c 50 https://YOUR-VERCEL-APP.vercel.app/product/SOME-SLUG
-hey -z 30s -c 50 "https://YOUR-VERCEL-APP.vercel.app/shop?category=trikes"
+hey -z 30s -c 50 https://YOUR-SITE/product/SOME-SLUG
+hey -z 30s -c 50 "https://YOUR-SITE/shop?category=trikes"
 ```
 
 What good looks like:

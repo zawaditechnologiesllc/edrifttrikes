@@ -9,7 +9,7 @@ import { CATALOG_TAG, CONTENT_TAG } from "@/lib/db";
 
 async function requireAdmin() {
   if (!adminConfigured()) redirect("/login");
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -19,7 +19,7 @@ export async function signIn(
   const password = String(formData.get("password") || "");
   if (!email || !password) return { error: "Email and password are required." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
   redirect("/account");
@@ -37,7 +37,7 @@ export async function signUp(
   if (password.length < 8)
     return { error: "Password must be at least 8 characters." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const { data, error } = await supabase.auth.signUp({
@@ -66,7 +66,7 @@ export async function signUp(
 
 export async function signOut() {
   if (supabaseConfigured()) {
-    const supabase = createClient();
+    const supabase = await createClient();
     await supabase.auth.signOut();
   }
   redirect("/");

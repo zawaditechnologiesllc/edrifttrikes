@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "edrift-trikes",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  }
+  // Environment variables (Supabase, Stripe, PayPal, Render, INTERNAL_API_KEY)
+  // are set in the Cloudflare dashboard → Workers & Pages → your project →
+  // Settings → Variables (mark secrets as encrypted). See docs/DEPLOYMENT.md.
+  //
+  // To enable shared ISR caching later, add bindings here, e.g.:
+  // "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "edrift-cache" }],
+  // "kv_namespaces": [{ "binding": "NEXT_INC_CACHE_KV", "id": "<kv-id>" }]
+}

@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const productId = new URL(request.url).searchParams.get("productId");
   if (!productId || !supabaseConfigured()) return NextResponse.json({ saved: false });
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const { productId } = await request.json().catch(() => ({ productId: null }));
   if (!productId) return NextResponse.json({ error: "productId required" }, { status: 400 });
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

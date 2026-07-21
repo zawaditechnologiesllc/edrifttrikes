@@ -8,13 +8,15 @@ import { getArticleBySlug } from "@/lib/db";
 // ISR: serve cached HTML, refresh in the background.
 export const revalidate = 300;
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const a = await getArticleBySlug(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const a = await getArticleBySlug(slug);
   return { title: a ? a.title : "Article" };
 }
 
-export default async function Article({ params }: { params: { slug: string } }) {
-  const a = await getArticleBySlug(params.slug);
+export default async function Article({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const a = await getArticleBySlug(slug);
   if (!a) notFound();
 
   return (

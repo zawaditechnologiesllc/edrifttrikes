@@ -8,10 +8,11 @@ import { Icon } from "@/components/Icon";
 export const metadata = { title: "Search" };
 
 export default async function SearchPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { q?: string };
+  searchParams: Promise<{ q?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const q = (searchParams.q || "").trim();
   const results = q ? await searchProducts(q) : [];
 

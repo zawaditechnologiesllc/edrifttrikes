@@ -7,17 +7,18 @@ email, and **Stripe** checkout.
 
 | Layer | Service |
 | --- | --- |
-| Frontend + commerce server | **Vercel** (Next.js App Router — Route Handlers & Server Actions) |
+| Frontend + commerce server | **Cloudflare** (Next.js on Workers via the **OpenNext** adapter) |
 | Backend service (email · webhooks · contact) | **Render** (`/server`) |
 | Auth · DB · Storage | **Supabase** |
 | Transactional email | **Resend** (sent from the Render service) |
-| Payments | **Stripe** |
+| Payments | **Stripe** and/or **PayPal** |
 | Repo | **GitHub** |
 
 The system is split into two deployables:
 
-- **Vercel (Next.js)** — the storefront + admin, all synchronous commerce
-  (catalog, cart, checkout session creation, orders).
+- **Cloudflare (Next.js)** — the storefront + admin, all synchronous commerce
+  (catalog, cart, checkout session creation, orders). Built with
+  [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare) (`npm run deploy`).
 - **Render (`/server`)** — a required Node/Express backend that owns
   transactional **email** (Resend), the **Stripe webhook**, and the **contact**
   endpoint. The app calls it server-to-server with a shared `INTERNAL_API_KEY`.
@@ -103,19 +104,25 @@ The backend lives in [`/server`](./server) and is deployed via the root
 Set its env (`SITE_URL`, `INTERNAL_API_KEY`, `SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`,
 `ORDERS_NOTIFICATION_EMAIL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`). Then
-on Vercel set `RENDER_API_URL` to the Render URL and `INTERNAL_API_KEY` to the
-same shared value. Run locally with `cd server && npm install && npm start`.
+on **Cloudflare** set `RENDER_API_URL` to the Render URL and `INTERNAL_API_KEY`
+to the same shared value. Run locally with `cd server && npm install && npm start`.
 
 ### 3. Resend (email) — on Render
 Add `RESEND_API_KEY` + verified `EMAIL_FROM` to the **Render** service. It sends
 welcome, order-confirmation, newsletter and contact emails.
 
-### 4. Stripe (payments)
-Add `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` on Vercel (the app
-creates checkout sessions). Point the Stripe **webhook** at the Render service
-`https://<render-url>/stripe/webhook` (event `checkout.session.completed`) and
-set `STRIPE_WEBHOOK_SECRET` on Render — it marks orders paid and emails the
-confirmation.
+### 4. Payments — Stripe and/or PayPal
+Checkout shows whichever provider is connected (both → the buyer chooses; one →
+that one; neither → order is placed and emailed directly).
+
+- **Stripe** — add `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` on
+  Cloudflare (the app creates checkout sessions). Point the Stripe **webhook** at
+  the Render service `https://<render-url>/stripe/webhook` (event
+  `checkout.session.completed`) and set `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`
+  on Render — it marks orders paid and emails the confirmation. (Yes, the Stripe
+  secret goes in **both** the app and Render.)
+- **PayPal** — add `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_ENV` on Cloudflare.
+  The app creates *and* captures PayPal orders itself (no Render webhook needed).
 
 > The app builds and previews **without any keys** — data calls degrade to empty
 > states so you can see the design before wiring services.
@@ -126,7 +133,8 @@ See [`.env.example`](./.env.example): `NEXT_PUBLIC_SITE_URL`, Supabase
 (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`), Resend (`RESEND_API_KEY`, `EMAIL_FROM`),
 Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
-`STRIPE_WEBHOOK_SECRET`).
+`STRIPE_WEBHOOK_SECRET`), PayPal (`PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`,
+`PAYPAL_ENV`).
 
 ## Routes
 
@@ -139,23 +147,24 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 | `/tech-lab` · `/tech-lab/[slug]` | Content hub + articles |
 | `/our-story` · `/support` · `/shipping-warranty` · `/wishlist` | Content pages |
 | `/admin` (+ products, orders, categories, articles) | Admin dashboard |
-| `/api/checkout` · `/auth/callback` | Vercel server endpoints |
+| `/api/checkout` · `/api/paypal/capture` · `/auth/callback` | App server endpoints |
 | Render: `/health` `/email/*` `/contact` `/stripe/webhook` | Backend service |
 
 ## Deployment
 
 > **Full step-by-step guide: [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)** —
-> Supabase → Render → Vercel → Stripe → Resend, in order, with every env var, the
-> admin-promotion SQL, product upload, and a go-live checklist. The bullets below
-> are the summary.
+> Supabase → Render → Cloudflare → Stripe/PayPal → Resend, in order, with every
+> env var, the admin-promotion SQL, product upload, and a go-live checklist. The
+> bullets below are the summary.
 
-- **Vercel** — import the repo; add all env vars in Project Settings. Next.js is
-  auto-detected.
+- **Cloudflare** — create a Workers project; build command `npm run cf:build` (or
+  `npx opennextjs-cloudflare build`), deploy with `npm run deploy`; add all env
+  vars in the dashboard. Runs Next.js via the OpenNext adapter.
 - **Supabase** — run the migration + seed; set Auth → URL config redirect to
   `https://yourdomain.com/auth/callback`.
-- **Stripe** — add the live keys + webhook endpoint.
-- **Render** — optional; `lib/api.ts` is ready if you offload heavy/async jobs to
-  a separate Render service.
+- **Stripe / PayPal** — add the live keys; point the Stripe webhook at Render.
+- **Render** — deploy `/server` via `render.yaml` for email, the Stripe webhook,
+  and contact.
 
 > **Scaling / high traffic:** see **[`docs/SCALING.md`](./docs/SCALING.md)** for
 > the capacity runbook — how the site absorbs a ~2,000 users/hour load plus

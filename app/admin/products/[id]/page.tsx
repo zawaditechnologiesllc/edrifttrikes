@@ -5,7 +5,8 @@ import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import ProductForm from "../ProductForm";
 import type { Category, Product } from "@/lib/types";
 
-export default async function EditProduct({ params }: { params: { id: string } }) {
+export default async function EditProduct({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   if (!adminConfigured()) {
     return (
       <p className="p-8 text-on-surface-variant">
@@ -18,7 +19,7 @@ export default async function EditProduct({ params }: { params: { id: string } }
     admin
       .from("products")
       .select("*, images:product_images(*)")
-      .eq("id", params.id)
+      .eq("id", id)
       .maybeSingle(),
     admin.from("categories").select("*").order("position"),
   ]);

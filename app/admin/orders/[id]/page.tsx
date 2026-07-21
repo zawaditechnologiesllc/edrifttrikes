@@ -8,7 +8,7 @@ import { updateOrderStatus } from "../../actions";
 
 const STATUSES = ["pending", "paid", "fulfilled", "cancelled", "refunded"];
 
-export default async function AdminOrderDetail({ params }: { params: { id: string } }) {
+export default async function AdminOrderDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!adminConfigured()) {
     return (
       <p className="p-8 text-on-surface-variant">
@@ -16,11 +16,12 @@ export default async function AdminOrderDetail({ params }: { params: { id: strin
       </p>
     );
   }
+  const { id } = await params;
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("orders")
     .select("*, items:order_items(*)")
-    .eq("id", params.id)
+    .eq("id", id)
     .maybeSingle();
   if (!order) notFound();
 

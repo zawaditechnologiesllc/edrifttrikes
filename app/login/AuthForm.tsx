@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { signIn, signUp, type AuthState } from "./actions";
 
 function Submit({ label }: { label: string }) {
@@ -19,8 +20,8 @@ function Submit({ label }: { label: string }) {
 
 export default function AuthForm() {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [loginState, loginAction] = useFormState<AuthState, FormData>(signIn, {});
-  const [registerState, registerAction] = useFormState<AuthState, FormData>(signUp, {});
+  const [loginState, loginAction] = useActionState<AuthState, FormData>(signIn, {});
+  const [registerState, registerAction] = useActionState<AuthState, FormData>(signUp, {});
   const state = mode === "login" ? loginState : registerState;
 
   return (

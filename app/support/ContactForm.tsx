@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { submitContact } from "@/lib/actions/contact";
 import { Icon } from "@/components/Icon";
 
@@ -16,7 +17,7 @@ function Submit() {
 }
 
 export default function ContactForm() {
-  const [state, action] = useFormState(submitContact, {});
+  const [state, action] = useActionState(submitContact, {});
   if (state.ok)
     return (
       <div className="bg-surface-container border border-secondary/30 rounded-lg p-8 text-center">

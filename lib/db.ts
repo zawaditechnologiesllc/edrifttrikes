@@ -163,7 +163,7 @@ export const getArticleBySlug = unstable_cache(
 
 export async function getCurrentProfile(): Promise<Profile | null> {
   if (!supabaseConfigured()) return null;
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -178,7 +178,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
 export async function getMyOrders(): Promise<Order[]> {
   if (!supabaseConfigured()) return [];
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -193,7 +193,7 @@ export async function getMyOrders(): Promise<Order[]> {
 
 export async function getWishlist(): Promise<Product[]> {
   if (!supabaseConfigured()) return [];
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -209,7 +209,7 @@ export async function getWishlist(): Promise<Product[]> {
 
 export async function isInWishlist(productId: string): Promise<boolean> {
   if (!supabaseConfigured()) return false;
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -225,7 +225,7 @@ export async function isInWishlist(productId: string): Promise<boolean> {
 
 export async function getOrderByNumber(orderNumber: string): Promise<Order | null> {
   if (!supabaseConfigured()) return null;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
     .select("*, items:order_items(*)")

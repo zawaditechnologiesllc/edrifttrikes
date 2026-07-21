@@ -19,10 +19,11 @@ const SORTS = [
 ];
 
 export default async function ShopPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { category?: string; power?: string; sort?: string };
+  searchParams: Promise<{ category?: string; power?: string; sort?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const sort = (searchParams.sort as "newest" | "price-asc" | "price-desc") || "newest";
   const [products, categories] = await Promise.all([
     getProducts({

@@ -1,3 +1,9 @@
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+// Enables Cloudflare bindings (env vars, caches) during `next dev`. No-op in
+// production builds.
+initOpenNextCloudflareForDev();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

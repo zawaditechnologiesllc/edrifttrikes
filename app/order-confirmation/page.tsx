@@ -9,10 +9,11 @@ import { Icon } from "@/components/Icon";
 export const metadata = { title: "Order Confirmed" };
 
 export default async function OrderConfirmation({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { order?: string };
+  searchParams: Promise<{ order?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const order = searchParams.order ? await getOrderByNumber(searchParams.order) : null;
 
   return (

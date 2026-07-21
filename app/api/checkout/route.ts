@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
 import { stripe, stripeConfigured } from "@/lib/stripe";
+import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeTotals } from "@/lib/totals";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import type { Order } from "@/lib/types";
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     email?: string;
     items?: IncomingItem[];
     shipping?: Record<string, string>;
+    method?: string;
   };
   try {
     payload = await request.json();
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
   const totals = computeTotals(subtotal);
 
   // Who is buying (if logged in)
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -115,8 +117,30 @@ export async function POST(request: Request) {
   );
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const method = (payload.method || "").toLowerCase();
 
-  // Stripe path — real payment
+  // PayPal path — create the order and hand off to PayPal to approve. Capture
+  // happens on return at /api/paypal/capture.
+  if (method === "paypal" && paypalConfigured()) {
+    try {
+      const { approveUrl } = await createPayPalOrder({
+        amountCents: totals.total,
+        orderNumber: order.order_number,
+        orderId: order.id,
+        returnUrl: `${siteUrl}/api/paypal/capture?order=${order.order_number}`,
+        cancelUrl: `${siteUrl}/checkout`,
+      });
+      if (!approveUrl) throw new Error("no approve url");
+      return NextResponse.json({ url: approveUrl });
+    } catch {
+      return NextResponse.json(
+        { error: "PayPal is unavailable right now. Please try card instead." },
+        { status: 502 }
+      );
+    }
+  }
+
+  // Stripe path — real payment (default when configured).
   if (stripeConfigured() && stripe) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
