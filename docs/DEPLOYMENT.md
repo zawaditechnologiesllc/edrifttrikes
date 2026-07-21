@@ -310,5 +310,66 @@ STRIPE_WEBHOOK_SECRET       # if using Stripe
 RENDER_BACKEND_URL         # repo *variable*, not a secret
 ```
 
+**Cloudflare (Turnstile bot protection — optional):**
+```
+NEXT_PUBLIC_TURNSTILE_SITE_KEY   # build-time (client widget)
+TURNSTILE_SECRET_KEY             # server verification
+```
+
 For scaling behavior, capacity limits, and upgrade triggers, see
 [`SCALING.md`](./SCALING.md).
+
+---
+
+## 10. Security hardening
+
+The app ships secure by default: Row Level Security on every table, admin writes
+gated by `requireAdmin()`, server-side price recomputation at checkout, the
+service-role key server-only, Stripe webhook signature verification, sanitized
+search, and security headers (incl. HSTS). The steps below add edge-level
+protection you configure in dashboards.
+
+### 10a. Bot protection on public forms (Turnstile) — recommended before launch
+Stops spam/abuse of the contact and newsletter forms (which send email through
+Render/Resend). The code is already wired; it activates when you add the keys.
+
+1. Cloudflare dashboard → **Turnstile** → **Add site**. Add your domain; choose
+   the **Managed** widget.
+2. Copy the **Site Key** and **Secret Key**.
+3. On your Worker → **Settings → Variables and Secrets**, add:
+   - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` = the Site Key
+   - `TURNSTILE_SECRET_KEY` = the Secret Key (mark as a Secret)
+4. **Redeploy** (the site key is baked in at build time). The contact and
+   newsletter forms now show the widget and reject unverified submissions.
+
+### 10b. Rate limiting (WAF)
+Protects checkout/API/forms from volumetric abuse during a spike.
+1. Cloudflare dashboard → your domain → **Security → WAF → Rate limiting rules**
+   → **Create rule**.
+2. Suggested starter rules:
+   - Path `/api/checkout` — more than **10 requests/minute per IP** → **Block**
+     (or Managed Challenge).
+   - Paths `/support` and any form POSTs — more than **20/minute per IP** →
+     **Managed Challenge**.
+3. Deploy the rule. Tune thresholds to your real traffic.
+
+### 10c. HSTS (force HTTPS)
+Already sent by the app as a `Strict-Transport-Security` header. For belt-and-
+suspenders, also enable it at the edge: Cloudflare → **SSL/TLS → Edge
+Certificates → HTTP Strict Transport Security (HSTS)** → Enable (max-age 6+
+months). Only do this once you're sure the site is always HTTPS.
+
+### 10d. Admin account
+- Use a **strong, unique password** for the admin login — it can create/delete
+  products and read orders.
+- Keep the admin email/role limited to people who need it (`profiles.role`).
+- Full TOTP MFA needs an in-app enrollment flow (not a dashboard toggle) — ask
+  if you want it built.
+
+### 10e. Secrets hygiene
+- `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+  `PAYPAL_SECRET`, `TURNSTILE_SECRET_KEY`, and `INTERNAL_API_KEY` are secrets —
+  set them only as encrypted variables in Cloudflare/Render, never client-side,
+  never committed. (`.env*` is git-ignored.)
+- The service-role key bypasses RLS — treat it like a root password. Rotate it in
+  Supabase (Settings → API) if it's ever exposed.
