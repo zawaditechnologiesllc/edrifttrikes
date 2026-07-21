@@ -8,23 +8,39 @@ import type { Order } from "@/lib/types";
 const BASE = process.env.RENDER_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const KEY = process.env.INTERNAL_API_KEY || "";
 
+// Cap how long we wait on the Render backend. On the free tier it can be cold
+// (a ~50s spin-up) — without a bound, a single email/contact call would pin a
+// Vercel serverless function until its own timeout, wasting the invocation and
+// stalling the user's request. Email is best-effort, so we'd rather fail fast
+// and let the caller degrade gracefully.
+const BACKEND_TIMEOUT_MS = 8000;
+
 async function call(path: string, body: unknown) {
   if (!BASE) {
     console.warn(`[backend] RENDER_API_URL not set — skipped ${path}`);
     return { skipped: true };
   }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS);
   try {
     const res = await fetch(`${BASE}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-internal-key": KEY },
       body: JSON.stringify(body),
       cache: "no-store",
+      signal: controller.signal,
     });
     if (!res.ok) console.error(`[backend] ${path} -> ${res.status}`);
     return res.json().catch(() => ({}));
   } catch (e) {
-    console.error(`[backend] ${path} failed`, e);
+    if ((e as Error)?.name === "AbortError") {
+      console.error(`[backend] ${path} timed out after ${BACKEND_TIMEOUT_MS}ms`);
+    } else {
+      console.error(`[backend] ${path} failed`, e);
+    }
     return { error: true };
+  } finally {
+    clearTimeout(timer);
   }
 }
 

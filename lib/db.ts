@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { supabaseConfigured } from "@/lib/supabase/admin";
@@ -10,105 +11,155 @@ import type { Article, Category, Order, Product, Profile } from "@/lib/types";
  * Public catalog/content reads use the cookie-free anon client so the pages
  * that call them can be statically rendered and ISR-cached (fast TTFB).
  * User-specific reads (profile, orders, wishlist) use the cookie-aware client.
+ *
+ * The public reads are additionally wrapped in `unstable_cache`, giving a
+ * shared server-side data cache that survives even when a page is rendered
+ * dynamically (e.g. the shop page with filters, or search). This means a
+ * traffic spike is absorbed by the cache instead of turning into one Supabase
+ * query per visitor. Admin mutations bust the cache via `revalidateTag` (see
+ * CATALOG_TAG / CONTENT_TAG usage in app/admin/actions.ts).
  */
 
-export async function getCategories(): Promise<Category[]> {
-  if (!supabaseConfigured()) return [];
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("categories")
-    .select("*")
-    .order("position", { ascending: true });
-  return data ?? [];
-}
+/** Cache tags — admin writes call revalidateTag() with these to refresh reads. */
+export const CATALOG_TAG = "catalog";
+export const CONTENT_TAG = "content";
 
-export async function getProducts(opts?: {
-  categorySlug?: string;
-  power?: string;
-  sort?: "newest" | "price-asc" | "price-desc";
-  limit?: number;
-}): Promise<Product[]> {
-  if (!supabaseConfigured()) return [];
-  const supabase = createPublicClient();
-  let query = supabase
-    .from("products")
-    .select("*, category:categories(*)")
-    .eq("status", "active");
+// How long cached reads stay fresh before a background refresh. Content changes
+// still propagate immediately on admin save via revalidateTag; these are just
+// the ceiling for picking up out-of-band edits.
+const CATALOG_TTL = 300; // seconds
+const SEARCH_TTL = 60; // seconds — search keys are user-supplied, keep them short-lived
 
-  if (opts?.categorySlug) {
-    const { data: cat } = await supabase
+export const getCategories = unstable_cache(
+  async (): Promise<Category[]> => {
+    if (!supabaseConfigured()) return [];
+    const supabase = createPublicClient();
+    const { data } = await supabase
       .from("categories")
-      .select("id")
-      .eq("slug", opts.categorySlug)
-      .maybeSingle();
-    if (cat) query = query.eq("category_id", cat.id);
-  }
-  if (opts?.power) query = query.eq("power", opts.power);
+      .select("*")
+      .order("position", { ascending: true });
+    return data ?? [];
+  },
+  ["categories"],
+  { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
+);
 
-  if (opts?.sort === "price-asc") query = query.order("price_cents", { ascending: true });
-  else if (opts?.sort === "price-desc") query = query.order("price_cents", { ascending: false });
-  else query = query.order("created_at", { ascending: false });
+export const getProducts = unstable_cache(
+  async (opts?: {
+    categorySlug?: string;
+    power?: string;
+    sort?: "newest" | "price-asc" | "price-desc";
+    limit?: number;
+  }): Promise<Product[]> => {
+    if (!supabaseConfigured()) return [];
+    const supabase = createPublicClient();
+    let query = supabase
+      .from("products")
+      .select("*, category:categories(*)")
+      .eq("status", "active");
 
-  if (opts?.limit) query = query.limit(opts.limit);
+    if (opts?.categorySlug) {
+      const { data: cat } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("slug", opts.categorySlug)
+        .maybeSingle();
+      if (cat) query = query.eq("category_id", cat.id);
+    }
+    if (opts?.power) query = query.eq("power", opts.power);
 
-  const { data } = await query;
-  return (data as Product[]) ?? [];
-}
+    if (opts?.sort === "price-asc") query = query.order("price_cents", { ascending: true });
+    else if (opts?.sort === "price-desc") query = query.order("price_cents", { ascending: false });
+    else query = query.order("created_at", { ascending: false });
+
+    if (opts?.limit) query = query.limit(opts.limit);
+
+    const { data } = await query;
+    return (data as Product[]) ?? [];
+  },
+  ["products"],
+  { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
+);
 
 export async function getFeaturedProducts(limit = 4): Promise<Product[]> {
   return getProducts({ sort: "newest", limit });
 }
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  if (!supabaseConfigured()) return null;
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("products")
-    .select("*, category:categories(*), images:product_images(*), specs:product_specs(*)")
-    .eq("slug", slug)
-    .maybeSingle();
-  if (!data) return null;
-  const product = data as Product;
-  product.images = (product.images ?? []).sort((a, b) => a.position - b.position);
-  product.specs = (product.specs ?? []).sort((a, b) => a.position - b.position);
-  return product;
-}
+export const getProductBySlug = unstable_cache(
+  async (slug: string): Promise<Product | null> => {
+    if (!supabaseConfigured()) return null;
+    const supabase = createPublicClient();
+    const { data } = await supabase
+      .from("products")
+      .select("*, category:categories(*), images:product_images(*), specs:product_specs(*)")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!data) return null;
+    const product = data as Product;
+    product.images = (product.images ?? []).sort((a, b) => a.position - b.position);
+    product.specs = (product.specs ?? []).sort((a, b) => a.position - b.position);
+    return product;
+  },
+  ["product-by-slug"],
+  { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
+);
 
-export async function searchProducts(q: string): Promise<Product[]> {
-  if (!supabaseConfigured() || !q.trim()) return [];
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("products")
-    .select("*, category:categories(*)")
-    .eq("status", "active")
-    .or(`name.ilike.%${q}%,tagline.ilike.%${q}%,description.ilike.%${q}%`)
-    .limit(24);
-  return (data as Product[]) ?? [];
-}
+export const searchProducts = unstable_cache(
+  async (q: string): Promise<Product[]> => {
+    if (!supabaseConfigured()) return [];
+    // Sanitize before interpolating into the PostgREST `or` filter: strip the
+    // characters that are meaningful to that filter syntax (comma, parens,
+    // wildcards, backslash) so a crafted query can't break or rewrite it, and
+    // cap the length to keep scans cheap.
+    const term = q
+      .replace(/[%,()\\*]/g, " ")
+      .trim()
+      .slice(0, 60);
+    if (!term) return [];
+    const supabase = createPublicClient();
+    const { data } = await supabase
+      .from("products")
+      .select("*, category:categories(*)")
+      .eq("status", "active")
+      .or(`name.ilike.%${term}%,tagline.ilike.%${term}%,description.ilike.%${term}%`)
+      .limit(24);
+    return (data as Product[]) ?? [];
+  },
+  ["search-products"],
+  { revalidate: SEARCH_TTL, tags: [CATALOG_TAG] }
+);
 
-export async function getArticles(limit?: number): Promise<Article[]> {
-  if (!supabaseConfigured()) return [];
-  const supabase = createPublicClient();
-  let query = supabase
-    .from("articles")
-    .select("*")
-    .eq("published", true)
-    .order("published_at", { ascending: false });
-  if (limit) query = query.limit(limit);
-  const { data } = await query;
-  return (data as Article[]) ?? [];
-}
+export const getArticles = unstable_cache(
+  async (limit?: number): Promise<Article[]> => {
+    if (!supabaseConfigured()) return [];
+    const supabase = createPublicClient();
+    let query = supabase
+      .from("articles")
+      .select("*")
+      .eq("published", true)
+      .order("published_at", { ascending: false });
+    if (limit) query = query.limit(limit);
+    const { data } = await query;
+    return (data as Article[]) ?? [];
+  },
+  ["articles"],
+  { revalidate: CATALOG_TTL, tags: [CONTENT_TAG] }
+);
 
-export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  if (!supabaseConfigured()) return null;
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("articles")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
-  return (data as Article) ?? null;
-}
+export const getArticleBySlug = unstable_cache(
+  async (slug: string): Promise<Article | null> => {
+    if (!supabaseConfigured()) return null;
+    const supabase = createPublicClient();
+    const { data } = await supabase
+      .from("articles")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
+    return (data as Article) ?? null;
+  },
+  ["article-by-slug"],
+  { revalidate: CATALOG_TTL, tags: [CONTENT_TAG] }
+);
 
 export async function getCurrentProfile(): Promise<Profile | null> {
   if (!supabaseConfigured()) return null;
