@@ -2,6 +2,7 @@ import {
   createClient as createSupabaseClient,
   type SupabaseClient,
 } from "@supabase/supabase-js";
+import { supabaseUrl, supabaseAnonKey } from "@/lib/env";
 
 /**
  * Cookie-free anon Supabase client for PUBLIC catalog/content reads
@@ -17,8 +18,8 @@ let client: SupabaseClient | null = null;
 export function createPublicClient() {
   if (client) return client;
   client = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl()!,
+    supabaseAnonKey()!,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
   return client;

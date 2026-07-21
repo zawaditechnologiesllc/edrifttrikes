@@ -1,18 +1,21 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { supabaseUrl, supabaseAnonKey } from "@/lib/env";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
 /**
  * Supabase server client (Server Components, Route Handlers, Server Actions).
  * Uses the request cookie store so auth sessions are read/written correctly.
+ * Reads config via the robust env helper so it works from runtime Worker
+ * variables (SUPABASE_URL / SUPABASE_ANON_KEY) as well as build-time NEXT_PUBLIC.
  */
 export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl()!,
+    supabaseAnonKey()!,
     {
       cookies: {
         getAll() {
