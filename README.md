@@ -152,6 +152,12 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 - **Render** — optional; `lib/api.ts` is ready if you offload heavy/async jobs to
   a separate Render service.
 
+> **Scaling / high traffic:** see **[`docs/SCALING.md`](./docs/SCALING.md)** for
+> the capacity runbook — how the site absorbs a ~2,000 users/hour load plus
+> Instagram bursts on the free tiers, the one-time setup (env vars, Render
+> keep-warm), a pre-launch load-test recipe, and the concrete signals for when
+> to upgrade each service.
+
 ## Notes / next steps
 
 - Marketing/content pages (homepage, our-story, support, shipping, wishlist) keep

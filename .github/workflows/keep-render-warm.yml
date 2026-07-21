@@ -1,0 +1,53 @@
+# Keeps the free-tier Render backend from spinning down.
+#
+# Render's free web service sleeps after ~15 minutes of inactivity and then
+# takes ~50s to cold-start on the next request. During a campaign that delay
+# lands on checkout webhooks and contact/newsletter emails. This workflow pings
+# the health endpoint every ~10 minutes so the instance stays warm.
+#
+# Setup: add a repository variable RENDER_BACKEND_URL
+#   (Settings → Secrets and variables → Actions → Variables)
+#   e.g. https://edrift-backend.onrender.com
+# If the variable is unset, the job no-ops instead of failing.
+#
+# Notes:
+#  - GitHub cron is best-effort and can be delayed under load; a dedicated
+#    uptime monitor (cron-job.org, UptimeRobot — both free) pinging /health is
+#    more reliable. This workflow is the zero-extra-service fallback.
+#  - GitHub auto-disables scheduled workflows after 60 days of repo inactivity.
+name: Keep Render backend warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+# Never let overlapping pings pile up.
+concurrency:
+  group: keep-render-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /health
+        env:
+          RENDER_BACKEND_URL: ${{ vars.RENDER_BACKEND_URL }}
+        run: |
+          if [ -z "$RENDER_BACKEND_URL" ]; then
+            echo "RENDER_BACKEND_URL not set — skipping. Add it as a repo variable to enable keep-warm."
+            exit 0
+          fi
+          url="${RENDER_BACKEND_URL%/}/health"
+          echo "Pinging $url"
+          code=$(curl -fsS -m 30 -o /dev/null -w "%{http_code}" "$url" || true)
+          echo "HTTP $code"
+          # A cold instance may need a moment; treat a warm-up as success.
+          if [ "$code" = "000" ]; then
+            echo "No response (instance may be cold) — retrying once in 20s"
+            sleep 20
+            code=$(curl -fsS -m 60 -o /dev/null -w "%{http_code}" "$url" || true)
+            echo "Retry HTTP $code"
+          fi

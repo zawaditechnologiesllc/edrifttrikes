@@ -1,10 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
+import { CATALOG_TAG, CONTENT_TAG } from "@/lib/db";
 
 async function requireAdmin() {
   if (!adminConfigured()) redirect("/login");
@@ -71,6 +72,7 @@ export async function saveProduct(formData: FormData) {
   if (id) await admin.from("products").update(row).eq("id", id);
   else await admin.from("products").insert(row);
 
+  revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/products");
   revalidatePath("/shop");
   redirect("/admin/products");
@@ -80,6 +82,7 @@ export async function deleteProduct(formData: FormData) {
   await requireAdmin();
   const admin = createAdminClient();
   await admin.from("products").delete().eq("id", String(formData.get("id")));
+  revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/products");
   revalidatePath("/shop");
 }
@@ -107,6 +110,7 @@ export async function saveCategory(formData: FormData) {
   };
   if (id) await admin.from("categories").update(row).eq("id", id);
   else await admin.from("categories").insert(row);
+  revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/categories");
   revalidatePath("/shop");
 }
@@ -115,7 +119,9 @@ export async function deleteCategory(formData: FormData) {
   await requireAdmin();
   const admin = createAdminClient();
   await admin.from("categories").delete().eq("id", String(formData.get("id")));
+  revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/categories");
+  revalidatePath("/shop");
 }
 
 export async function saveArticle(formData: FormData) {
@@ -136,6 +142,7 @@ export async function saveArticle(formData: FormData) {
   };
   if (id) await admin.from("articles").update(row).eq("id", id);
   else await admin.from("articles").insert(row);
+  revalidateTag(CONTENT_TAG);
   revalidatePath("/admin/articles");
   revalidatePath("/tech-lab");
   redirect("/admin/articles");
@@ -145,5 +152,7 @@ export async function deleteArticle(formData: FormData) {
   await requireAdmin();
   const admin = createAdminClient();
   await admin.from("articles").delete().eq("id", String(formData.get("id")));
+  revalidateTag(CONTENT_TAG);
   revalidatePath("/admin/articles");
+  revalidatePath("/tech-lab");
 }
