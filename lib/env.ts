@@ -1,0 +1,59 @@
+/**
+ * Robust server-side env reader for the Cloudflare Workers runtime (OpenNext)
+ * and Node alike.
+ *
+ * Why this exists: on Cloudflare, `NEXT_PUBLIC_*` values are inlined at BUILD
+ * time, while server secrets (service-role key, etc.) are read at RUNTIME from
+ * the Worker's bindings. If a secret is set as a *runtime* Worker variable it
+ * shows up in `process.env`; if for any reason it doesn't, we fall back to
+ * reading the Cloudflare binding env directly. We also accept the non-public
+ * `SUPABASE_URL` / `SUPABASE_ANON_KEY` names (same as the Render service uses)
+ * so the server keeps working even if the public build-time vars are missing.
+ */
+
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
+/** Read directly from the Cloudflare binding env (works even if process.env wasn't populated). */
+function fromCloudflare(name: string): string | undefined {
+  try {
+    const env = getCloudflareContext().env as Record<string, unknown> | undefined;
+    const v = env?.[name];
+    return typeof v === "string" && v.length > 0 ? v : undefined;
+  } catch {
+    // Not in the Cloudflare runtime (e.g. build/static generation or Node).
+    return undefined;
+  }
+}
+
+/** Read a runtime env var by name from process.env, falling back to the CF binding. */
+export function serverEnv(name: string): string | undefined {
+  const v = process.env[name];
+  if (v && v.length > 0) return v;
+  return fromCloudflare(name);
+}
+
+/** Supabase project URL for server code (accepts SUPABASE_URL or the public one). */
+export function supabaseUrl(): string | undefined {
+  return (
+    serverEnv("SUPABASE_URL") ||
+    serverEnv("NEXT_PUBLIC_SUPABASE_URL") ||
+    // Build-time inlined literal (static access) — final fallback.
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    undefined
+  );
+}
+
+/** Supabase anon key for server code (accepts SUPABASE_ANON_KEY or the public one). */
+export function supabaseAnonKey(): string | undefined {
+  return (
+    serverEnv("SUPABASE_ANON_KEY") ||
+    serverEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY") ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    undefined
+  );
+}
+
+/** Supabase service-role secret (server only; bypasses RLS). */
+export function supabaseServiceRoleKey(): string | undefined {
+  return serverEnv("SUPABASE_SERVICE_ROLE_KEY");
+}

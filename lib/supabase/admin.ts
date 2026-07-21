@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey } from "@/lib/env";
 
 /**
  * Service-role Supabase client — SERVER ONLY.
@@ -6,11 +7,11 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
  * Never import this into a Client Component.
  */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = supabaseUrl();
+  const serviceKey = supabaseServiceRoleKey();
   if (!url || !serviceKey) {
     throw new Error(
-      "Supabase service role is not configured (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)."
+      "Supabase service role is not configured. Set SUPABASE_SERVICE_ROLE_KEY (and SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL) as RUNTIME variables on the Cloudflare Worker."
     );
   }
   return createSupabaseClient(url, serviceKey, {
@@ -20,16 +21,10 @@ export function createAdminClient() {
 
 /** True when Supabase env is present, so pages can render gracefully without it. */
 export function supabaseConfigured() {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+  return Boolean(supabaseUrl() && supabaseAnonKey());
 }
 
 /** True when the server-side service role is also present (admin features). */
 export function adminConfigured() {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  return Boolean(supabaseUrl() && supabaseServiceRoleKey());
 }

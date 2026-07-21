@@ -150,7 +150,19 @@ mark secrets as *Encrypted*):
    | `PAYPAL_CLIENT_ID` / `PAYPAL_SECRET` / `PAYPAL_ENV` | if using PayPal (secret) |
 
 > `NEXT_PUBLIC_*` vars are baked in at **build** time, so a change to them needs a
-> redeploy. Server-only secrets are read at runtime.
+> redeploy. Server-only secrets (e.g. `SUPABASE_SERVICE_ROLE_KEY`) are read at
+> **runtime** — they must be set as **runtime** Worker variables, not only as
+> build variables.
+
+> **Troubleshooting — admin says "Connect Supabase":** visit **`/api/health`** on
+> your deployed site. It reports (as booleans, never values) exactly what the
+> running Worker sees, e.g. `{"adminReady": true, "supabase": {"url": true,
+> "serviceRoleKey": false}}`. If `serviceRoleKey` is `false`, the service-role
+> key isn't reaching the runtime Worker — set **`SUPABASE_SERVICE_ROLE_KEY`**
+> (exact name, the Supabase *service_role* secret, not the anon key) under your
+> Worker → **Settings → Variables and Secrets** (runtime), then redeploy. The
+> server also accepts a non-public **`SUPABASE_URL`** if the public URL wasn't
+> available at build time.
 
 After the first deploy, set `SITE_URL` (Render) and the Supabase **Site URL /
 Redirect URL** (Step 1e) to your real Worker/domain URL. Add a custom domain

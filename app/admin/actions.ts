@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { CATALOG_TAG, CONTENT_TAG } from "@/lib/db";
@@ -32,7 +31,7 @@ async function uploadImage(file: File | null): Promise<string | null> {
   if (!file || file.size === 0) return null;
   const admin = createAdminClient();
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const path = `${randomUUID()}.${ext}`;
+  const path = `${crypto.randomUUID()}.${ext}`;
   const buf = Buffer.from(await file.arrayBuffer());
   const { error } = await admin.storage
     .from("product-images")
