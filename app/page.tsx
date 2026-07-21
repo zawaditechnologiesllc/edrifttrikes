@@ -41,9 +41,6 @@ export default async function HomePage() {
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
               <Link href="/shop?category=trikes" className="bg-primary-container text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition-all">
-                Build Your Slide
-              </Link>
-              <Link href="/shop" className="border border-white text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:bg-white/10 active:scale-95 transition-all">
                 Shop Trikes
               </Link>
             </div>

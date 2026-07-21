@@ -83,10 +83,10 @@ export default async function ShopPage({
               ))}
             </div>
           </div>
-          <Link href="/product/volt-s1-pro" className="block cut-corner bg-surface-container-lowest text-white p-6">
-            <h4 className="font-headline-md text-xl uppercase">Custom Build?</h4>
-            <p className="text-on-surface-variant text-sm mt-1">Engineered to your drift dynamics.</p>
-            <span className="inline-block mt-4 bg-secondary text-on-secondary-fixed px-4 py-2 text-xs font-label-bold uppercase tracking-widest rounded">Start Build</span>
+          <Link href="/support" className="block cut-corner bg-surface-container-lowest text-white p-6">
+            <h4 className="font-headline-md text-xl uppercase">Need a hand?</h4>
+            <p className="text-on-surface-variant text-sm mt-1">Talk to the crew about the right rig for you.</p>
+            <span className="inline-block mt-4 bg-secondary text-on-secondary-fixed px-4 py-2 text-xs font-label-bold uppercase tracking-widest rounded">Get in touch</span>
           </Link>
         </aside>
 

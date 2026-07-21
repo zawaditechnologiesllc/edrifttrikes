@@ -144,6 +144,11 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 
 ## Deployment
 
+> **Full step-by-step guide: [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)** —
+> Supabase → Render → Vercel → Stripe → Resend, in order, with every env var, the
+> admin-promotion SQL, product upload, and a go-live checklist. The bullets below
+> are the summary.
+
 - **Vercel** — import the repo; add all env vars in Project Settings. Next.js is
   auto-detected.
 - **Supabase** — run the migration + seed; set Auth → URL config redirect to
