@@ -2,7 +2,8 @@ import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { supabaseConfigured } from "@/lib/supabase/admin";
-import type { Article, Category, Order, Product, Profile } from "@/lib/types";
+import { DEFAULT_SITE_SETTINGS } from "@/lib/company";
+import type { Article, Category, Order, Product, Profile, SiteSettings } from "@/lib/types";
 
 /**
  * Server-side data access. Every function degrades gracefully to empty/null
@@ -23,6 +24,7 @@ import type { Article, Category, Order, Product, Profile } from "@/lib/types";
 /** Cache tags — admin writes call revalidateTag() with these to refresh reads. */
 export const CATALOG_TAG = "catalog";
 export const CONTENT_TAG = "content";
+export const SETTINGS_TAG = "settings";
 
 // How long cached reads stay fresh before a background refresh. Content changes
 // still propagate immediately on admin save via revalidateTag; these are just
@@ -81,9 +83,46 @@ export const getProducts = unstable_cache(
   { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
 );
 
+const getFlaggedFeatured = unstable_cache(
+  async (limit: number): Promise<Product[]> => {
+    if (!supabaseConfigured()) return [];
+    const supabase = createPublicClient();
+    // If the `featured` column doesn't exist yet (migration 0003 not run),
+    // this errors and `data` is null — callers fall back to newest products.
+    const { data } = await supabase
+      .from("products")
+      .select("*, category:categories(*)")
+      .eq("status", "active")
+      .eq("featured", true)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return (data as Product[]) ?? [];
+  },
+  ["featured-products"],
+  { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
+);
+
+/** Admin-flagged featured products; falls back to newest when none are flagged. */
 export async function getFeaturedProducts(limit = 4): Promise<Product[]> {
+  const flagged = await getFlaggedFeatured(limit);
+  if (flagged.length > 0) return flagged;
   return getProducts({ sort: "newest", limit });
 }
+
+export const getSiteSettings = unstable_cache(
+  async (): Promise<SiteSettings> => {
+    if (!supabaseConfigured()) return DEFAULT_SITE_SETTINGS;
+    const supabase = createPublicClient();
+    const { data } = await supabase
+      .from("site_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+    return (data as SiteSettings) ?? DEFAULT_SITE_SETTINGS;
+  },
+  ["site-settings"],
+  { revalidate: CATALOG_TTL, tags: [SETTINGS_TAG] }
+);
 
 export const getProductBySlug = unstable_cache(
   async (slug: string): Promise<Product | null> => {

@@ -35,6 +35,10 @@ export async function POST(request: Request) {
   if (!email || items.length === 0) {
     return NextResponse.json({ error: "Email and at least one item are required." }, { status: 400 });
   }
+  // Bound the work a single request can cause (DB lookups, order rows).
+  if (items.length > 50) {
+    return NextResponse.json({ error: "Too many items in one order." }, { status: 400 });
+  }
 
   const admin = createAdminClient();
 

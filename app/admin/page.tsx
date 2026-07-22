@@ -2,27 +2,33 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
-import { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey } from "@/lib/env";
+import { supabaseUrl, supabaseServiceRoleKey } from "@/lib/env";
 import { formatMoney } from "@/lib/format";
 import { Icon } from "@/components/Icon";
 
 export default async function AdminOverview() {
-  // TEMP diagnostic: prints (booleans only) what THIS request sees, so
-  // `wrangler tail` reveals stale-deploy vs missing-var. Remove once resolved.
-  console.log(
-    "[edrift-admin-check v1]",
-    JSON.stringify({
-      adminConfigured: adminConfigured(),
-      url: Boolean(supabaseUrl()),
-      anon: Boolean(supabaseAnonKey()),
-      service: Boolean(supabaseServiceRoleKey()),
-    })
-  );
   if (!adminConfigured()) {
+    const missing = [
+      !supabaseUrl() && "NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL)",
+      !supabaseServiceRoleKey() && "SUPABASE_SERVICE_ROLE_KEY",
+    ].filter(Boolean) as string[];
     return (
-      <p className="p-8 text-on-surface-variant">
-        Connect Supabase (URL + service role key) to manage the store.
-      </p>
+      <div className="p-8 max-w-2xl space-y-4">
+        <p className="text-on-surface-variant">
+          Connect Supabase (URL + service role key) to manage the store.
+        </p>
+        <p className="text-on-surface-variant">
+          The running server can&apos;t see:{" "}
+          <code className="text-secondary">{missing.join(", ")}</code>. Set{" "}
+          {missing.length > 1 ? "them" : "it"} on the Cloudflare Worker under{" "}
+          <span className="text-white">Settings → Variables and Secrets</span>{" "}
+          (runtime, not only build), then redeploy. Visit{" "}
+          <code className="text-secondary">/api/health</code> to verify — it
+          must report <code className="text-secondary">adminReady: true</code>{" "}
+          and the current <code className="text-secondary">diag</code> marker,
+          otherwise the deployment is running stale code.
+        </p>
+      </div>
     );
   }
   const admin = createAdminClient();

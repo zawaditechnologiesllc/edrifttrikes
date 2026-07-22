@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
-import { CATALOG_TAG, CONTENT_TAG } from "@/lib/db";
+import { CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
 
 async function requireAdmin() {
   if (!adminConfigured()) redirect("/login");
@@ -64,15 +64,26 @@ export async function saveProduct(formData: FormData) {
     stock: parseInt(String(formData.get("stock") || "0"), 10) || 0,
     status: String(formData.get("status") || "active"),
     is_new: formData.get("is_new") === "on",
+    featured: formData.get("featured") === "on",
     badge: String(formData.get("badge") || "") || null,
     hero_image: hero,
   };
 
   let productId = id;
   if (id) {
-    await admin.from("products").update(row).eq("id", id);
+    const { error } = await admin.from("products").update(row).eq("id", id);
+    // Migration 0003 not run yet → the featured column doesn't exist and the
+    // whole update fails. Retry without it so product edits keep working.
+    if (error && "featured" in row) {
+      delete row.featured;
+      await admin.from("products").update(row).eq("id", id);
+    }
   } else {
-    const { data: created } = await admin.from("products").insert(row).select("id").single();
+    let { data: created, error } = await admin.from("products").insert(row).select("id").single();
+    if (error && "featured" in row) {
+      delete row.featured;
+      ({ data: created } = await admin.from("products").insert(row).select("id").single());
+    }
     productId = created?.id ?? "";
   }
 
@@ -190,4 +201,35 @@ export async function deleteArticle(formData: FormData) {
   revalidateTag(CONTENT_TAG);
   revalidatePath("/admin/articles");
   revalidatePath("/tech-lab");
+}
+
+export type SettingsState = { ok?: boolean; error?: string };
+
+/** Save the footer contact info (site_settings row, always id = 1). */
+export async function saveSiteSettings(
+  _prev: SettingsState,
+  formData: FormData
+): Promise<SettingsState> {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const trimmed = (name: string) => String(formData.get(name) || "").trim() || null;
+  const { error } = await admin.from("site_settings").upsert(
+    {
+      id: 1,
+      company_email: trimmed("company_email"),
+      company_phone: trimmed("company_phone"),
+      address_line1: trimmed("address_line1"),
+      address_line2: trimmed("address_line2"),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" }
+  );
+  if (error) {
+    return {
+      error:
+        "Could not save. If this is a fresh database, run supabase/migrations/0003_featured_site_settings.sql first.",
+    };
+  }
+  revalidateTag(SETTINGS_TAG);
+  return { ok: true };
 }
