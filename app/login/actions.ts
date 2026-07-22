@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/admin";
+import { publicSiteUrl } from "@/lib/env";
 import { sendWelcomeEmail } from "@/lib/email";
 
 export type AuthState = { error?: string; message?: string };
@@ -38,8 +39,7 @@ export async function signUp(
     return { error: "Password must be at least 8 characters." };
 
   const supabase = await createClient();
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = publicSiteUrl() || "http://localhost:3000";
   const { data, error } = await supabase.auth.signUp({
     email,
     password,

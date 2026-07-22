@@ -57,3 +57,13 @@ export function supabaseAnonKey(): string | undefined {
 export function supabaseServiceRoleKey(): string | undefined {
   return serverEnv("SUPABASE_SERVICE_ROLE_KEY");
 }
+
+/** Canonical public site URL (redirects, payment return URLs, auth emails). */
+export function publicSiteUrl(): string | undefined {
+  return (
+    serverEnv("NEXT_PUBLIC_SITE_URL") ||
+    // Build-time inlined literal (static access) — final fallback.
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    undefined
+  );
+}
