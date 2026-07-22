@@ -237,21 +237,35 @@ export async function saveSiteSettings(
   await requireAdmin();
   const admin = createAdminClient();
   const trimmed = (name: string) => String(formData.get(name) || "").trim() || null;
-  const { error } = await admin.from("site_settings").upsert(
-    {
-      id: 1,
-      company_email: trimmed("company_email"),
-      company_phone: trimmed("company_phone"),
-      address_line1: trimmed("address_line1"),
-      address_line2: trimmed("address_line2"),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "id" }
-  );
+  const row: Record<string, unknown> = {
+    id: 1,
+    company_email: trimmed("company_email"),
+    company_phone: trimmed("company_phone"),
+    address_line1: trimmed("address_line1"),
+    address_line2: trimmed("address_line2"),
+    shipping_cents: dollarsToCents(formData.get("shipping_fee")),
+    free_shipping: formData.get("free_shipping") === "on",
+    updated_at: new Date().toISOString(),
+  };
+  let { error } = await admin.from("site_settings").upsert(row, { onConflict: "id" });
+  // Migration 0004 not run yet → shipping columns don't exist. Save the rest
+  // and tell the admin what to run.
+  if (error && "shipping_cents" in row) {
+    delete row.shipping_cents;
+    delete row.free_shipping;
+    ({ error } = await admin.from("site_settings").upsert(row, { onConflict: "id" }));
+    if (!error) {
+      revalidateTag(SETTINGS_TAG);
+      return {
+        error:
+          "Contact info saved, but shipping settings need migration supabase/migrations/0004_shipping_and_articles.sql — run it in the Supabase SQL Editor, then save again.",
+      };
+    }
+  }
   if (error) {
     return {
       error:
-        "Could not save. If this is a fresh database, run supabase/migrations/0003_featured_site_settings.sql first.",
+        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003 and 0004) first.",
     };
   }
   revalidateTag(SETTINGS_TAG);

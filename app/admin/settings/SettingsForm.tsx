@@ -67,6 +67,38 @@ export default function SettingsForm({ settings }: { settings: SiteSettings }) {
         />
       </div>
 
+      <div className="border-t border-white/10 pt-6">
+        <p className="font-label-bold text-label-bold text-white uppercase tracking-widest text-xs mb-4">
+          Shipping
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+          <div>
+            <label className={lbl}>Flat shipping fee ($) — every order</label>
+            <input
+              name="shipping_fee"
+              defaultValue={((settings.shipping_cents ?? 5000) / 100).toFixed(2)}
+              placeholder="50.00"
+              className={input}
+            />
+          </div>
+          <label className="flex items-center gap-3 text-on-surface-variant pb-3">
+            <input
+              type="checkbox"
+              name="free_shipping"
+              defaultChecked={settings.free_shipping ?? false}
+              className="w-5 h-5"
+            />
+            <span className="font-label-bold uppercase text-xs tracking-widest">
+              Free shipping on all orders
+            </span>
+          </label>
+        </div>
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-2">
+          One constant fee for every order. Tick free shipping to override it —
+          cart, checkout, and receipts update immediately.
+        </p>
+      </div>
+
       {state.error && <p className="text-error font-body-md">{state.error}</p>}
       {state.ok && (
         <p className="text-secondary font-label-bold uppercase text-xs tracking-widest">

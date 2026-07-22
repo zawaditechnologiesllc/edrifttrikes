@@ -67,21 +67,5 @@ select id, s.label, s.value, s.pos from public.products, (values
 ) as s(label, value, pos) where slug='volt-s1-pro';
 
 -- Articles (Tech Lab) -------------------------------------------------------
-insert into public.articles (slug, title, excerpt, body, cover_url, category, author, read_minutes, published)
-values
-  ('sleeve-fitting', 'DIY Guide: PVC Slide Sleeve Fitting',
-   'Swap your rear sleeves in under 20 minutes with basic tools.',
-   'A full walkthrough on removing worn sleeves and fitting a fresh UHMWPE set for buttery transitions...',
-   '/assets/mechanic-sleeve-install.jpg', 'DIY Guide', 'The Garage', 8, true),
-  ('choosing-your-hub-motor', 'Choosing Your 72V Hub Motor',
-   'Torque, winding and thermal limits — how to pick the right motor for your build.',
-   'Not all hub motors are equal. Here is how winding count and KV rating change your break-loose behaviour...',
-   '/assets/motor-72v-hub.jpg', 'Tech', 'Lead Engineering', 6, true),
-  ('first-drift-garage', 'Building Your First Drift Garage',
-   'The bench, the tools and the workflow behind a pro home garage.',
-   'From soldering station to a clean parts wall — the essentials for maintaining an electric drift fleet...',
-   '/assets/garage-workshop-night.jpg', 'Community', 'The Garage', 5, true)
-on conflict (slug) do update set
-  title=excluded.title, excerpt=excluded.excerpt, body=excluded.body,
-  cover_url=excluded.cover_url, category=excluded.category, author=excluded.author,
-  read_minutes=excluded.read_minutes, published=excluded.published;
+-- The complete article set lives in migrations/0004_shipping_and_articles.sql
+-- (upserted by slug there), so seeding can't overwrite full articles with stubs.

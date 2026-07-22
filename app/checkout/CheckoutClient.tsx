@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import { useCart } from "@/components/cart/CartProvider";
+import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeTotals } from "@/lib/totals";
 
@@ -27,7 +28,8 @@ export default function CheckoutClient({
   methods: { stripe: boolean; paypal: boolean };
 }) {
   const { items, subtotalCents, clear } = useCart();
-  const totals = computeTotals(subtotalCents);
+  const settings = useSiteSettings();
+  const totals = computeTotals(subtotalCents, settings);
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [shipping, setShipping] = useState<Record<string, string>>({});

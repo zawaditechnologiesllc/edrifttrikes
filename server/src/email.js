@@ -47,7 +47,7 @@ export async function welcomeEmail({ email, name }) {
   );
 }
 
-export async function orderConfirmationEmail(order) {
+function orderTable(order) {
   const rows = (order.items || [])
     .map(
       (i) =>
@@ -55,15 +55,49 @@ export async function orderConfirmationEmail(order) {
          <td style="padding:8px 0;text-align:right;color:#e4e1e6">${money(i.price_cents * i.qty, order.currency)}</td></tr>`
     )
     .join("");
-  const body = `
-    <p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${order.order_number}</strong> is confirmed. We'll email tracking as soon as it ships.</p>
+  const shippingCell =
+    order.shipping_cents === 0 ? "FREE" : money(order.shipping_cents, order.currency);
+  return `
     <table style="width:100%;border-collapse:collapse;margin-top:24px">${rows}
       <tr><td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.1);color:#8d90a2">Subtotal</td><td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.1);text-align:right;color:#e4e1e6">${money(order.subtotal_cents, order.currency)}</td></tr>
-      <tr><td style="padding:4px 0;color:#8d90a2">Shipping</td><td style="padding:4px 0;text-align:right;color:#e4e1e6">${money(order.shipping_cents, order.currency)}</td></tr>
+      <tr><td style="padding:4px 0;color:#8d90a2">Shipping</td><td style="padding:4px 0;text-align:right;color:#e4e1e6">${shippingCell}</td></tr>
       <tr><td style="padding:4px 0;color:#8d90a2">Tax</td><td style="padding:4px 0;text-align:right;color:#e4e1e6">${money(order.tax_cents, order.currency)}</td></tr>
       <tr><td style="padding:12px 0;font-weight:700;color:#fff">Total</td><td style="padding:12px 0;text-align:right;font-weight:700;color:#c4f731">${money(order.total_cents, order.currency)}</td></tr>
     </table>`;
-  return send(order.email, `Order ${order.order_number} confirmed`, shell("Order confirmed", body));
+}
+
+export async function orderConfirmationEmail(order) {
+  const body = `
+    <p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${order.order_number}</strong> is confirmed.</p>
+    <p style="color:#c3c5d9;line-height:1.6">Delivery typically takes <strong style="color:#fff">12–20 days</strong> depending on the shipping route to your country. We'll email your tracking link the moment it ships.</p>
+    ${orderTable(order)}`;
+  const result = await send(
+    order.email,
+    `Order ${order.order_number} confirmed`,
+    shell("Order confirmed", body)
+  );
+
+  // New-order alert to the store owner — best-effort, never blocks the
+  // buyer's receipt.
+  const notify = process.env.ORDERS_NOTIFICATION_EMAIL;
+  if (notify) {
+    const addr = order.shipping_address
+      ? `<p style="color:#c3c5d9;line-height:1.6">Ship to: ${Object.values(order.shipping_address)
+          .filter(Boolean)
+          .map((v) => String(v).replace(/</g, "&lt;"))
+          .join(", ")}</p>`
+      : "";
+    await send(
+      notify,
+      `New order ${order.order_number} — ${money(order.total_cents, order.currency)}`,
+      shell(
+        "New order",
+        `<p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${order.order_number}</strong> from ${order.email} (status: ${order.status}).</p>
+         ${addr}${orderTable(order)}`
+      )
+    ).catch((e) => console.error("[email] order alert failed", e));
+  }
+  return result;
 }
 
 export async function newsletterEmail({ email }) {
