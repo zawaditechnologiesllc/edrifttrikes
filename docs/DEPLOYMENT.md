@@ -174,7 +174,7 @@ mark secrets as *Encrypted*):
 > "serviceRoleKey": false}}`.
 >
 > - **Check `diag` first.** The current code reports `"diag":
->   "release-2026-07-22"`. If your deployed `/api/health` shows an older value
+>   "release-2026-07-22b"`. If your deployed `/api/health` shows an older value
 >   (or 404s), Cloudflare is building an old commit — usually because the
 >   Worker is connected to a fork or branch that hasn't pulled the latest code.
 >   Sync the deployed repo/branch with this one and redeploy before debugging
@@ -255,8 +255,16 @@ creates a profile with role `customer`, so promote yourself once:
 **Uploading a product** (`/admin/products` → **New product**):
 - Fill name, **slug** (URL-safe, e.g. `volt-s1-pro`), price, stock, category,
   power, and the descriptive fields.
+- **Or import from a text file**: the New-product form has an *Import from
+  text file* box — download the template, fill in `Key: value` lines (the
+  description can span multiple lines), pick the file, and every matching
+  field prefills. Review, add images, save. Images always come from the file
+  pickers, not the text file.
 - Tick **Featured (homepage)** to pin the product to the homepage's featured
   section. When nothing is flagged, the newest active products show instead.
+- Images: up to **10 MB per image, 45 MB per save**. Oversized picks are
+  rejected with a message before upload. If a save ever fails, the form shows
+  the reason next to the Save button — it never hangs silently.
 - **Hero image**: the file picker uploads straight to Supabase Storage
   (`product-images` bucket) — no manual URL needed.
 - Set **Status = Active** so it shows on the storefront. Save.
