@@ -121,6 +121,10 @@ export default function ProductForm({
           <input type="checkbox" name="is_new" defaultChecked={p?.is_new} className="w-5 h-5" />
           <span className="font-label-bold uppercase text-xs tracking-widest">Mark as new</span>
         </label>
+        <label className="flex items-center gap-3 text-on-surface-variant pb-3">
+          <input type="checkbox" name="featured" defaultChecked={p?.featured} className="w-5 h-5" />
+          <span className="font-label-bold uppercase text-xs tracking-widest">Featured (homepage)</span>
+        </label>
       </div>
 
       <div>

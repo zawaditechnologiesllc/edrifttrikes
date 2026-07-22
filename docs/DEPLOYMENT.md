@@ -49,8 +49,11 @@ needs), then Cloudflare, then wire Stripe's webhook back to Render.
 2. Run each migration **in order**, pasting the file contents and clicking Run:
    - `supabase/migrations/0001_init.sql`
    - `supabase/migrations/0002_contact.sql`
+   - `supabase/migrations/0003_featured_site_settings.sql`
    This creates all tables, row-level-security policies, the `is_admin()` helper,
-   and the public **`product-images`** storage bucket.
+   the public **`product-images`** storage bucket, the products' **featured**
+   flag, and the **site_settings** table (footer contact info). On an existing
+   database just run the migrations you haven't run yet — all are safe to re-run.
 
 ### 1c. Seed starter data (recommended)
 Run `supabase/seed.sql`. It creates the three **categories** (`trikes`, `parts`,
@@ -170,11 +173,12 @@ mark secrets as *Encrypted*):
 > running Worker sees, e.g. `{"adminReady": true, "supabase": {"url": true,
 > "serviceRoleKey": false}}`.
 >
-> - **Check `diag` first.** The current code reports `"diag": "env-fix-2"`. If
->   your deployed `/api/health` shows an older value (or 404s), Cloudflare is
->   building an old commit — usually because the Worker is connected to a fork
->   or branch that hasn't pulled the latest code. Sync the deployed repo/branch
->   with this one and redeploy before debugging anything else.
+> - **Check `diag` first.** The current code reports `"diag":
+>   "release-2026-07-22"`. If your deployed `/api/health` shows an older value
+>   (or 404s), Cloudflare is building an old commit — usually because the
+>   Worker is connected to a fork or branch that hasn't pulled the latest code.
+>   Sync the deployed repo/branch with this one and redeploy before debugging
+>   anything else.
 > - If `serviceRoleKey` is `false`, the service-role key isn't reaching the
 >   runtime Worker — set **`SUPABASE_SERVICE_ROLE_KEY`** (exact name, the
 >   Supabase *service_role* secret, not the anon key) under your Worker →
@@ -251,6 +255,8 @@ creates a profile with role `customer`, so promote yourself once:
 **Uploading a product** (`/admin/products` → **New product**):
 - Fill name, **slug** (URL-safe, e.g. `volt-s1-pro`), price, stock, category,
   power, and the descriptive fields.
+- Tick **Featured (homepage)** to pin the product to the homepage's featured
+  section. When nothing is flagged, the newest active products show instead.
 - **Hero image**: the file picker uploads straight to Supabase Storage
   (`product-images` bucket) — no manual URL needed.
 - Set **Status = Active** so it shows on the storefront. Save.
@@ -264,6 +270,10 @@ creates a profile with role `customer`, so promote yourself once:
 - The schema also supports a **spec table** (`product_specs`), which isn't in the
   form yet — add spec rows via the Supabase **Table editor** (see `seed.sql` for
   the shape) if you want the spec list on a product page.
+
+**Footer contact info** (`/admin/settings`): the company email, phone, and
+address shown in the footer ship with placeholders — edit them here any time;
+the live footer refreshes within seconds. Leave a field empty to hide it.
 
 **Is Supabase ready?** Yes — once Steps 1–1e are done and you've promoted your
 account (this step), the database, RLS, storage bucket, and admin upload flow are

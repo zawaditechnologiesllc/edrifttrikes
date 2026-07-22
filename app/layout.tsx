@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Enhancements from "@/components/Enhancements";
 import PublicEnvScript from "@/components/PublicEnvScript";
+import SiteSettingsProvider from "@/components/storefront/SiteSettingsProvider";
 import { CartProvider } from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
+import { getSiteSettings } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: {
@@ -38,11 +40,12 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const settings = await getSiteSettings();
   return (
     <html lang="en" className="dark">
       <head>
@@ -59,10 +62,12 @@ export default function RootLayout({
       </head>
       <body className="bg-background text-on-surface font-body-md antialiased overflow-x-hidden">
         <PublicEnvScript />
-        <CartProvider>
-          {children}
-          <CartDrawer />
-        </CartProvider>
+        <SiteSettingsProvider settings={settings}>
+          <CartProvider>
+            {children}
+            <CartDrawer />
+          </CartProvider>
+        </SiteSettingsProvider>
         <Enhancements />
       </body>
     </html>

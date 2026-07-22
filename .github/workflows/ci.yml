@@ -1,0 +1,23 @@
+# Build check — proves every pushed commit can build exactly the way
+# Cloudflare Workers Builds does (npm clean-install, then the OpenNext build).
+# If this is green and a Cloudflare deploy still fails, the problem is in the
+# Cloudflare project settings (build command / branch / variables), not the code.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run cf:build
+      - name: Validate wrangler config (dry run)
+        run: npx wrangler deploy --dry-run

@@ -39,6 +39,7 @@ export type Product = {
   stock: number;
   status: "draft" | "active" | "archived";
   is_new: boolean;
+  featured: boolean;
   badge: string | null;
   hero_image: string | null;
   created_at: string;
@@ -97,4 +98,14 @@ export type Profile = {
   full_name: string | null;
   role: "customer" | "admin";
   created_at: string;
+};
+
+/** Single-row (id = 1) company contact info shown in the footer; admin-edited. */
+export type SiteSettings = {
+  id: number;
+  company_email: string | null;
+  company_phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  updated_at?: string;
 };
