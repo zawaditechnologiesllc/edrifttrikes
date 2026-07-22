@@ -24,6 +24,9 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true,
+    // Bump on each debug push — if this value doesn't change after a redeploy,
+    // your deployment pipeline is serving a stale build.
+    diag: "admin-debug-1",
     adminReady: supabase.url && supabase.serviceRoleKey,
     supabase,
     render: {

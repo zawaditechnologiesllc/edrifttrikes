@@ -2,10 +2,22 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
+import { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey } from "@/lib/env";
 import { formatMoney } from "@/lib/format";
 import { Icon } from "@/components/Icon";
 
 export default async function AdminOverview() {
+  // TEMP diagnostic: prints (booleans only) what THIS request sees, so
+  // `wrangler tail` reveals stale-deploy vs missing-var. Remove once resolved.
+  console.log(
+    "[edrift-admin-check v1]",
+    JSON.stringify({
+      adminConfigured: adminConfigured(),
+      url: Boolean(supabaseUrl()),
+      anon: Boolean(supabaseAnonKey()),
+      service: Boolean(supabaseServiceRoleKey()),
+    })
+  );
   if (!adminConfigured()) {
     return (
       <p className="p-8 text-on-surface-variant">
