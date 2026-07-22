@@ -120,7 +120,9 @@ export function parseProductText(text: string): ParsedProduct {
     const field = m ? KEY_MAP[normalizeKey(m[1])] : undefined;
 
     if (!field) {
-      if (inDescription && line.trim()) descriptionLines.push(line.trim());
+      // Keep blank lines inside the description — they mark paragraph breaks,
+      // which the product page renders (along with -, *, 1. bullet points).
+      if (inDescription) descriptionLines.push(line.trim());
       else if (m && line.trim()) unknownKeys.push(m[1].trim());
       continue;
     }
@@ -162,7 +164,12 @@ export function parseProductText(text: string): ParsedProduct {
     }
   }
 
-  if (descriptionLines.length) fields.description = descriptionLines.join("\n");
+  if (descriptionLines.length) {
+    fields.description = descriptionLines
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
   if (!fields.slug && fields.name) fields.slug = slugify(fields.name);
 
   return { fields, checks, category, unknownKeys };
@@ -173,7 +180,14 @@ export const PRODUCT_TEMPLATE = `Name: Volt S1 Pro
 Slug: volt-s1-pro
 Tagline: Precision torque for full-lock drifts
 Description: Write the full product description here.
-Extra lines keep adding to the description
+Blank lines start a new paragraph, and lines beginning
+with - or 1. become bullet / numbered points:
+
+- UHMWPE slide sleeves for buttery transitions
+- 72V custom-wound brushless motor
+- Aircraft-grade 6061 aluminium frame
+
+Everything keeps adding to the description
 until the next "Key:" line.
 Price: 2499.99
 Compare at: 2999.99

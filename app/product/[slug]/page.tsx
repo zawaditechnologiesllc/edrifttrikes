@@ -5,6 +5,7 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
 import ProductGallery from "@/components/storefront/ProductGallery";
+import RichText from "@/components/storefront/RichText";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import WishlistButton from "@/components/storefront/WishlistButton";
 import { getProductBySlug, getProducts, getSiteSettings } from "@/lib/db";
@@ -134,7 +135,12 @@ export default async function ProductPage({
               <WishlistButton productId={product.id} variant="full" />
             </div>
 
-            <p className="text-on-surface-variant leading-relaxed pt-2">{product.description}</p>
+            {product.description && (
+              <RichText
+                text={product.description}
+                className="text-on-surface-variant pt-2"
+              />
+            )}
 
             {/* Specs */}
             {product.specs && product.specs.length > 0 && (
