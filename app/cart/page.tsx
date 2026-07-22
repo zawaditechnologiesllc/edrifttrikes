@@ -6,13 +6,21 @@ import SiteFooter from "@/components/storefront/SiteFooter";
 import { useCart } from "@/components/cart/CartProvider";
 import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
-import { computeTotals } from "@/lib/totals";
+import { computeCartTotals } from "@/lib/totals";
 import { Icon } from "@/components/Icon";
 
 export default function CartPage() {
-  const { items, subtotalCents, setQty, remove } = useCart();
+  const { items, setQty, remove } = useCart();
   const settings = useSiteSettings();
-  const totals = computeTotals(subtotalCents, settings);
+  const totals = computeCartTotals(
+    items.map((i) => ({
+      price_cents: i.priceCents,
+      qty: i.qty,
+      shipping_cents: i.shippingCents,
+      free_shipping: i.freeShipping,
+    })),
+    settings
+  );
 
   return (
     <div className="bg-surface-container-lowest text-on-surface min-h-screen flex flex-col">

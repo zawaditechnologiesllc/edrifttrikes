@@ -40,6 +40,10 @@ export type Product = {
   status: "draft" | "active" | "archived";
   is_new: boolean;
   featured: boolean;
+  /** Per-product flat shipping fee; null/undefined = store default fee. */
+  shipping_cents?: number | null;
+  /** Ships free — the product page shows the normal fee crossed out. */
+  free_shipping?: boolean;
   badge: string | null;
   hero_image: string | null;
   created_at: string;

@@ -4,10 +4,13 @@ import type { Metadata } from "next";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
+import ProductGallery from "@/components/storefront/ProductGallery";
+import RichText from "@/components/storefront/RichText";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import WishlistButton from "@/components/storefront/WishlistButton";
-import { getProductBySlug, getProducts } from "@/lib/db";
+import { getProductBySlug, getProducts, getSiteSettings } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
+import { productShippingCents, DEFAULT_SHIPPING_CENTS } from "@/lib/totals";
 
 // Product pages are ISR-cached; per-user wishlist state loads client-side.
 export const revalidate = 120;
@@ -31,12 +34,25 @@ export default async function ProductPage({
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const gallery =
-    product.images && product.images.length
-      ? product.images.map((i) => i.url)
-      : [product.hero_image || "/assets/placeholder.svg"];
-  const related = (await getProducts({ limit: 3 })).filter((p) => p.id !== product.id).slice(0, 3);
+  // Hero first, then the gallery images (deduped) — one scrollable set.
+  const gallery = [
+    ...(product.hero_image ? [product.hero_image] : []),
+    ...(product.images ?? []).map((i) => i.url),
+  ].filter((src, i, arr) => arr.indexOf(src) === i);
+  if (gallery.length === 0) gallery.push("/assets/placeholder.svg");
+
+  const [relatedAll, settings] = await Promise.all([
+    getProducts({ limit: 3 }),
+    getSiteSettings(),
+  ]);
+  const related = relatedAll.filter((p) => p.id !== product.id).slice(0, 3);
   const lowStock = product.stock > 0 && product.stock <= 5;
+
+  const shipFee = productShippingCents(product, settings);
+  const shipsFree = shipFee === 0;
+  // The fee that WOULD apply — crossed out next to FREE.
+  const struckFee =
+    product.shipping_cents ?? settings.shipping_cents ?? DEFAULT_SHIPPING_CENTS;
 
   return (
     <div className="bg-surface text-on-surface min-h-screen">
@@ -51,20 +67,7 @@ export default async function ProductPage({
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Gallery */}
-          <div className="space-y-4">
-            <div className="aspect-square rounded-lg overflow-hidden border border-white/10 bg-surface-container">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={gallery[0]} alt={product.name} className="w-full h-full object-cover" />
-            </div>
-            {gallery.length > 1 && (
-              <div className="grid grid-cols-3 gap-4">
-                {gallery.slice(1, 4).map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={src} alt={`${product.name} ${i + 2}`} className="aspect-square w-full object-cover rounded border border-white/10 bg-surface-container" />
-                ))}
-              </div>
-            )}
-          </div>
+          <ProductGallery images={gallery} name={product.name} />
 
           {/* Buy box */}
           <div className="space-y-6">
@@ -90,6 +93,19 @@ export default async function ProductPage({
               )}
             </div>
 
+            <p className="text-on-surface-variant font-label-bold uppercase tracking-widest text-sm">
+              Shipping:{" "}
+              {shipsFree ? (
+                <>
+                  <span className="line-through">{formatMoney(struckFee)}</span>{" "}
+                  <span className="text-secondary">FREE</span>
+                </>
+              ) : (
+                <span className="text-white">{formatMoney(shipFee)}</span>
+              )}{" "}
+              <span className="normal-case font-body-md tracking-normal">· delivery in 12–20 days</span>
+            </p>
+
             {lowStock && (
               <div className="hazard-stripes text-black font-label-bold text-label-bold uppercase tracking-widest px-4 py-2 rounded inline-block">
                 <span className="bg-surface px-2 py-1 text-signal-orange">Low stock — only {product.stock} left</span>
@@ -105,6 +121,8 @@ export default async function ProductPage({
                   priceCents: product.price_cents,
                   imageUrl: product.hero_image,
                   stock: product.stock,
+                  shippingCents: product.shipping_cents ?? null,
+                  freeShipping: Boolean(product.free_shipping),
                 }}
                 label="Add to Cart"
               />
@@ -117,7 +135,12 @@ export default async function ProductPage({
               <WishlistButton productId={product.id} variant="full" />
             </div>
 
-            <p className="text-on-surface-variant leading-relaxed pt-2">{product.description}</p>
+            {product.description && (
+              <RichText
+                text={product.description}
+                className="text-on-surface-variant pt-2"
+              />
+            )}
 
             {/* Specs */}
             {product.specs && product.specs.length > 0 && (

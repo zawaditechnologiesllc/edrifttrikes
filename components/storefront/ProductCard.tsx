@@ -75,6 +75,11 @@ export default function ProductCard({ product }: { product: Product }) {
               </span>
             )}
           </div>
+          {product.free_shipping && (
+            <span className="font-label-bold text-[10px] uppercase tracking-widest text-primary-container border border-primary-container/40 rounded px-2 py-1">
+              Free shipping
+            </span>
+          )}
         </div>
         <AddToCartButton
           item={{
@@ -84,6 +89,8 @@ export default function ProductCard({ product }: { product: Product }) {
             priceCents: product.price_cents,
             imageUrl: product.hero_image,
             stock: product.stock,
+            shippingCents: product.shipping_cents ?? null,
+            freeShipping: Boolean(product.free_shipping),
           }}
           className="mt-4 w-full bg-surface-container-lowest text-white py-3 font-label-bold text-label-bold uppercase tracking-widest rounded hover:bg-primary-container active:scale-95 transition-all disabled:opacity-40"
           label="Add to Cart"

@@ -43,7 +43,45 @@ async function uploadImage(
   return { url: admin.storage.from("product-images").getPublicUrl(path).data.publicUrl };
 }
 
-export type ProductSaveState = { error?: string };
+export type ProductSaveState = { ok?: boolean; error?: string };
+
+/**
+ * Issue signed upload URLs so the browser uploads image bytes STRAIGHT to
+ * Supabase Storage. Routing multi-MB files through the server action was the
+ * cause of hung saves: on the Workers free plan, parsing a large multipart
+ * body can exceed the CPU budget and the request dies without a response.
+ * With this, the action only ever receives small text fields.
+ */
+export async function createUploadUrls(
+  files: { name: string; type: string }[]
+): Promise<{ urls: { path: string; token: string; publicUrl: string }[] } | { error: string }> {
+  await requireAdmin();
+  if (!Array.isArray(files) || files.length === 0 || files.length > 12) {
+    return { error: "Between 1 and 12 images per save." };
+  }
+  const admin = createAdminClient();
+  const urls: { path: string; token: string; publicUrl: string }[] = [];
+  for (const f of files) {
+    const ext =
+      (String(f.name).split(".").pop() || "jpg")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .slice(0, 5) || "jpg";
+    const path = `${crypto.randomUUID()}.${ext}`;
+    const { data, error } = await admin.storage
+      .from("product-images")
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      return { error: `Could not authorize the upload: ${error?.message ?? "unknown error"}` };
+    }
+    urls.push({
+      path,
+      token: data.token,
+      publicUrl: admin.storage.from("product-images").getPublicUrl(path).data.publicUrl,
+    });
+  }
+  return { urls };
+}
 
 export async function saveProduct(
   _prev: ProductSaveState,
@@ -57,12 +95,17 @@ export async function saveProduct(
   const slug = String(formData.get("slug") || "").trim();
   if (!name || !slug) return { error: "Name and slug are required." };
 
+  // Preferred path: the browser already uploaded the image straight to
+  // Storage and passes only the resulting URL. The File branch remains as a
+  // fallback for small images if the direct upload was unavailable.
+  const heroDirect = String(formData.get("hero_uploaded_url") || "");
   const file = formData.get("image") as File | null;
-  const heroUpload = await uploadImage(file);
+  const heroUpload = heroDirect ? { url: null } : await uploadImage(file);
   if (heroUpload.error) {
     return { error: `Hero image upload failed: ${heroUpload.error}` };
   }
-  const hero = heroUpload.url || String(formData.get("hero_image") || "") || null;
+  const hero =
+    heroDirect || heroUpload.url || String(formData.get("hero_image") || "") || null;
 
   const row: Record<string, unknown> = {
     slug,
@@ -80,24 +123,31 @@ export async function saveProduct(
     status: String(formData.get("status") || "active"),
     is_new: formData.get("is_new") === "on",
     featured: formData.get("featured") === "on",
+    shipping_cents: formData.get("shipping_fee")
+      ? dollarsToCents(formData.get("shipping_fee"))
+      : null,
+    free_shipping: formData.get("free_shipping") === "on",
     badge: String(formData.get("badge") || "") || null,
     hero_image: hero,
   };
 
+  // Columns added by later migrations (0003/0005) — stripped and retried if
+  // the database hasn't run them yet, so product saves keep working.
+  const optionalColumns = ["featured", "shipping_cents", "free_shipping"];
+  const stripOptional = () => optionalColumns.forEach((c) => delete row[c]);
+
   let productId = id;
   if (id) {
     let { error } = await admin.from("products").update(row).eq("id", id);
-    // Migration 0003 not run yet → the featured column doesn't exist and the
-    // whole update fails. Retry without it so product edits keep working.
     if (error && "featured" in row) {
-      delete row.featured;
+      stripOptional();
       ({ error } = await admin.from("products").update(row).eq("id", id));
     }
     if (error) return { error: `Could not save: ${error.message}` };
   } else {
     let { data: created, error } = await admin.from("products").insert(row).select("id").single();
     if (error && "featured" in row) {
-      delete row.featured;
+      stripOptional();
       ({ data: created, error } = await admin.from("products").insert(row).select("id").single());
     }
     if (error) return { error: `Could not save: ${error.message}` };
@@ -112,10 +162,20 @@ export async function saveProduct(
       await admin.from("product_images").delete().in("id", removeIds);
     }
 
+    // Direct-uploaded gallery URLs (browser → Storage), plus any Files that
+    // came through the fallback path.
+    let galleryDirect: string[] = [];
+    try {
+      const raw = JSON.parse(String(formData.get("gallery_uploaded_urls") || "[]"));
+      if (Array.isArray(raw)) galleryDirect = raw.filter((u) => typeof u === "string").slice(0, 20);
+    } catch {
+      /* no direct gallery uploads */
+    }
     const galleryFiles = formData
       .getAll("gallery")
       .filter((f): f is File => f instanceof File && f.size > 0);
-    if (galleryFiles.length) {
+
+    if (galleryDirect.length || galleryFiles.length) {
       const { data: last } = await admin
         .from("product_images")
         .select("position")
@@ -125,6 +185,9 @@ export async function saveProduct(
       let pos = last && last.length ? (last[0].position ?? 0) + 1 : 0;
 
       const newRows: { product_id: string; url: string; alt: string; position: number }[] = [];
+      for (const url of galleryDirect) {
+        newRows.push({ product_id: productId, url, alt: name, position: pos++ });
+      }
       for (const file of galleryFiles) {
         const { url, error } = await uploadImage(file);
         if (url) newRows.push({ product_id: productId, url, alt: name, position: pos++ });
@@ -145,7 +208,9 @@ export async function saveProduct(
       error: `Product saved, but some gallery images failed to upload — edit the product to retry them. ${galleryFailures.join("; ")}`,
     };
   }
-  redirect("/admin/products");
+  // No redirect here — the form navigates client-side on ok, so a hung
+  // navigation can never masquerade as a hung save.
+  return { ok: true };
 }
 
 export async function deleteProduct(formData: FormData) {
