@@ -81,7 +81,14 @@ export async function POST(request: Request) {
   }
 
   const subtotal = lineItems.reduce((n, i) => n + i.price_cents * i.qty, 0);
-  const totals = computeTotals(subtotal);
+  // Read the admin-set shipping fee fresh (money math must never be stale).
+  // If the settings table/columns don't exist yet, fall back to defaults.
+  const { data: settingsRow } = await admin
+    .from("site_settings")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+  const totals = computeTotals(subtotal, settingsRow ?? undefined);
 
   // Who is buying (if logged in)
   const supabase = await createClient();

@@ -38,4 +38,6 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   company_phone: "+1 (555) 010-0000",
   address_line1: "100 Drift Lane",
   address_line2: "Los Angeles, CA 90001, USA",
+  shipping_cents: 5000,
+  free_shipping: false,
 };

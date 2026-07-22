@@ -4,13 +4,15 @@ import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import { useCart } from "@/components/cart/CartProvider";
+import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeTotals } from "@/lib/totals";
 import { Icon } from "@/components/Icon";
 
 export default function CartPage() {
   const { items, subtotalCents, setQty, remove } = useCart();
-  const totals = computeTotals(subtotalCents);
+  const settings = useSiteSettings();
+  const totals = computeTotals(subtotalCents, settings);
 
   return (
     <div className="bg-surface-container-lowest text-on-surface min-h-screen flex flex-col">

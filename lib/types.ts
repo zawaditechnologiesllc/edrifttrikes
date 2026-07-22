@@ -100,12 +100,16 @@ export type Profile = {
   created_at: string;
 };
 
-/** Single-row (id = 1) company contact info shown in the footer; admin-edited. */
+/** Single-row (id = 1) admin-edited settings: footer contact info + shipping. */
 export type SiteSettings = {
   id: number;
   company_email: string | null;
   company_phone: string | null;
   address_line1: string | null;
   address_line2: string | null;
+  /** Flat shipping fee applied to every order (constant, admin-set). */
+  shipping_cents?: number;
+  /** When true every order ships free, ignoring shipping_cents. */
+  free_shipping?: boolean;
   updated_at?: string;
 };

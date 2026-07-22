@@ -50,10 +50,12 @@ needs), then Cloudflare, then wire Stripe's webhook back to Render.
    - `supabase/migrations/0001_init.sql`
    - `supabase/migrations/0002_contact.sql`
    - `supabase/migrations/0003_featured_site_settings.sql`
+   - `supabase/migrations/0004_shipping_and_articles.sql`
    This creates all tables, row-level-security policies, the `is_admin()` helper,
    the public **`product-images`** storage bucket, the products' **featured**
-   flag, and the **site_settings** table (footer contact info). On an existing
-   database just run the migrations you haven't run yet — all are safe to re-run.
+   flag, the **site_settings** table (footer contact + shipping fee), and the
+   complete set of **Tech Lab articles**. On an existing database just run the
+   migrations you haven't run yet — all are safe to re-run.
 
 ### 1c. Seed starter data (recommended)
 Run `supabase/seed.sql`. It creates the three **categories** (`trikes`, `parts`,
@@ -279,9 +281,19 @@ creates a profile with role `customer`, so promote yourself once:
   form yet — add spec rows via the Supabase **Table editor** (see `seed.sql` for
   the shape) if you want the spec list on a product page.
 
-**Footer contact info** (`/admin/settings`): the company email, phone, and
-address shown in the footer ship with placeholders — edit them here any time;
-the live footer refreshes within seconds. Leave a field empty to hide it.
+**Site settings** (`/admin/settings`):
+- **Footer contact info** — the company email, phone, and address shown in the
+  footer ship with placeholders; edit them any time. Leave a field empty to
+  hide it.
+- **Shipping** — one constant flat fee applied to every order (default $50),
+  or tick **Free shipping on all orders** to ship free. Cart, checkout, the
+  charge itself, and email receipts all follow this setting; delivery takes
+  12–20 days depending on the shipping route (stated on the site and in the
+  confirmation email).
+
+**Tech Lab**: migration `0004` ships six complete, published articles (DIY,
+tech, riding, safety). Edit or unpublish them in `/admin/articles`, which also
+lets you write new ones.
 
 **Is Supabase ready?** Yes — once Steps 1–1e are done and you've promoted your
 account (this step), the database, RLS, storage bucket, and admin upload flow are
