@@ -149,20 +149,38 @@ mark secrets as *Encrypted*):
    | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key — if using Stripe |
    | `PAYPAL_CLIENT_ID` / `PAYPAL_SECRET` / `PAYPAL_ENV` | if using PayPal (secret) |
 
-> `NEXT_PUBLIC_*` vars are baked in at **build** time, so a change to them needs a
-> redeploy. Server-only secrets (e.g. `SUPABASE_SERVICE_ROLE_KEY`) are read at
-> **runtime** — they must be set as **runtime** Worker variables, not only as
-> build variables.
+> **Where to set the variables — this matters.** A Git-connected Worker has TWO
+> separate variable stores, and the app needs both:
+>
+> 1. **Runtime** — Worker → **Settings → Variables and Secrets**. Set **all** the
+>    variables above here (secrets as *Encrypted*). This is what the running
+>    Worker reads for server code: the admin panel, checkout, email, Turnstile.
+> 2. **Build** — Worker → **Settings → Build → Variables and secrets**. Set at
+>    least the `NEXT_PUBLIC_*` ones here too. These are inlined into the browser
+>    bundle during `npm run cf:build`; without them the *client-side* pieces
+>    (login form, wishlist button) have no Supabase config at build time. The app
+>    also injects the public Supabase URL/anon key at request time as a fallback,
+>    but setting build vars is still the reliable path.
+>
+> Changing a runtime variable takes effect on save; changing a build variable
+> needs a redeploy (rebuild).
 
 > **Troubleshooting — admin says "Connect Supabase":** visit **`/api/health`** on
 > your deployed site. It reports (as booleans, never values) exactly what the
 > running Worker sees, e.g. `{"adminReady": true, "supabase": {"url": true,
-> "serviceRoleKey": false}}`. If `serviceRoleKey` is `false`, the service-role
-> key isn't reaching the runtime Worker — set **`SUPABASE_SERVICE_ROLE_KEY`**
-> (exact name, the Supabase *service_role* secret, not the anon key) under your
-> Worker → **Settings → Variables and Secrets** (runtime), then redeploy. The
-> server also accepts a non-public **`SUPABASE_URL`** if the public URL wasn't
-> available at build time.
+> "serviceRoleKey": false}}`.
+>
+> - **Check `diag` first.** The current code reports `"diag": "env-fix-2"`. If
+>   your deployed `/api/health` shows an older value (or 404s), Cloudflare is
+>   building an old commit — usually because the Worker is connected to a fork
+>   or branch that hasn't pulled the latest code. Sync the deployed repo/branch
+>   with this one and redeploy before debugging anything else.
+> - If `serviceRoleKey` is `false`, the service-role key isn't reaching the
+>   runtime Worker — set **`SUPABASE_SERVICE_ROLE_KEY`** (exact name, the
+>   Supabase *service_role* secret, not the anon key) under your Worker →
+>   **Settings → Variables and Secrets** (runtime), then redeploy. The server
+>   also accepts a non-public **`SUPABASE_URL`** if the public URL wasn't
+>   available at build time.
 
 After the first deploy, set `SITE_URL` (Render) and the Supabase **Site URL /
 Redirect URL** (Step 1e) to your real Worker/domain URL. Add a custom domain

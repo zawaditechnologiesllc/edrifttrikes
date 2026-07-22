@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
-import { stripe, stripeConfigured } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeTotals } from "@/lib/totals";
+import { publicSiteUrl } from "@/lib/env";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import type { Order } from "@/lib/types";
 
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
     }))
   );
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const siteUrl = publicSiteUrl() || new URL(request.url).origin;
   const method = (payload.method || "").toLowerCase();
 
   // PayPal path — create the order and hand off to PayPal to approve. Capture
@@ -141,7 +142,8 @@ export async function POST(request: Request) {
   }
 
   // Stripe path — real payment (default when configured).
-  if (stripeConfigured() && stripe) {
+  const stripe = getStripe();
+  if (stripe) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,

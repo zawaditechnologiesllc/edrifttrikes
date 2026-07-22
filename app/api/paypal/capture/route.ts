@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
 import { capturePayPalOrder } from "@/lib/paypal";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { publicSiteUrl } from "@/lib/env";
 import type { Order } from "@/lib/types";
 
 /**
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const orderNumber = searchParams.get("order") || "";
   const paypalOrderId = searchParams.get("token") || "";
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin;
+  const siteUrl = publicSiteUrl() || origin;
 
   if (!orderNumber || !paypalOrderId || !supabaseConfigured()) {
     return NextResponse.redirect(`${siteUrl}/checkout?error=paypal`);

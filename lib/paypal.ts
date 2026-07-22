@@ -9,20 +9,31 @@
  * When these are absent, paypalConfigured() is false and PayPal simply isn't
  * offered at checkout.
  */
-const ENV = (process.env.PAYPAL_ENV || "sandbox").toLowerCase();
-const BASE = ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
-const CLIENT_ID = process.env.PAYPAL_CLIENT_ID || "";
-const SECRET = process.env.PAYPAL_SECRET || "";
+// Credentials are read at CALL time (not module scope): on Cloudflare, secrets
+// are runtime Worker bindings that aren't visible when the module is first
+// evaluated, so module-scope reads would silently disable PayPal.
+import { serverEnv } from "@/lib/env";
+
+function base(): string {
+  const env = (serverEnv("PAYPAL_ENV") || "sandbox").toLowerCase();
+  return env === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+}
+function clientId(): string {
+  return serverEnv("PAYPAL_CLIENT_ID") || "";
+}
+function secret(): string {
+  return serverEnv("PAYPAL_SECRET") || "";
+}
 
 export function paypalConfigured() {
-  return Boolean(CLIENT_ID && SECRET);
+  return Boolean(clientId() && secret());
 }
 
 async function accessToken(): Promise<string> {
-  const res = await fetch(`${BASE}/v1/oauth2/token`, {
+  const res = await fetch(`${base()}/v1/oauth2/token`, {
     method: "POST",
     headers: {
-      Authorization: "Basic " + Buffer.from(`${CLIENT_ID}:${SECRET}`).toString("base64"),
+      Authorization: "Basic " + Buffer.from(`${clientId()}:${secret()}`).toString("base64"),
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
@@ -44,7 +55,7 @@ export async function createPayPalOrder(params: {
   cancelUrl: string;
 }): Promise<{ id: string; approveUrl: string | undefined }> {
   const token = await accessToken();
-  const res = await fetch(`${BASE}/v2/checkout/orders`, {
+  const res = await fetch(`${base()}/v2/checkout/orders`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     cache: "no-store",
@@ -82,7 +93,7 @@ export async function capturePayPalOrder(
   paypalOrderId: string
 ): Promise<{ ok: boolean; status?: string }> {
   const token = await accessToken();
-  const res = await fetch(`${BASE}/v2/checkout/orders/${paypalOrderId}/capture`, {
+  const res = await fetch(`${base()}/v2/checkout/orders/${paypalOrderId}/capture`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     cache: "no-store",

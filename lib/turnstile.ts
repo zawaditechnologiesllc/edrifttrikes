@@ -7,11 +7,17 @@
  * forms keep working locally / before you wire it up — exactly like the payment
  * providers. Add both keys in Cloudflare + redeploy to switch protection on.
  */
-const SECRET = process.env.TURNSTILE_SECRET_KEY || "";
+// Read at CALL time (not module scope): on Cloudflare the secret is a runtime
+// Worker binding that isn't visible when the module is first evaluated.
+import { serverEnv } from "@/lib/env";
+
+function secretKey(): string {
+  return serverEnv("TURNSTILE_SECRET_KEY") || "";
+}
 
 /** True when server-side verification is active. */
 export function turnstileConfigured() {
-  return Boolean(SECRET);
+  return Boolean(secretKey());
 }
 
 /**
@@ -20,11 +26,12 @@ export function turnstileConfigured() {
  * token is missing/invalid.
  */
 export async function verifyTurnstile(token: string | null, remoteip?: string): Promise<boolean> {
-  if (!SECRET) return true; // not configured — don't block
+  const secret = secretKey();
+  if (!secret) return true; // not configured — don't block
   if (!token) return false;
   try {
     const body = new URLSearchParams();
-    body.append("secret", SECRET);
+    body.append("secret", secret);
     body.append("response", token);
     if (remoteip) body.append("remoteip", remoteip);
     const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {

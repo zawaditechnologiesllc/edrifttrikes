@@ -3,7 +3,13 @@
   "name": "edrifttrikes",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-03-25",
-  "compatibility_flags": ["nodejs_compat"],
+  // `nodejs_compat_populate_process_env` copies the Worker's runtime variables
+  // and secrets into `process.env`. It's only on by default from
+  // compatibility_date 2025-04-01, so with our earlier date it must be listed
+  // explicitly — without it, server code reading `process.env.X` at runtime
+  // (e.g. SUPABASE_SERVICE_ROLE_KEY for the admin panel) sees nothing even
+  // though the secret is set on the Worker.
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

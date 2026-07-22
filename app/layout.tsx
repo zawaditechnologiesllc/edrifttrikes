@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Enhancements from "@/components/Enhancements";
+import PublicEnvScript from "@/components/PublicEnvScript";
 import { CartProvider } from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
 
@@ -57,6 +58,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background text-on-surface font-body-md antialiased overflow-x-hidden">
+        <PublicEnvScript />
         <CartProvider>
           {children}
           <CartDrawer />
