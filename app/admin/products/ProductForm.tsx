@@ -2,29 +2,28 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import { saveProduct, type ProductSaveState } from "../actions";
+import { useRouter } from "next/navigation";
+import { saveProduct, createUploadUrls } from "../actions";
+import { createClient } from "@/lib/supabase/client";
 import { parseProductText, PRODUCT_TEMPLATE } from "@/lib/product-import";
 import type { Category, Product } from "@/lib/types";
 
-// Per-file / per-request ceilings, checked before submit so an oversized photo
-// fails with a message instead of a dead request (the server action body limit
-// is 50 MB — see next.config.mjs).
+// Per-file ceiling, checked before upload. Images go straight from the
+// browser to Supabase Storage (never through the Worker), so this is a UX
+// guard, not a platform limit.
 const MAX_FILE_MB = 10;
-const MAX_TOTAL_MB = 45;
 
-function Save() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="bg-secondary text-on-secondary-fixed px-8 py-4 rounded font-label-bold uppercase tracking-widest hover:brightness-105 active:scale-95 transition-all disabled:opacity-50"
-    >
-      {pending ? "Saving…" : "Save product"}
-    </button>
-  );
+/** Reject a hung step with a readable error instead of spinning forever. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s — check your connection and /api/health, then try again.`)),
+        ms
+      )
+    ),
+  ]);
 }
 
 const input =
@@ -40,35 +39,93 @@ export default function ProductForm({
   categories: Category[];
 }) {
   const p = product;
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, action] = useActionState<ProductSaveState, FormData>(saveProduct, {});
-  const [fileError, setFileError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [step, setStep] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [importNote, setImportNote] = useState<string | null>(null);
 
-  function checkFileSizes(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
     const form = e.currentTarget;
-    const files: File[] = [];
-    for (const inputName of ["image", "gallery"]) {
-      const el = form.elements.namedItem(inputName);
-      if (el instanceof HTMLInputElement && el.files) files.push(...Array.from(el.files));
+    setError(null);
+    setPending(true);
+    try {
+      const fd = new FormData(form);
+      // Pull the Files out — they upload browser → Storage, not through the
+      // server action (large multipart bodies are what used to hang saves).
+      const heroFile = fd.get("image");
+      const galleryFiles = fd
+        .getAll("gallery")
+        .filter((f): f is File => f instanceof File && f.size > 0);
+      fd.delete("image");
+      fd.delete("gallery");
+
+      const files: File[] = [];
+      if (heroFile instanceof File && heroFile.size > 0) files.push(heroFile);
+      files.push(...galleryFiles);
+
+      const tooBig = files.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
+      if (tooBig) {
+        setError(
+          `"${tooBig.name}" is ${(tooBig.size / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_FILE_MB} MB per image. Resize/compress it and try again.`
+        );
+        return;
+      }
+
+      if (files.length > 0) {
+        setStep("Authorizing image upload…");
+        const targets = await withTimeout(
+          createUploadUrls(files.map((f) => ({ name: f.name, type: f.type }))),
+          30_000,
+          "Authorizing the upload"
+        );
+        if ("error" in targets) {
+          setError(targets.error);
+          return;
+        }
+        const supabase = createClient();
+        const hasHero = heroFile instanceof File && heroFile.size > 0;
+        const galleryUrls: string[] = [];
+        for (let i = 0; i < files.length; i++) {
+          setStep(`Uploading image ${i + 1} of ${files.length}…`);
+          const t = targets.urls[i];
+          const { error: upErr } = await withTimeout(
+            supabase.storage
+              .from("product-images")
+              .uploadToSignedUrl(t.path, t.token, files[i], {
+                contentType: files[i].type || "image/jpeg",
+              }),
+            120_000,
+            `Uploading ${files[i].name}`
+          );
+          if (upErr) {
+            setError(`Upload failed for ${files[i].name}: ${upErr.message}`);
+            return;
+          }
+          if (hasHero && i === 0) fd.set("hero_uploaded_url", t.publicUrl);
+          else galleryUrls.push(t.publicUrl);
+        }
+        if (galleryUrls.length) fd.set("gallery_uploaded_urls", JSON.stringify(galleryUrls));
+      }
+
+      setStep("Saving product…");
+      const res = await withTimeout(saveProduct({}, fd), 60_000, "Saving the product");
+      if (res?.error) {
+        setError(res.error);
+        return;
+      }
+      setStep("Saved — redirecting…");
+      router.push("/admin/products");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed — please try again.");
+    } finally {
+      setPending(false);
+      setStep(null);
     }
-    const tooBig = files.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
-    const total = files.reduce((n, f) => n + f.size, 0);
-    if (tooBig) {
-      e.preventDefault();
-      setFileError(
-        `"${tooBig.name}" is ${(tooBig.size / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_FILE_MB} MB per image. Resize/compress it and try again.`
-      );
-      return;
-    }
-    if (total > MAX_TOTAL_MB * 1024 * 1024) {
-      e.preventDefault();
-      setFileError(
-        `The selected images add up to ${(total / 1024 / 1024).toFixed(0)} MB — the limit is ${MAX_TOTAL_MB} MB per save. Upload the gallery in smaller batches.`
-      );
-      return;
-    }
-    setFileError(null);
   }
 
   function importFromFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -124,7 +181,7 @@ export default function ProductForm({
   }
 
   return (
-    <form ref={formRef} action={action} onSubmit={checkFileSizes} className="max-w-3xl space-y-6">
+    <form ref={formRef} onSubmit={handleSubmit} className="max-w-3xl space-y-6">
       {p && <input type="hidden" name="id" value={p.id} />}
       <input type="hidden" name="hero_image" value={p?.hero_image ?? ""} />
 
@@ -254,7 +311,7 @@ export default function ProductForm({
           {p?.hero_image && <img src={p.hero_image} alt="" className="w-20 h-20 object-cover rounded border border-white/10" />}
           <input name="image" type="file" accept="image/*" className="text-on-surface-variant text-sm" />
         </div>
-        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Main image, shown on cards. Uploads to Supabase Storage. Max {MAX_FILE_MB} MB. Leave empty to keep current.</p>
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Main image, shown on cards. Uploads from your browser straight to Supabase Storage. Max {MAX_FILE_MB} MB. Leave empty to keep current.</p>
       </div>
 
       <div>
@@ -277,14 +334,20 @@ export default function ProductForm({
         <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Add one or more images for the product-page gallery. Max {MAX_FILE_MB} MB each. Tick existing images to remove them on save.</p>
       </div>
 
-      {(fileError || state.error) && (
+      {error && (
         <p className="text-error font-body-md border border-error/40 bg-error/10 rounded p-3">
-          {fileError || state.error}
+          {error}
         </p>
       )}
 
       <div className="flex items-center gap-4 pt-4">
-        <Save />
+        <button
+          type="submit"
+          disabled={pending}
+          className="bg-secondary text-on-secondary-fixed px-8 py-4 rounded font-label-bold uppercase tracking-widest hover:brightness-105 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {pending ? step || "Saving…" : "Save product"}
+        </button>
         <Link href="/admin/products" className="text-on-surface-variant font-label-bold uppercase tracking-widest text-sm hover:text-white">Cancel</Link>
       </div>
     </form>

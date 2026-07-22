@@ -176,7 +176,7 @@ mark secrets as *Encrypted*):
 > "serviceRoleKey": false}}`.
 >
 > - **Check `diag` first.** The current code reports `"diag":
->   "release-2026-07-22b"`. If your deployed `/api/health` shows an older value
+>   "release-2026-07-22c"`. If your deployed `/api/health` shows an older value
 >   (or 404s), Cloudflare is building an old commit — usually because the
 >   Worker is connected to a fork or branch that hasn't pulled the latest code.
 >   Sync the deployed repo/branch with this one and redeploy before debugging
@@ -264,9 +264,13 @@ creates a profile with role `customer`, so promote yourself once:
   pickers, not the text file.
 - Tick **Featured (homepage)** to pin the product to the homepage's featured
   section. When nothing is flagged, the newest active products show instead.
-- Images: up to **10 MB per image, 45 MB per save**. Oversized picks are
-  rejected with a message before upload. If a save ever fails, the form shows
-  the reason next to the Save button — it never hangs silently.
+- Images: up to **10 MB per image**, uploaded **from your browser straight to
+  Supabase Storage** — image bytes never pass through the Cloudflare Worker,
+  so saves stay fast on any Workers plan. The Save button shows each step
+  ("Authorizing image upload…", "Uploading image 1 of 3…", "Saving product…"),
+  every step has a timeout, and any failure prints its reason next to the
+  button — a save can no longer hang silently. If "Authorizing image upload…"
+  fails, check `/api/health` (`adminReady` must be true and `diag` current).
 - **Hero image**: the file picker uploads straight to Supabase Storage
   (`product-images` bucket) — no manual URL needed.
 - Set **Status = Active** so it shows on the storefront. Save.
