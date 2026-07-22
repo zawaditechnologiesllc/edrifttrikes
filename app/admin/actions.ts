@@ -27,31 +27,46 @@ function dollarsToCents(v: FormDataEntryValue | null): number {
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 }
 
-async function uploadImage(file: File | null): Promise<string | null> {
-  if (!file || file.size === 0) return null;
+async function uploadImage(
+  file: File | null
+): Promise<{ url: string | null; error?: string }> {
+  if (!file || file.size === 0) return { url: null };
   const admin = createAdminClient();
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${crypto.randomUUID()}.${ext}`;
-  const buf = Buffer.from(await file.arrayBuffer());
+  // Pass the File straight through — no Buffer copy. On Workers that halves
+  // the memory footprint and CPU cost of a multi-MB upload.
   const { error } = await admin.storage
     .from("product-images")
-    .upload(path, buf, { contentType: file.type || "image/jpeg", upsert: false });
-  if (error) return null;
-  return admin.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+    .upload(path, file, { contentType: file.type || "image/jpeg", upsert: false });
+  if (error) return { url: null, error: error.message };
+  return { url: admin.storage.from("product-images").getPublicUrl(path).data.publicUrl };
 }
 
-export async function saveProduct(formData: FormData) {
+export type ProductSaveState = { error?: string };
+
+export async function saveProduct(
+  _prev: ProductSaveState,
+  formData: FormData
+): Promise<ProductSaveState> {
   await requireAdmin();
   const admin = createAdminClient();
 
   const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  const slug = String(formData.get("slug") || "").trim();
+  if (!name || !slug) return { error: "Name and slug are required." };
+
   const file = formData.get("image") as File | null;
-  const uploaded = await uploadImage(file);
-  const hero = uploaded || String(formData.get("hero_image") || "") || null;
+  const heroUpload = await uploadImage(file);
+  if (heroUpload.error) {
+    return { error: `Hero image upload failed: ${heroUpload.error}` };
+  }
+  const hero = heroUpload.url || String(formData.get("hero_image") || "") || null;
 
   const row: Record<string, unknown> = {
-    slug: String(formData.get("slug") || "").trim(),
-    name: String(formData.get("name") || "").trim(),
+    slug,
+    name,
     tagline: String(formData.get("tagline") || "") || null,
     description: String(formData.get("description") || "") || null,
     price_cents: dollarsToCents(formData.get("price")),
@@ -71,23 +86,26 @@ export async function saveProduct(formData: FormData) {
 
   let productId = id;
   if (id) {
-    const { error } = await admin.from("products").update(row).eq("id", id);
+    let { error } = await admin.from("products").update(row).eq("id", id);
     // Migration 0003 not run yet → the featured column doesn't exist and the
     // whole update fails. Retry without it so product edits keep working.
     if (error && "featured" in row) {
       delete row.featured;
-      await admin.from("products").update(row).eq("id", id);
+      ({ error } = await admin.from("products").update(row).eq("id", id));
     }
+    if (error) return { error: `Could not save: ${error.message}` };
   } else {
     let { data: created, error } = await admin.from("products").insert(row).select("id").single();
     if (error && "featured" in row) {
       delete row.featured;
-      ({ data: created } = await admin.from("products").insert(row).select("id").single());
+      ({ data: created, error } = await admin.from("products").insert(row).select("id").single());
     }
+    if (error) return { error: `Could not save: ${error.message}` };
     productId = created?.id ?? "";
   }
 
   // Gallery images (product_images): remove ticked ones, then append uploads.
+  const galleryFailures: string[] = [];
   if (productId) {
     const removeIds = formData.getAll("remove_image").map(String).filter(Boolean);
     if (removeIds.length) {
@@ -106,11 +124,11 @@ export async function saveProduct(formData: FormData) {
         .limit(1);
       let pos = last && last.length ? (last[0].position ?? 0) + 1 : 0;
 
-      const name = String(formData.get("name") || "").trim();
       const newRows: { product_id: string; url: string; alt: string; position: number }[] = [];
       for (const file of galleryFiles) {
-        const url = await uploadImage(file);
+        const { url, error } = await uploadImage(file);
         if (url) newRows.push({ product_id: productId, url, alt: name, position: pos++ });
+        else if (error) galleryFailures.push(`${file.name}: ${error}`);
       }
       if (newRows.length) await admin.from("product_images").insert(newRows);
     }
@@ -119,8 +137,14 @@ export async function saveProduct(formData: FormData) {
   revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/products");
   revalidatePath("/shop");
-  const slug = String(formData.get("slug") || "").trim();
   if (productId && slug) revalidatePath(`/product/${slug}`);
+
+  if (galleryFailures.length) {
+    // The product itself saved — tell the admin which gallery images to retry.
+    return {
+      error: `Product saved, but some gallery images failed to upload — edit the product to retry them. ${galleryFailures.join("; ")}`,
+    };
+  }
   redirect("/admin/products");
 }
 
@@ -175,7 +199,7 @@ export async function saveArticle(formData: FormData) {
   const admin = createAdminClient();
   const id = String(formData.get("id") || "");
   const file = formData.get("image") as File | null;
-  const uploaded = await uploadImage(file);
+  const uploaded = (await uploadImage(file)).url;
   const row = {
     slug: String(formData.get("slug") || "").trim(),
     title: String(formData.get("title") || "").trim(),

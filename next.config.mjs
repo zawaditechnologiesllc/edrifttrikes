@@ -12,6 +12,17 @@ const nextConfig = {
   // so it can't be lost to a config change.
   compress: true,
 
+  experimental: {
+    serverActions: {
+      // Default is 1 MB, which any phone photo exceeds — the admin product
+      // save would then die before the action ran, leaving the form stuck on
+      // "Saving…". Sized for a hero image + a few gallery shots; the form also
+      // guards per-file size client-side so oversized picks fail with a
+      // message instead of a dead request.
+      bodySizeLimit: "50mb",
+    },
+  },
+
   async headers() {
     const securityHeaders = [
       { key: "X-Content-Type-Options", value: "nosniff" },
