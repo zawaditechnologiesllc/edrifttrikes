@@ -53,6 +53,52 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setHydrated(true);
   }, []);
 
+  // The stored cart is a snapshot from add-to-cart time; refresh price,
+  // stock, and shipping from the live catalog once per load so admin edits
+  // (e.g. a changed shipping fee) show correctly in cart and checkout.
+  useEffect(() => {
+    if (!hydrated) return;
+    setItems((prev) => {
+      if (prev.length === 0) return prev;
+      const ids = prev.map((i) => i.productId).join(",");
+      fetch(`/api/product-info?ids=${encodeURIComponent(ids)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then(
+          (data: {
+            products?: {
+              id: string;
+              price_cents: number;
+              stock: number;
+              shipping_cents: number | null;
+              free_shipping: boolean;
+            }[];
+          } | null) => {
+            const fresh = data?.products;
+            if (!fresh?.length) return;
+            setItems((cur) =>
+              cur.map((i) => {
+                const f = fresh.find((p) => p.id === i.productId);
+                return f
+                  ? {
+                      ...i,
+                      priceCents: f.price_cents,
+                      stock: f.stock,
+                      shippingCents: f.shipping_cents,
+                      freeShipping: f.free_shipping,
+                    }
+                  : i;
+              })
+            );
+          }
+        )
+        .catch(() => {
+          /* keep the snapshot */
+        });
+      return prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
   useEffect(() => {
     if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, hydrated]);

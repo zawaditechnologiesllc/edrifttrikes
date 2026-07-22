@@ -132,9 +132,14 @@ export async function saveProduct(
   };
 
   // Columns added by later migrations (0003/0005) — stripped and retried if
-  // the database hasn't run them yet, so product saves keep working.
+  // the database hasn't run them yet, so the rest of the product still saves.
+  // When that happens the admin gets an explicit warning below: silently
+  // dropping the shipping fee looked like the fee being "ignored".
   const optionalColumns = ["featured", "shipping_cents", "free_shipping"];
   const stripOptional = () => optionalColumns.forEach((c) => delete row[c]);
+  const MISSING_MIGRATIONS_WARNING =
+    "Product saved, BUT the featured/shipping settings were NOT stored — your database is missing a migration. Run supabase/migrations/0003_featured_site_settings.sql and 0005_product_shipping.sql in the Supabase SQL Editor (Admin → System shows which are missing), then edit and save this product again.";
+  let strippedOptional = false;
 
   let productId = id;
   if (id) {
@@ -142,6 +147,7 @@ export async function saveProduct(
     if (error && "featured" in row) {
       stripOptional();
       ({ error } = await admin.from("products").update(row).eq("id", id));
+      strippedOptional = !error;
     }
     if (error) return { error: `Could not save: ${error.message}` };
   } else {
@@ -149,6 +155,7 @@ export async function saveProduct(
     if (error && "featured" in row) {
       stripOptional();
       ({ data: created, error } = await admin.from("products").insert(row).select("id").single());
+      strippedOptional = !error;
     }
     if (error) return { error: `Could not save: ${error.message}` };
     productId = created?.id ?? "";
@@ -202,6 +209,9 @@ export async function saveProduct(
   revalidatePath("/shop");
   if (productId && slug) revalidatePath(`/product/${slug}`);
 
+  if (strippedOptional) {
+    return { error: MISSING_MIGRATIONS_WARNING };
+  }
   if (galleryFailures.length) {
     // The product itself saved — tell the admin which gallery images to retry.
     return {
