@@ -55,13 +55,32 @@ export default async function SystemStatus() {
   const checkoutLive = stripeOk || paypalOk;
 
   let orders: Order[] = [];
+  // Probe one column per migration — a failed select means that migration
+  // hasn't been run in THIS database, which silently disables its features
+  // (e.g. per-product shipping fees falling back to the default).
+  const migrations: { label: string; ok: boolean }[] = [];
   if (adminConfigured()) {
     const admin = createAdminClient();
-    const { data } = await admin
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(30);
+    const columnExists = async (table: string, column: string) =>
+      !(await admin.from(table).select(column).limit(1)).error;
+    const [m3, m4a, m4b, m5, { data }] = await Promise.all([
+      columnExists("site_settings", "id"),
+      columnExists("site_settings", "shipping_cents"),
+      columnExists("articles", "id").then(async (ok) => {
+        if (!ok) return false;
+        const { count } = await admin
+          .from("articles")
+          .select("*", { count: "exact", head: true });
+        return (count ?? 0) >= 6;
+      }),
+      columnExists("products", "shipping_cents"),
+      admin.from("orders").select("*").order("created_at", { ascending: false }).limit(30),
+    ]);
+    migrations.push(
+      { label: "0003 — featured flag + site settings", ok: m3 },
+      { label: "0004 — store shipping fee + Tech Lab articles", ok: m4a && m4b },
+      { label: "0005 — per-product shipping fee", ok: m5 }
+    );
     orders = (data as Order[]) ?? [];
   }
 
@@ -101,6 +120,41 @@ export default async function SystemStatus() {
           </p>
         )}
       </section>
+
+      {migrations.length > 0 && (
+        <section>
+          <h2 className="font-headline-md text-headline-md text-white uppercase mb-4">
+            Database migrations
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {migrations.map((m) => (
+              <div
+                key={m.label}
+                className="flex items-center justify-between bg-surface-container border border-white/10 rounded-lg px-4 py-3"
+              >
+                <span className="text-on-surface-variant text-sm">{m.label}</span>
+                <span
+                  className={`font-label-bold uppercase tracking-widest text-[10px] px-2 py-1 rounded ${
+                    m.ok ? "bg-secondary/15 text-secondary" : "bg-error/15 text-error"
+                  }`}
+                >
+                  {m.ok ? "Applied" : "Missing"}
+                </span>
+              </div>
+            ))}
+          </div>
+          {migrations.some((m) => !m.ok) && (
+            <p className="text-error text-sm mt-3 max-w-2xl">
+              A missing migration silently disables its features — e.g. without
+              0005, per-product shipping fees are dropped on save and the
+              default fee applies. Run the matching file from{" "}
+              <code className="text-secondary">supabase/migrations/</code> in the
+              Supabase SQL Editor (all are safe to re-run), then re-save any
+              affected products.
+            </p>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="font-headline-md text-headline-md text-white uppercase mb-4">
