@@ -3,19 +3,23 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
-import { computeTotals } from "@/lib/totals";
+import { computeCartTotals } from "@/lib/totals";
 import { publicSiteUrl } from "@/lib/env";
-import { sendOrderConfirmationEmail } from "@/lib/email";
-import type { Order } from "@/lib/types";
 
 type IncomingItem = { productId: string; qty: number };
 
+// Shown when no payment provider is reachable — buyers get a friendly pause
+// message instead of an order that can't be paid.
+const CHECKOUT_PAUSED =
+  "We're receiving a very high volume of orders right now — please try again in a few hours.";
+
 export async function POST(request: Request) {
   if (!supabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Store is not connected to Supabase yet." },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: CHECKOUT_PAUSED }, { status: 503 });
+  }
+  const stripe = getStripe();
+  if (!stripe && !paypalConfigured()) {
+    return NextResponse.json({ error: CHECKOUT_PAUSED }, { status: 503 });
   }
 
   let payload: {
@@ -43,10 +47,12 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   // Recompute everything server-side from the DB (never trust client prices).
+  // select("*") so per-product shipping columns come through when present,
+  // without failing on a database that hasn't run migration 0005 yet.
   const ids = items.map((i) => i.productId);
   const { data: products } = await admin
     .from("products")
-    .select("id, slug, name, price_cents, hero_image, stock, status")
+    .select("*")
     .in("id", ids);
 
   if (!products || products.length === 0) {
@@ -59,12 +65,14 @@ export async function POST(request: Request) {
       if (!p || p.status !== "active") return null;
       const qty = Math.max(1, Math.min(i.qty, p.stock > 0 ? p.stock : i.qty));
       return {
-        product_id: p.id,
-        name: p.name,
-        slug: p.slug,
-        price_cents: p.price_cents,
+        product_id: p.id as string,
+        name: p.name as string,
+        slug: p.slug as string,
+        price_cents: p.price_cents as number,
         qty,
         image_url: p.hero_image as string | null,
+        shipping_cents: (p.shipping_cents ?? null) as number | null,
+        free_shipping: Boolean(p.free_shipping),
       };
     })
     .filter(Boolean) as {
@@ -74,13 +82,14 @@ export async function POST(request: Request) {
     price_cents: number;
     qty: number;
     image_url: string | null;
+    shipping_cents: number | null;
+    free_shipping: boolean;
   }[];
 
   if (lineItems.length === 0) {
     return NextResponse.json({ error: "No purchasable items in cart." }, { status: 400 });
   }
 
-  const subtotal = lineItems.reduce((n, i) => n + i.price_cents * i.qty, 0);
   // Read the admin-set shipping fee fresh (money math must never be stale).
   // If the settings table/columns don't exist yet, fall back to defaults.
   const { data: settingsRow } = await admin
@@ -88,7 +97,7 @@ export async function POST(request: Request) {
     .select("*")
     .eq("id", 1)
     .maybeSingle();
-  const totals = computeTotals(subtotal, settingsRow ?? undefined);
+  const totals = computeCartTotals(lineItems, settingsRow ?? undefined);
 
   // Who is buying (if logged in)
   const supabase = await createClient();
@@ -153,7 +162,6 @@ export async function POST(request: Request) {
   }
 
   // Stripe path — real payment (default when configured).
-  const stripe = getStripe();
   if (stripe) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -196,9 +204,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: session.url });
   }
 
-  // No Stripe — place order + send confirmation directly.
-  const fullOrder = { ...order, items: lineItems.map((i) => ({ ...i })) } as unknown as Order;
-  await sendOrderConfirmationEmail(fullOrder).catch(() => {});
-
-  return NextResponse.json({ orderNumber: order.order_number });
+  // Shouldn't be reachable (both providers were checked up front); if a
+  // request lands here anyway, pause rather than take an unpayable order.
+  return NextResponse.json({ error: CHECKOUT_PAUSED }, { status: 503 });
 }

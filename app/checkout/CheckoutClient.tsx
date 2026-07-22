@@ -7,7 +7,7 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import { useCart } from "@/components/cart/CartProvider";
 import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
-import { computeTotals } from "@/lib/totals";
+import { computeCartTotals } from "@/lib/totals";
 
 const FIELDS = [
   ["first_name", "First name", "col-span-1"],
@@ -27,9 +27,18 @@ export default function CheckoutClient({
 }: {
   methods: { stripe: boolean; paypal: boolean };
 }) {
-  const { items, subtotalCents, clear } = useCart();
+  const { items, clear } = useCart();
   const settings = useSiteSettings();
-  const totals = computeTotals(subtotalCents, settings);
+  const totals = computeCartTotals(
+    items.map((i) => ({
+      price_cents: i.priceCents,
+      qty: i.qty,
+      shipping_cents: i.shippingCents,
+      free_shipping: i.freeShipping,
+    })),
+    settings
+  );
+  const noPayments = !methods.stripe && !methods.paypal;
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [shipping, setShipping] = useState<Record<string, string>>({});
@@ -84,11 +93,20 @@ export default function CheckoutClient({
     );
   }
 
-  const payLabel = loading
-    ? "Processing…"
-    : method === "paypal"
-      ? "Continue with PayPal"
-      : `Pay ${formatMoney(totals.total)}`;
+  const payLabel = noPayments
+    ? "Checkout paused"
+    : loading
+      ? "Processing…"
+      : method === "paypal"
+        ? "Continue with PayPal"
+        : `Pay ${formatMoney(totals.total)} securely`;
+
+  const STEPS = [
+    ["1", "Place your order", "Pay securely by card or PayPal."],
+    ["2", "Confirmation email", "Your receipt arrives within minutes."],
+    ["3", "We ship it", "Tracking is emailed the moment it leaves."],
+    ["4", "Delivery", "12–20 days depending on the route."],
+  ] as const;
 
   const methodBtn = (active: boolean) =>
     `flex items-center justify-center gap-2 rounded-lg border py-3 px-3 text-sm font-label-bold uppercase tracking-widest transition-all ${
@@ -102,7 +120,30 @@ export default function CheckoutClient({
       <SiteHeader />
       <main className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-12">
         <h1 className="font-headline-xl text-headline-xl uppercase text-white mb-2">Secure Checkout</h1>
-        <p className="text-on-surface-variant font-label-bold uppercase tracking-widest mb-10">Encrypted performance protocol</p>
+        <p className="text-on-surface-variant font-label-bold uppercase tracking-widest mb-8">Encrypted performance protocol</p>
+
+        {/* What happens after you order — keeps the process unambiguous. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
+          {STEPS.map(([n, title, body]) => (
+            <div key={n} className="bg-surface-container-low border border-white/10 rounded-lg p-4">
+              <p className="text-secondary font-headline-md text-lg">{n}</p>
+              <p className="text-white font-label-bold uppercase tracking-widest text-xs mt-1">{title}</p>
+              <p className="text-on-surface-variant text-xs mt-1">{body}</p>
+            </div>
+          ))}
+        </div>
+
+        {noPayments && (
+          <div className="mb-10 bg-signal-orange/10 border border-signal-orange/50 rounded-lg p-6">
+            <p className="text-signal-orange font-label-bold uppercase tracking-widest text-sm">
+              Checkout temporarily paused
+            </p>
+            <p className="text-on-surface-variant mt-2">
+              We&apos;re receiving a very high volume of orders right now. Your cart is
+              saved — please try again in a few hours.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-10">
@@ -145,7 +186,7 @@ export default function CheckoutClient({
 
           {/* Summary */}
           <aside className="bg-surface-container border border-white/10 rounded-lg p-6 h-fit space-y-4">
-            <h2 className="font-headline-md text-headline-md text-white uppercase">Order</h2>
+            <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary">03 — Review &amp; Pay</h2>
             <div className="space-y-3 max-h-72 overflow-y-auto">
               {items.map((i) => (
                 <div key={i.productId} className="flex gap-3 items-center">
@@ -178,17 +219,17 @@ export default function CheckoutClient({
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || noPayments}
               className="w-full bg-primary-container text-white py-5 rounded-lg font-label-bold uppercase tracking-[0.2em] hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
             >
               {payLabel}
             </button>
             <p className="text-center text-[10px] text-outline uppercase tracking-widest">
-              {method === "paypal"
-                ? "Encrypted · Powered by PayPal"
-                : method === "stripe"
-                  ? "Encrypted · Powered by Stripe"
-                  : "Encrypted checkout"}
+              {noPayments
+                ? "High order volume — try again in a few hours"
+                : method === "paypal"
+                  ? "Encrypted · Powered by PayPal"
+                  : "Encrypted · Powered by Stripe"}
             </p>
           </aside>
         </form>

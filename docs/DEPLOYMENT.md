@@ -51,11 +51,13 @@ needs), then Cloudflare, then wire Stripe's webhook back to Render.
    - `supabase/migrations/0002_contact.sql`
    - `supabase/migrations/0003_featured_site_settings.sql`
    - `supabase/migrations/0004_shipping_and_articles.sql`
+   - `supabase/migrations/0005_product_shipping.sql`
    This creates all tables, row-level-security policies, the `is_admin()` helper,
    the public **`product-images`** storage bucket, the products' **featured**
-   flag, the **site_settings** table (footer contact + shipping fee), and the
-   complete set of **Tech Lab articles**. On an existing database just run the
-   migrations you haven't run yet — all are safe to re-run.
+   flag, the **site_settings** table (footer contact + shipping fee), the
+   complete set of **Tech Lab articles**, and **per-product shipping** columns.
+   On an existing database just run the migrations you haven't run yet — all
+   are safe to re-run.
 
 ### 1c. Seed starter data (recommended)
 Run `supabase/seed.sql`. It creates the three **categories** (`trikes`, `parts`,
@@ -176,7 +178,7 @@ mark secrets as *Encrypted*):
 > "serviceRoleKey": false}}`.
 >
 > - **Check `diag` first.** The current code reports `"diag":
->   "release-2026-07-22c"`. If your deployed `/api/health` shows an older value
+>   "release-2026-07-22d"`. If your deployed `/api/health` shows an older value
 >   (or 404s), Cloudflare is building an old commit — usually because the
 >   Worker is connected to a fork or branch that hasn't pulled the latest code.
 >   Sync the deployed repo/branch with this one and redeploy before debugging
@@ -289,11 +291,19 @@ creates a profile with role `customer`, so promote yourself once:
 - **Footer contact info** — the company email, phone, and address shown in the
   footer ship with placeholders; edit them any time. Leave a field empty to
   hide it.
-- **Shipping** — one constant flat fee applied to every order (default $50),
-  or tick **Free shipping on all orders** to ship free. Cart, checkout, the
-  charge itself, and email receipts all follow this setting; delivery takes
-  12–20 days depending on the shipping route (stated on the site and in the
-  confirmation email).
+- **Shipping** — the store-wide default flat fee (default $50), or tick
+  **Free shipping on all orders**. Each product can also set its **own**
+  shipping fee (or free-shipping flag) on the product form — the product page
+  then shows the fee, or the fee crossed out next to FREE. Order shipping is
+  the sum of per-item fees; cart, checkout, the charge itself, and email
+  receipts all agree. Delivery takes 12–20 days depending on the shipping
+  route.
+- **System page** (`/admin/status`) — live view of every configuration item
+  (Supabase, Render, Stripe, PayPal, Turnstile), whether checkout is live or
+  paused, and a payment log of the last 30 orders (method, status, total).
+  When **no payment provider is connected, checkout is paused**: buyers see a
+  &ldquo;high order volume — try again in a few hours&rdquo; notice and no
+  unpayable orders are taken.
 
 **Tech Lab**: migration `0004` ships six complete, published articles (DIY,
 tech, riding, safety). Edit or unpublish them in `/admin/articles`, which also

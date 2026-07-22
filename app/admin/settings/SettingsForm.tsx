@@ -94,7 +94,8 @@ export default function SettingsForm({ settings }: { settings: SiteSettings }) {
           </label>
         </div>
         <p className="text-[10px] text-outline uppercase tracking-widest mt-2">
-          One constant fee for every order. Tick free shipping to override it —
+          Default fee for products without their own (each product can set one
+          on its form). Tick free shipping to make every order ship free —
           cart, checkout, and receipts update immediately.
         </p>
       </div>

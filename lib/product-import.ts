@@ -64,6 +64,10 @@ const KEY_MAP: Record<string, string> = {
   "mark as new": "is_new",
   "featured": "featured",
   "feature": "featured",
+  "shipping": "shipping_fee",
+  "shipping fee": "shipping_fee",
+  "shipping cost": "shipping_fee",
+  "free shipping": "free_shipping",
 };
 
 const TRUTHY = new Set(["yes", "y", "true", "1", "on", "✓", "x"]);
@@ -130,6 +134,7 @@ export function parseProductText(text: string): ParsedProduct {
         break;
       case "price":
       case "compare_at":
+      case "shipping_fee":
         fields[field] = cleanMoney(value);
         break;
       case "stock":
@@ -143,6 +148,7 @@ export function parseProductText(text: string): ParsedProduct {
         break;
       case "is_new":
       case "featured":
+      case "free_shipping":
         checks[field] = TRUTHY.has(value.toLowerCase());
         break;
       case "category":
@@ -181,4 +187,6 @@ Skill level: Expert
 Status: active
 New: yes
 Featured: yes
+Shipping fee: 50.00
+Free shipping: no
 `;

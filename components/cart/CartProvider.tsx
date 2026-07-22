@@ -17,6 +17,10 @@ export type CartItem = {
   imageUrl: string | null;
   qty: number;
   stock: number;
+  // Optional so carts saved before per-product shipping still parse; absent
+  // values fall back to the store-wide fee at display time.
+  shippingCents?: number | null;
+  freeShipping?: boolean;
 };
 
 type CartContextValue = {

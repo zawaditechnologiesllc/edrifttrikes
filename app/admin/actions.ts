@@ -123,24 +123,31 @@ export async function saveProduct(
     status: String(formData.get("status") || "active"),
     is_new: formData.get("is_new") === "on",
     featured: formData.get("featured") === "on",
+    shipping_cents: formData.get("shipping_fee")
+      ? dollarsToCents(formData.get("shipping_fee"))
+      : null,
+    free_shipping: formData.get("free_shipping") === "on",
     badge: String(formData.get("badge") || "") || null,
     hero_image: hero,
   };
 
+  // Columns added by later migrations (0003/0005) — stripped and retried if
+  // the database hasn't run them yet, so product saves keep working.
+  const optionalColumns = ["featured", "shipping_cents", "free_shipping"];
+  const stripOptional = () => optionalColumns.forEach((c) => delete row[c]);
+
   let productId = id;
   if (id) {
     let { error } = await admin.from("products").update(row).eq("id", id);
-    // Migration 0003 not run yet → the featured column doesn't exist and the
-    // whole update fails. Retry without it so product edits keep working.
     if (error && "featured" in row) {
-      delete row.featured;
+      stripOptional();
       ({ error } = await admin.from("products").update(row).eq("id", id));
     }
     if (error) return { error: `Could not save: ${error.message}` };
   } else {
     let { data: created, error } = await admin.from("products").insert(row).select("id").single();
     if (error && "featured" in row) {
-      delete row.featured;
+      stripOptional();
       ({ data: created, error } = await admin.from("products").insert(row).select("id").single());
     }
     if (error) return { error: `Could not save: ${error.message}` };

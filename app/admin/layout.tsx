@@ -14,6 +14,7 @@ const NAV = [
   { href: "/admin/categories", label: "Categories", icon: "category" },
   { href: "/admin/articles", label: "Tech Lab", icon: "article" },
   { href: "/admin/settings", label: "Settings", icon: "settings" },
+  { href: "/admin/status", label: "System", icon: "pulse" },
 ];
 
 export default async function AdminLayout({

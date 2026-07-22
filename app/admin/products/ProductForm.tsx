@@ -294,6 +294,17 @@ export default function ProductForm({
             <option value="archived">Archived</option>
           </select>
         </div>
+        <div>
+          <label className={lbl}>Shipping fee ($) — blank = store default</label>
+          <input
+            name="shipping_fee"
+            defaultValue={
+              p?.shipping_cents != null ? (p.shipping_cents / 100).toFixed(2) : ""
+            }
+            placeholder="store default"
+            className={input}
+          />
+        </div>
         <label className="flex items-center gap-3 text-on-surface-variant pb-3">
           <input type="checkbox" name="is_new" defaultChecked={p?.is_new} className="w-5 h-5" />
           <span className="font-label-bold uppercase text-xs tracking-widest">Mark as new</span>
@@ -301,6 +312,10 @@ export default function ProductForm({
         <label className="flex items-center gap-3 text-on-surface-variant pb-3">
           <input type="checkbox" name="featured" defaultChecked={p?.featured} className="w-5 h-5" />
           <span className="font-label-bold uppercase text-xs tracking-widest">Featured (homepage)</span>
+        </label>
+        <label className="flex items-center gap-3 text-on-surface-variant pb-3">
+          <input type="checkbox" name="free_shipping" defaultChecked={p?.free_shipping} className="w-5 h-5" />
+          <span className="font-label-bold uppercase text-xs tracking-widest">Free shipping (fee shown crossed out)</span>
         </label>
       </div>
 
