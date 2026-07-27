@@ -38,6 +38,17 @@ const nextConfig = {
         key: "Strict-Transport-Security",
         value: "max-age=63072000; includeSubDomains; preload",
       },
+      // Conservative CSP: only the directives that harden without risking the
+      // app's inline env script, Turnstile, Supabase, Stripe/PayPal, or images.
+      // - object-src 'none'  → no Flash/plugins (a classic XSS/exfil vector)
+      // - base-uri 'self'    → a <base> tag can't be injected to hijack URLs
+      // - frame-ancestors    → clickjacking protection (pairs with X-Frame-Options)
+      // - form-action 'self' → forms can only post back to us
+      {
+        key: "Content-Security-Policy",
+        value:
+          "object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'",
+      },
     ];
     return [{ source: "/:path*", headers: securityHeaders }];
   },

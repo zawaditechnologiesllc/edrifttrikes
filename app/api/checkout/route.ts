@@ -13,6 +13,36 @@ type IncomingItem = { productId: string; qty: number };
 const CHECKOUT_PAUSED =
   "We're receiving a very high volume of orders right now — please try again in a few hours.";
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/** Coerce a client-supplied quantity to a sane positive integer (1–999). */
+function safeQty(v: unknown): number {
+  const n = Math.floor(Number(v));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, 999);
+}
+
+/**
+ * Keep only well-formed string shipping fields and bound their size, so a
+ * crafted request can't store an oversized/abusive blob on the order.
+ */
+function sanitizeShipping(input: unknown): Record<string, string> | null {
+  if (!input || typeof input !== "object") return null;
+  const out: Record<string, string> = {};
+  let count = 0;
+  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+    if (count >= 20) break;
+    if (typeof v !== "string") continue;
+    const key = k.slice(0, 40);
+    const val = v.trim().slice(0, 200);
+    if (val) {
+      out[key] = val;
+      count++;
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 export async function POST(request: Request) {
   if (!supabaseConfigured()) {
     return NextResponse.json({ error: CHECKOUT_PAUSED }, { status: 503 });
@@ -34,15 +64,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const email = (payload.email || "").trim();
-  const items = payload.items || [];
-  if (!email || items.length === 0) {
+  const email = (payload.email || "").trim().toLowerCase().slice(0, 254);
+  const rawItems = Array.isArray(payload.items) ? payload.items : [];
+  if (!email || rawItems.length === 0) {
     return NextResponse.json({ error: "Email and at least one item are required." }, { status: 400 });
   }
+  if (!EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+  }
   // Bound the work a single request can cause (DB lookups, order rows).
-  if (items.length > 50) {
+  if (rawItems.length > 50) {
     return NextResponse.json({ error: "Too many items in one order." }, { status: 400 });
   }
+
+  // Normalize incoming items: keep only string product ids, coerce quantities
+  // to sane integers, and collapse duplicates so a client can't smuggle in
+  // NaN/negative/huge quantities.
+  const qtyById = new Map<string, number>();
+  for (const it of rawItems) {
+    const pid = typeof it?.productId === "string" ? it.productId : "";
+    if (!pid) continue;
+    qtyById.set(pid, Math.min(999, (qtyById.get(pid) ?? 0) + safeQty(it?.qty)));
+  }
+  const items: IncomingItem[] = [...qtyById.entries()].map(([productId, qty]) => ({
+    productId,
+    qty,
+  }));
+  if (items.length === 0) {
+    return NextResponse.json({ error: "No valid items in cart." }, { status: 400 });
+  }
+
+  const shipping = sanitizeShipping(payload.shipping);
 
   const admin = createAdminClient();
 
@@ -116,7 +168,7 @@ export async function POST(request: Request) {
       shipping_cents: totals.shipping,
       tax_cents: totals.tax,
       total_cents: totals.total,
-      shipping_address: payload.shipping ?? null,
+      shipping_address: shipping,
     })
     .select()
     .single();
