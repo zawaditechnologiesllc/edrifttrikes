@@ -78,9 +78,19 @@ Run `supabase/seed.sql`. It creates the three **categories** (`trikes`, `parts`,
 
 ### 1e. Auth redirect URL
 **Authentication → URL Configuration**:
-- **Site URL**: `https://YOUR-WORKER.workers.dev` (update after Cloudflare is
-  live, or set to your custom domain).
-- **Redirect URLs**: add `https://YOUR-WORKER.workers.dev/auth/callback`.
+- **Site URL**: `https://edrifttrikes.shop` (your live domain — or
+  `https://YOUR-WORKER.workers.dev` until the custom domain is attached).
+- **Redirect URLs**: add `https://edrifttrikes.shop/**` (one wildcard covers
+  `/auth/callback` **and** the password-reset landing
+  `/auth/callback?next=/account/update-password`). Add `http://localhost:3000/**`
+  too if you develop locally.
+
+### 1f. Auth email templates
+**Authentication → Emails → Templates** — paste the branded templates from
+[`../supabase/email-templates/`](../supabase/email-templates/) (at minimum
+*Confirm signup* and *Reset Password*). For production deliverability, enable
+**custom SMTP** (reuse Resend). Full walkthrough + the env-var matrix:
+[`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md).
 
 > You'll come back in **Step 6** to promote your own account to admin — you can't
 > do it until you've signed up once on the live site.

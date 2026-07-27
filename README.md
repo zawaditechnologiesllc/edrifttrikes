@@ -156,12 +156,19 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 > Supabase → Render → Cloudflare → Stripe/PayPal → Resend, in order, with every
 > env var, the admin-promotion SQL, product upload, and a go-live checklist. The
 > bullets below are the summary.
+>
+> **Supabase env matrix + auth URLs + email templates:
+> [`docs/SUPABASE_SETUP.md`](./docs/SUPABASE_SETUP.md)** — which variable goes on
+> Cloudflare vs Render, the exact Site URL / redirect URLs to add, why there's no
+> connection pooler to configure, and the branded auth email templates in
+> [`supabase/email-templates/`](./supabase/email-templates/).
 
 - **Cloudflare** — create a Workers project; build command `npm run cf:build` (or
   `npx opennextjs-cloudflare build`), deploy with `npm run deploy`; add all env
   vars in the dashboard. Runs Next.js via the OpenNext adapter.
-- **Supabase** — run the migration + seed; set Auth → URL config redirect to
-  `https://yourdomain.com/auth/callback`.
+- **Supabase** — run the migration + seed; set Auth → URL config **Site URL** to
+  `https://edrifttrikes.shop` and add `https://edrifttrikes.shop/**` to the
+  redirect allow-list (covers `/auth/callback` + password reset).
 - **Stripe / PayPal** — add the live keys; point the Stripe webhook at Render.
 - **Render** — deploy `/server` via `render.yaml` for email, the Stripe webhook,
   and contact.

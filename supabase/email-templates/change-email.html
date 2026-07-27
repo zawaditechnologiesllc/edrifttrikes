@@ -1,0 +1,44 @@
+<!--
+  Supabase Auth → Authentication → Emails → "Change Email Address"
+  Subject:  Confirm your new E-Drift email
+  Sent to the NEW address when a rider changes their email. {{ .Email }} is the
+  old address, {{ .NewEmail }} is the new one.
+-->
+<!doctype html>
+<html>
+  <body style="margin:0;background:#0e0e11;font-family:Inter,Arial,sans-serif;color:#e4e1e6">
+    <div style="max-width:560px;margin:0 auto;padding:40px 24px">
+      <div style="font-family:Anton,'Arial Black',Arial,sans-serif;font-size:28px;letter-spacing:1px;color:#c4f731">E-DRIFT</div>
+      <div style="height:3px;width:48px;background:#c4f731;margin:12px 0 28px"></div>
+
+      <h1 style="font-family:Anton,'Arial Black',Arial,sans-serif;font-weight:400;font-size:26px;color:#ffffff;text-transform:uppercase;margin:0 0 16px">
+        Confirm your new email
+      </h1>
+      <p style="color:#c3c5d9;line-height:1.6;margin:0 0 8px">
+        Confirm the change of your E-Drift email from
+        <strong style="color:#ffffff">{{ .Email }}</strong> to
+        <strong style="color:#c4f731">{{ .NewEmail }}</strong>.
+      </p>
+
+      <a href="{{ .ConfirmationURL }}"
+         style="display:inline-block;margin-top:24px;background:#1e5bff;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">
+        Confirm new email
+      </a>
+
+      <p style="color:#8d90a2;line-height:1.6;font-size:13px;margin:28px 0 0">
+        If the button doesn't work, copy and paste this link into your browser:
+      </p>
+      <p style="margin:6px 0 0;font-size:13px;word-break:break-all">
+        <a href="{{ .ConfirmationURL }}" style="color:#c4f731">{{ .ConfirmationURL }}</a>
+      </p>
+
+      <p style="color:#8d90a2;line-height:1.6;font-size:13px;margin:28px 0 0">
+        Didn't request this change? Ignore this email and your address stays the same.
+      </p>
+
+      <div style="margin-top:40px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">
+        E-Drift Motors · Engineered for adrenaline
+      </div>
+    </div>
+  </body>
+</html>
