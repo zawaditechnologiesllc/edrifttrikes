@@ -1,0 +1,43 @@
+<!--
+  Supabase Auth → Authentication → Emails → "Magic Link"
+  Subject:  Your E-Drift sign-in link
+  Only used if you enable passwordless / magic-link sign-in. Harmless to set up
+  now even if the app currently uses email + password.
+-->
+<!doctype html>
+<html>
+  <body style="margin:0;background:#0e0e11;font-family:Inter,Arial,sans-serif;color:#e4e1e6">
+    <div style="max-width:560px;margin:0 auto;padding:40px 24px">
+      <div style="font-family:Anton,'Arial Black',Arial,sans-serif;font-size:28px;letter-spacing:1px;color:#c4f731">E-DRIFT</div>
+      <div style="height:3px;width:48px;background:#c4f731;margin:12px 0 28px"></div>
+
+      <h1 style="font-family:Anton,'Arial Black',Arial,sans-serif;font-weight:400;font-size:26px;color:#ffffff;text-transform:uppercase;margin:0 0 16px">
+        Your sign-in link
+      </h1>
+      <p style="color:#c3c5d9;line-height:1.6;margin:0 0 8px">
+        Tap the button below to sign in to the garage. No password needed — this
+        link works once and expires shortly.
+      </p>
+
+      <a href="{{ .ConfirmationURL }}"
+         style="display:inline-block;margin-top:24px;background:#1e5bff;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">
+        Sign in to E-Drift
+      </a>
+
+      <p style="color:#8d90a2;line-height:1.6;font-size:13px;margin:28px 0 0">
+        If the button doesn't work, copy and paste this link into your browser:
+      </p>
+      <p style="margin:6px 0 0;font-size:13px;word-break:break-all">
+        <a href="{{ .ConfirmationURL }}" style="color:#c4f731">{{ .ConfirmationURL }}</a>
+      </p>
+
+      <p style="color:#8d90a2;line-height:1.6;font-size:13px;margin:28px 0 0">
+        Didn't try to sign in? You can safely ignore this email.
+      </p>
+
+      <div style="margin-top:40px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">
+        E-Drift Motors · Engineered for adrenaline
+      </div>
+    </div>
+  </body>
+</html>

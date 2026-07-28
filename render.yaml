@@ -14,9 +14,9 @@ services:
       - key: NODE_VERSION
         value: "20"
       - key: SITE_URL
-        sync: false # https://your-vercel-app.vercel.app
+        sync: false # https://edrifttrikes.shop
       - key: INTERNAL_API_KEY
-        generateValue: true # share this same value with the Vercel app
+        generateValue: true # share this same value with the Cloudflare app
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY

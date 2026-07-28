@@ -27,18 +27,46 @@ function dollarsToCents(v: FormDataEntryValue | null): number {
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 }
 
+// Only ever store real image files, with a safe, whitelisted extension. This
+// is the last line of defence against a non-image (e.g. an HTML/SVG payload)
+// being uploaded and later served from our storage origin.
+const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif", "avif"]);
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB
+
+/** Whitelist the extension, falling back to jpg when it's unknown/unsafe. */
+function safeImageExt(name: string): string {
+  const ext = (String(name).split(".").pop() || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 5);
+  return IMAGE_EXTS.has(ext) ? ext : "jpg";
+}
+
+/** True when the browser-declared content type is an image (or absent). */
+function isImageType(type: string): boolean {
+  return !type || type.startsWith("image/");
+}
+
 async function uploadImage(
   file: File | null
 ): Promise<{ url: string | null; error?: string }> {
   if (!file || file.size === 0) return { url: null };
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { url: null, error: "Image is too large (max 15 MB)." };
+  }
+  if (!isImageType(file.type)) {
+    return { url: null, error: "Only image files can be uploaded." };
+  }
   const admin = createAdminClient();
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const ext = safeImageExt(file.name);
   const path = `${crypto.randomUUID()}.${ext}`;
+  // Force an image content type so a mislabeled file can't be served as HTML.
+  const contentType = file.type && file.type.startsWith("image/") ? file.type : "image/jpeg";
   // Pass the File straight through — no Buffer copy. On Workers that halves
   // the memory footprint and CPU cost of a multi-MB upload.
   const { error } = await admin.storage
     .from("product-images")
-    .upload(path, file, { contentType: file.type || "image/jpeg", upsert: false });
+    .upload(path, file, { contentType, upsert: false });
   if (error) return { url: null, error: error.message };
   return { url: admin.storage.from("product-images").getPublicUrl(path).data.publicUrl };
 }
@@ -59,14 +87,15 @@ export async function createUploadUrls(
   if (!Array.isArray(files) || files.length === 0 || files.length > 12) {
     return { error: "Between 1 and 12 images per save." };
   }
+  // Reject anything the browser doesn't declare as an image before we hand out
+  // an upload token for it.
+  if (files.some((f) => !isImageType(String(f.type || "")))) {
+    return { error: "Only image files can be uploaded." };
+  }
   const admin = createAdminClient();
   const urls: { path: string; token: string; publicUrl: string }[] = [];
   for (const f of files) {
-    const ext =
-      (String(f.name).split(".").pop() || "jpg")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "")
-        .slice(0, 5) || "jpg";
+    const ext = safeImageExt(String(f.name));
     const path = `${crypto.randomUUID()}.${ext}`;
     const { data, error } = await admin.storage
       .from("product-images")

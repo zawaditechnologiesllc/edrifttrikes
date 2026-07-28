@@ -1,11 +1,27 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Handles the email-confirmation / magic-link redirect from Supabase.
+/**
+ * Only allow same-site relative redirect targets. Anything that isn't a plain
+ * `/path` (absolute URLs, protocol-relative `//host`, backslash tricks) falls
+ * back to the account page — this closes the open-redirect vector on `next`.
+ */
+function safeNext(raw: string | null): string {
+  if (!raw) return "/account";
+  // Must start with a single "/", and must not begin with "//" or "/\" which
+  // browsers can treat as a protocol-relative URL to another host.
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) {
+    return "/account";
+  }
+  return raw;
+}
+
+// Handles the email-confirmation / magic-link / password-recovery redirect
+// from Supabase.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/account";
+  const next = safeNext(searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();
