@@ -98,7 +98,7 @@ export default function CheckoutClient({
     : loading
       ? "Processing…"
       : method === "paypal"
-        ? "Continue with PayPal"
+        ? "Pay with PayPal or card"
         : `Pay ${formatMoney(totals.total)} securely`;
 
   const STEPS = [
@@ -228,7 +228,7 @@ export default function CheckoutClient({
               {noPayments
                 ? "High order volume — try again in a few hours"
                 : method === "paypal"
-                  ? "Encrypted · Powered by PayPal"
+                  ? "Encrypted · PayPal & cards accepted"
                   : "Encrypted · Powered by Stripe"}
             </p>
           </aside>
