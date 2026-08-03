@@ -122,7 +122,10 @@ that one; neither → order is placed and emailed directly).
   on Render — it marks orders paid and emails the confirmation. (Yes, the Stripe
   secret goes in **both** the app and Render.)
 - **PayPal** — add `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_ENV` on Cloudflare.
-  The app creates *and* captures PayPal orders itself (no Render webhook needed).
+  The app creates *and* captures PayPal orders itself (no Render webhook needed),
+  and accepts **debit/credit cards** (guest — no PayPal account needed) once you
+  enable **"PayPal account optional"** on the Business account. See
+  [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) §4b.
 
 > The app builds and previews **without any keys** — data calls degrade to empty
 > states so you can see the design before wiring services.

@@ -231,15 +231,60 @@ chooses), **one** (that one), or **neither** (order placed + emailed directly).
    calls the **Render** webhook → Render marks the order `paid` and emails the
    receipt. Test with **test mode** keys and card `4242 4242 4242 4242`.
 
-### 4b. PayPal (optional)
-1. PayPal Developer dashboard → **Apps & Credentials** → create an app → copy the
-   **Client ID** and **Secret**.
-2. On **Cloudflare** set `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, and `PAYPAL_ENV`
-   (`sandbox` to test, `live` to go live). No Render webhook is needed — the app
-   creates *and* captures the PayPal order itself on return.
-3. Flow: app creates a PayPal order → buyer approves on PayPal → PayPal returns to
-   `/api/paypal/capture` → the app captures, marks the order `paid`, and emails
-   the receipt. Test in `sandbox` with a PayPal sandbox buyer account first.
+### 4b. PayPal (optional) — with debit/credit **card** capture
+
+This uses a **PayPal Business account** and captures both PayPal-balance payments
+**and** debit/credit **cards** — the buyer does **not** need a PayPal account to
+pay by card. It's the standard PayPal Checkout redirect flow (no "Advanced
+Checkout" approval required).
+
+**1. Get live REST credentials (from your Business account).**
+- Log in to the [PayPal Developer dashboard](https://developer.paypal.com/dashboard/)
+  with your **Business** account.
+- **Apps & Credentials** → toggle to **Live** → **Create App** → copy the
+  **Client ID** and **Secret**. (Use the **Sandbox** toggle first to test.)
+
+**2. ⚠️ Enable card payments without a PayPal account (the key setting).**
+Card capture only appears if guest checkout is turned on for the account:
+- PayPal **business** account → **Account Settings → Website payments →
+  Website preferences** (a.k.a. *Website Payment Preferences*).
+- Set **"PayPal account optional"** to **ON**.
+- Save. (New accounts sometimes need a live transaction or a day for this to
+  take effect. If the card form still doesn't show, confirm the account is a
+  **Business** account and is fully verified.)
+
+> The app already asks PayPal for the guest card page
+> (`landing_page: "GUEST_CHECKOUT"` in `lib/paypal.ts`). Without the account
+> setting above, PayPal ignores it and shows the login page instead — so this
+> toggle is what actually unlocks cards.
+
+**3. Set the environment variables** on **Cloudflare** (the host running the app):
+
+| Variable | Value |
+| --- | --- |
+| `PAYPAL_CLIENT_ID` | Live app Client ID |
+| `PAYPAL_SECRET` | Live app Secret |
+| `PAYPAL_ENV` | `live` (use `sandbox` while testing) |
+
+No Render webhook is needed — the app creates **and** captures the order itself.
+
+**4. Flow:** app creates a PayPal order → buyer is sent to PayPal and pays with
+**PayPal _or_ a card** (guest) → PayPal returns to `/api/paypal/capture` → the app
+captures, marks the order `paid`, and emails the receipt.
+
+**5. Test before go-live.** With `PAYPAL_ENV=sandbox`, use a
+[sandbox](https://developer.paypal.com/dashboard/accounts) **business** account
+(enable "PayPal account optional" on it too) and pay once with a
+[test card](https://developer.paypal.com/tools/sandbox/card-testing/) via the
+"Pay with Debit or Credit Card" option to confirm the card path captures. Then
+switch `PAYPAL_ENV=live` with the live credentials.
+
+> **Want card fields embedded directly on the checkout page** (no PayPal
+> redirect)? That's PayPal **Advanced Checkout** (Advanced Card Payments /
+> hosted card fields) — a larger integration that also requires PayPal to
+> approve "Advanced Checkout" on your account. The redirect flow above is the
+> no-approval path that already accepts cards; open an issue if you want the
+> embedded-fields upgrade.
 
 ---
 
