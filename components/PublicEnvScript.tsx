@@ -1,21 +1,22 @@
-import { supabaseUrl, supabaseAnonKey } from "@/lib/env";
+import { supabaseUrl, supabaseAnonKey, paypalClientId, paypalCardFieldsEnabled } from "@/lib/env";
 
 /**
- * Server component that exposes the PUBLIC Supabase config to the browser as
- * `window.__EDRIFT_ENV`. Both values are public by design (the anon key is
- * meant to ship to browsers; RLS is the security boundary) — never add server
- * secrets here.
+ * Server component that exposes PUBLIC config to the browser as
+ * `window.__EDRIFT_ENV`. Every value here is public by design (the Supabase anon
+ * key ships to browsers and RLS is the security boundary; the PayPal client id
+ * ships in the SDK URL) — never add server secrets here.
  *
  * Why: on Cloudflare, NEXT_PUBLIC_* vars are only inlined into the client
  * bundle if they were present at BUILD time. When they're set only as runtime
  * Worker variables, the client bundle ships with empty strings and browser
- * auth breaks. This script fills that gap from the server's runtime env.
- * lib/supabase/client.ts falls back to it.
+ * auth/payments break. This script fills that gap from the server's runtime env.
  */
 export default function PublicEnvScript() {
   const env = {
     NEXT_PUBLIC_SUPABASE_URL: supabaseUrl() ?? "",
     NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey() ?? "",
+    NEXT_PUBLIC_PAYPAL_CLIENT_ID: paypalClientId() ?? "",
+    NEXT_PUBLIC_PAYPAL_CARD_FIELDS: paypalCardFieldsEnabled() ? "1" : "",
   };
   return (
     <script

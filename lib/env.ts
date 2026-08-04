@@ -67,3 +67,24 @@ export function publicSiteUrl(): string | undefined {
     undefined
   );
 }
+
+/**
+ * PayPal client id for the BROWSER SDK (inline card fields). The client id is
+ * public by design — it ships in the SDK script URL — so this is safe to expose.
+ * The SDK infers sandbox vs live from which client id it is.
+ */
+export function paypalClientId(): string | undefined {
+  return (
+    serverEnv("NEXT_PUBLIC_PAYPAL_CLIENT_ID") ||
+    serverEnv("PAYPAL_CLIENT_ID") ||
+    undefined
+  );
+}
+
+/**
+ * Opt-in flag: render PayPal's inline card fields on /checkout instead of the
+ * redirect. Off by default so production is unchanged until it's set to "1".
+ */
+export function paypalCardFieldsEnabled(): boolean {
+  return (serverEnv("NEXT_PUBLIC_PAYPAL_CARD_FIELDS") || "") === "1";
+}

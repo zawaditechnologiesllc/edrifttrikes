@@ -46,3 +46,49 @@ export async function GET(request: Request) {
 
   return NextResponse.redirect(`${siteUrl}/order-confirmation?order=${orderNumber}`);
 }
+
+/**
+ * Inline card-fields capture. The PayPal Card Fields SDK approves on-page and
+ * calls this with the PayPal order id; we capture, mark our order paid, email,
+ * and return JSON (the browser then routes to the receipt). Mapped by the
+ * PayPal order id we stored on the order at creation (stripe_session_id).
+ */
+export async function POST(request: Request) {
+  if (!supabaseConfigured()) {
+    return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  }
+  const { orderID } = await request.json().catch(() => ({ orderID: null }));
+  const paypalOrderId = typeof orderID === "string" ? orderID : "";
+  if (!paypalOrderId) {
+    return NextResponse.json({ error: "orderID required" }, { status: 400 });
+  }
+
+  const capture = await capturePayPalOrder(paypalOrderId).catch(() => ({ ok: false }));
+  if (!capture.ok) {
+    return NextResponse.json({ error: "capture_failed" }, { status: 502 });
+  }
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("orders")
+    .select("order_number, status")
+    .eq("stripe_session_id", paypalOrderId)
+    .maybeSingle();
+  if (!existing) {
+    return NextResponse.json({ error: "order_not_found" }, { status: 404 });
+  }
+
+  // Mark paid + email once (idempotent), same guard as the redirect flow.
+  if (existing.status !== "paid") {
+    const { data: order } = await admin
+      .from("orders")
+      .update({ status: "paid" })
+      .eq("stripe_session_id", paypalOrderId)
+      .eq("status", "pending")
+      .select("*, items:order_items(*)")
+      .maybeSingle();
+    if (order) await sendOrderConfirmationEmail(order as Order).catch(() => {});
+  }
+
+  return NextResponse.json({ ok: true, orderNumber: existing.order_number });
+}

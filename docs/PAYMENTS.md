@@ -86,22 +86,43 @@ So yes — with **both** connected, the buyer gets to choose **Card (Stripe)** o
 
 ---
 
-## 5. Want card fields embedded ON your checkout page (no redirect)?
+## 5. Inline card fields on `/checkout` (no redirect, no "create account")
 
-Today card entry happens on the provider's hosted page. If you want the card
-form to appear **inline on `/checkout`** instead, that's a separate, larger
-build — pick one:
+The app ships **PayPal Advanced Card Fields** — card inputs rendered directly on
+the checkout page, so the buyer never leaves your site and never sees PayPal's
+"Save info & create your PayPal account" prompt. It's **opt-in and safe by
+default**: off unless you turn it on, and if the account isn't eligible it hides
+and falls back to the redirect button.
 
-- **Stripe Elements / Payment Element** — Stripe-hosted iframe fields embedded in
-  our page. PCI-friendly, no PayPal approval needed. **Medium effort**, and the
-  cleanest inline-card UX. *Recommended if you want inline cards.*
-- **PayPal Advanced Checkout** (hosted card fields) — inline card fields via
-  PayPal. Requires PayPal to **approve "Advanced Checkout"** on your account
-  first, and more client code.
+**Turn it on**
 
-The current redirect flow needs **no approval** and already accepts cards — it's
-the fastest path to live. Open an issue / ask to schedule the inline-fields
-upgrade when you want it.
+1. In your PayPal Business account, enable **"Advanced Credit and Debit Card
+   Payments"** (a.k.a. Advanced Checkout). PayPal must approve/enable it — some
+   accounts/regions have it by default, others require applying. Without it the
+   inline fields aren't eligible and won't show.
+2. Set **`NEXT_PUBLIC_PAYPAL_CARD_FIELDS=1`** on Cloudflare (runtime var) and
+   redeploy. (`PAYPAL_CLIENT_ID` is exposed to the browser SDK automatically —
+   it's a public value.)
+3. **Test in sandbox first** (`PAYPAL_ENV=sandbox`): go to `/checkout`, fill
+   email + shipping, and pay with a
+   [sandbox test card](https://developer.paypal.com/tools/sandbox/card-testing/).
+   Confirm the order flips to **paid** and the receipt sends. Then switch to live.
+
+**How it behaves**
+- Card entry (number / expiry / CVV) appears **inline**; the buyer stays on your
+  page — no redirect, no account‑creation prompt.
+- A secondary **"Or pay with a PayPal account"** button still offers the redirect
+  for buyers who prefer their PayPal balance.
+- If `NEXT_PUBLIC_PAYPAL_CARD_FIELDS` is unset/`0`, or the account isn't eligible,
+  checkout is exactly the redirect flow — nothing changes.
+
+> Flow: `submit()` → `/api/checkout` creates the order → PayPal validates the card
+> (incl. 3‑D Secure) → `POST /api/paypal/capture` captures + emails the receipt.
+
+**Alternative — Stripe** also gives a clean, no‑account card form (hosted or
+inline Payment Element) with no PayPal approval needed. If you'd rather route
+cards through Stripe, add the Stripe keys (§2) and ask and I'll wire the inline
+Stripe Payment Element.
 
 ---
 

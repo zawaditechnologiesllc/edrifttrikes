@@ -196,15 +196,21 @@ export async function POST(request: Request) {
   // happens on return at /api/paypal/capture.
   if (method === "paypal" && paypalConfigured()) {
     try {
-      const { approveUrl } = await createPayPalOrder({
+      const { id: paypalOrderId, approveUrl } = await createPayPalOrder({
         amountCents: totals.total,
         orderNumber: order.order_number,
         orderId: order.id,
         returnUrl: `${siteUrl}/api/paypal/capture?order=${order.order_number}`,
         cancelUrl: `${siteUrl}/checkout`,
       });
+      // Persist the PayPal order id so the inline card-fields flow can capture
+      // by it (POST /api/paypal/capture). The redirect flow maps by order_number
+      // instead, so this is harmless there.
+      await admin.from("orders").update({ stripe_session_id: paypalOrderId }).eq("id", order.id);
       if (!approveUrl) throw new Error("no approve url");
-      return NextResponse.json({ url: approveUrl });
+      // `id` + `orderNumber` are used by the inline PayPal card fields;
+      // `url` by the redirect flow.
+      return NextResponse.json({ url: approveUrl, id: paypalOrderId, orderNumber: order.order_number });
     } catch (e) {
       // Log the real cause to the Worker logs, and echo a short, secret-free
       // reason in a `debug` field (not shown to buyers — visible in DevTools →
