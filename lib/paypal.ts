@@ -39,7 +39,13 @@ async function accessToken(): Promise<string> {
     body: "grant_type=client_credentials",
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`PayPal auth failed: ${res.status}`);
+  if (!res.ok) {
+    // Include PayPal's body — a 401 here returns {"error":"invalid_client"},
+    // which is the tell-tale of wrong credentials OR a sandbox/live mismatch
+    // (PAYPAL_ENV pointing at the wrong endpoint for the keys in use).
+    const body = await res.text().catch(() => "");
+    throw new Error(`PayPal auth failed: ${res.status} ${body}`.slice(0, 300));
+  }
   const data = (await res.json()) as { access_token: string };
   return data.access_token;
 }
