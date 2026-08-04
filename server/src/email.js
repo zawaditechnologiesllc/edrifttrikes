@@ -46,7 +46,17 @@ async function send(to, subject, html) {
     console.warn(`[email] RESEND_API_KEY not set — skipped "${subject}" -> ${to}`);
     return { skipped: true };
   }
-  return resend.emails.send({ from: FROM, to, subject, html });
+  const result = await resend.emails.send({ from: FROM, to, subject, html });
+  // The Resend SDK returns { data, error } and does NOT throw on rejection.
+  // Without this, an unverified EMAIL_FROM domain (or the resend.dev test
+  // domain, which only delivers to your own address) failed silently and the
+  // customer never got the receipt. Surface it so callers/logs see the reason.
+  if (result?.error) {
+    const msg = result.error.message || result.error.name || "send failed";
+    console.error(`[email] Resend rejected "${subject}" -> ${to}: ${msg}`);
+    throw new Error(`Resend: ${msg}`);
+  }
+  return result;
 }
 
 export async function welcomeEmail({ email, name }) {
@@ -121,6 +131,32 @@ export async function newsletterEmail({ email }) {
     "You're on the drop list",
     shell("You're on the list", `<p style="color:#c3c5d9;line-height:1.6">You'll be first to know about new drops, restocks and garage events.</p>`)
   );
+}
+
+/** Non-secret email config snapshot for the diagnostics endpoint. */
+export function emailConfig() {
+  return {
+    resend: Boolean(resend),
+    from: FROM,
+    ordersNotify: Boolean(process.env.ORDERS_NOTIFICATION_EMAIL),
+  };
+}
+
+/**
+ * Send a test email and return the outcome (throws on Resend rejection via
+ * send(), which the caller turns into a readable error). Used by /email/test to
+ * verify receipts can actually reach a customer address.
+ */
+export async function sendTestEmail(to) {
+  const result = await send(
+    to,
+    "E-Drift test email",
+    shell(
+      "Test email",
+      `<p style="color:#c3c5d9;line-height:1.6">If you received this, your store's email is working — order receipts will reach your customers.</p>`
+    )
+  );
+  return { id: result?.data?.id || result?.id || null, skipped: Boolean(result?.skipped) };
 }
 
 /**

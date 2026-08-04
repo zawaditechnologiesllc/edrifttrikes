@@ -8,6 +8,8 @@ import {
   newsletterEmail,
   contactEmails,
   sendOwnerAlert,
+  sendTestEmail,
+  emailConfig,
 } from "./email.js";
 import { verifyPayPalWebhook } from "./paypal.js";
 
@@ -63,7 +65,23 @@ function requireInternalKey(req, res, next) {
   next();
 }
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "edrift-backend" }));
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, service: "edrift-backend", email: emailConfig() })
+);
+
+// Diagnostic: send a test email and report Resend's exact result/error. Internal
+// key required (the app proxies it from an admin-gated route). Returns 200 with
+// ok:false + error on failure so the reason is easy to read.
+app.post("/email/test", requireInternalKey, async (req, res) => {
+  const to = (req.body && req.body.to) || process.env.ORDERS_NOTIFICATION_EMAIL;
+  if (!to) return res.status(400).json({ ok: false, error: "No recipient (pass `to` or set ORDERS_NOTIFICATION_EMAIL)" });
+  try {
+    const out = await sendTestEmail(to);
+    res.json({ ok: !out.skipped, to, ...out, ...emailConfig() });
+  } catch (e) {
+    res.json({ ok: false, to, error: e.message, ...emailConfig() });
+  }
+});
 
 app.post("/email/welcome", requireInternalKey, async (req, res) => {
   try { await welcomeEmail(req.body); res.json({ ok: true }); }

@@ -360,10 +360,31 @@ and the app still works on the synchronous capture alone.)
 
 ## 5. Resend (email)
 
+Order receipts, welcome, newsletter and contact mail all go out through Resend
+on **Render**.
+
 1. Resend → create an **API key** → `RESEND_API_KEY` on **Render**.
-2. Verify your sending domain (Resend → Domains) so `EMAIL_FROM` can use
-   `@yourdomain.com`. Until verified you can test with Resend's sandbox sender,
-   but production email needs a verified domain.
+2. **Verify your sending domain** (Resend → Domains → add `edrifttrikes.shop`,
+   then add the DNS records it gives you). Set `EMAIL_FROM` to an address on that
+   domain, e.g. `E-Drift Trikes <no-reply@edrifttrikes.shop>`.
+3. Set `ORDERS_NOTIFICATION_EMAIL` to where you want new-order/contact alerts.
+4. Redeploy Render.
+
+> ### ⚠️ Why a customer's receipt might not arrive
+> This is almost always Resend config, and it used to **fail silently**. Two
+> traps:
+> - **Using the test sender `onboarding@resend.dev`** (the default when
+>   `EMAIL_FROM` is unset): Resend only delivers test-domain mail to **your own
+>   Resend account address** — so *customers never receive it*. You must verify a
+>   domain and set `EMAIL_FROM` to it.
+> - **`EMAIL_FROM` on an unverified domain**: Resend rejects the send.
+>
+> **Diagnose in one click** (signed in as an admin):
+> `https://edrifttrikes.shop/api/health/email` reports the backend's email
+> config; `…/api/health/email?to=some-customer@example.com` sends a **real test
+> email** and returns Resend's exact result — including the precise error if it's
+> rejected. (Resend errors now surface in the Render logs too, instead of being
+> swallowed.)
 
 ---
 
