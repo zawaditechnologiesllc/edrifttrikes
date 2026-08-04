@@ -117,8 +117,8 @@ path, which is a tiny fraction of traffic.
 
 ## 5. When to upgrade (concrete triggers)
 
-> **Good news vs. Vercel:** Cloudflare's free tier **allows commercial use**, so
-> unlike Vercel Hobby you can launch a paid store on it at $0. The main free-tier
+> **Good news:** Cloudflare's free tier **allows commercial use**, so you can
+> launch a paid store on it at $0. The main free-tier
 > ceiling to watch is the **Workers 100,000 requests/day** cap — but because
 > browsing is served as static assets (which don't count), you only spend Worker
 > requests on dynamic/commerce routes, so 2,000 users/hour stays well under it.

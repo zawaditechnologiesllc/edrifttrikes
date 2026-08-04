@@ -14,13 +14,12 @@ Deploy order matters — do it top to bottom. You'll create Supabase first (it
 issues the keys everything else needs), then Render (it issues a URL the app
 needs), then Cloudflare, then wire Stripe's webhook back to Render.
 
-> **Why Cloudflare instead of Vercel:** Vercel's free Hobby plan forbids
-> commercial use (a store taking payments), which would force Vercel Pro
-> (~$20/mo) on day one. Cloudflare's free tier **allows** commercial use — static
-> page serving is unlimited/free and Workers include 100,000 requests/day free —
-> so a real store can launch at $0 and scale far before paying. The app runs on
-> Cloudflare through the [OpenNext](https://opennext.js.org/cloudflare) adapter.
-> See [`SCALING.md`](./SCALING.md) for the capacity math and upgrade triggers.
+> **Why Cloudflare:** its free tier **allows commercial use** (a store taking
+> payments) — static page serving is unlimited/free and Workers include 100,000
+> requests/day free — so a real store can launch at $0 and scale far before
+> paying. The app runs on Cloudflare through the
+> [OpenNext](https://opennext.js.org/cloudflare) adapter. See
+> [`SCALING.md`](./SCALING.md) for the capacity math and upgrade triggers.
 
 ---
 

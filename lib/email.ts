@@ -17,10 +17,10 @@ function internalKey(): string {
 }
 
 // Cap how long we wait on the Render backend. On the free tier it can be cold
-// (a ~50s spin-up) — without a bound, a single email/contact call would pin a
-// Vercel serverless function until its own timeout, wasting the invocation and
-// stalling the user's request. Email is best-effort, so we'd rather fail fast
-// and let the caller degrade gracefully.
+// (a ~50s spin-up) — without a bound, a single email/contact call would pin the
+// Cloudflare Worker invocation until its own timeout, wasting it and stalling
+// the user's request. Email is best-effort, so we'd rather fail fast and let
+// the caller degrade gracefully.
 const BACKEND_TIMEOUT_MS = 8000;
 
 async function call(path: string, body: unknown) {
