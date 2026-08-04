@@ -26,12 +26,17 @@ export async function GET() {
     ok: true,
     // Bump on each debug push — if this value doesn't change after a redeploy,
     // your deployment pipeline is serving a stale build.
-    diag: "release-2026-08-04-email-diag2",
+    diag: "release-2026-08-04-email-direct",
     adminReady: supabase.url && supabase.serviceRoleKey,
     supabase,
     render: {
       apiUrl: has(serverEnv("RENDER_API_URL")),
       internalKey: has(serverEnv("INTERNAL_API_KEY")),
+    },
+    // Direct email from the app (no backend needed) when RESEND_API_KEY is set.
+    email: {
+      resend: has(serverEnv("RESEND_API_KEY")),
+      from: has(serverEnv("EMAIL_FROM")),
     },
     payments: {
       stripe: has(serverEnv("STRIPE_SECRET_KEY")),
