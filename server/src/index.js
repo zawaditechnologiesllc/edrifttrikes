@@ -101,6 +101,12 @@ app.post("/contact", requireInternalKey, async (req, res) => {
 //  - CAPTURE.REFUNDED / REVERSED → mark refunded + alert the owner.
 //  - CUSTOMER.DISPUTE.CREATED → alert the owner (no reliable order mapping).
 // Every event is verified against PayPal's signature API first.
+//
+// NOTE: these UPPER.DOTTED strings are PayPal's canonical `event_type` values as
+// sent in the webhook payload — NOT the friendlier descriptions the PayPal
+// dashboard shows when you tick event checkboxes ("A payment capture completes",
+// etc.). We match the payload names, so subscribing via the dashboard's "All
+// events" option is safe: any event we don't handle just falls through to a 200.
 const ORDER_SELECT = "*, items:order_items(*)";
 
 // Resolve OUR order from a PayPal resource by the identifiers we set at create

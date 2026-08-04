@@ -300,13 +300,32 @@ idempotent, so it never double-sends alongside the synchronous capture.
 **1. Create the webhook** in the PayPal Developer dashboard:
 - **Apps & Credentials** → open your app → scroll to **Webhooks** → **Add Webhook**.
 - **Webhook URL**: `https://<your-render-url>/paypal/webhook`
-- **Event types** — subscribe to:
-  - `PAYMENT.CAPTURE.COMPLETED`
-  - `PAYMENT.CAPTURE.DENIED`
-  - `PAYMENT.CAPTURE.REFUNDED`
-  - `PAYMENT.CAPTURE.REVERSED`
-  - `CUSTOMER.DISPUTE.CREATED`
+- **Event types** — the dashboard lists events by a **plain-English description**,
+  not by the `UPPER.DOTTED` code name, so they look different from the list below.
+  You have two options:
+
+  - **Easiest — choose "All events."** The webhook only acts on the five events
+    in the table below and safely ignores everything else (it just replies
+    `200`), so subscribing to all of them is harmless and future-proof.
+
+  - **Or select them individually.** Tick the events whose description matches
+    these — PayPal groups them under **Payments** (the capture events) and
+    **Customer Disputes**:
+
+    | Code name (what PayPal sends → what the app matches) | How it appears in the dashboard (description may vary slightly) |
+    | --- | --- |
+    | `PAYMENT.CAPTURE.COMPLETED` | "A payment capture completes" |
+    | `PAYMENT.CAPTURE.DENIED` | "A payment capture is denied" |
+    | `PAYMENT.CAPTURE.REFUNDED` | "A merchant refunds a payment capture" |
+    | `PAYMENT.CAPTURE.REVERSED` | "PayPal reverses a payment capture" |
+    | `CUSTOMER.DISPUTE.CREATED` | "A dispute is created" |
+
 - Save, then copy the generated **Webhook ID**.
+
+> The `UPPER.DOTTED` names are PayPal's canonical `event_type` values — the exact
+> strings PayPal puts in the webhook payload, and what `server/src/index.js`
+> switches on. The dashboard's descriptive labels are just the UI; the code is
+> unaffected by how you pick them. When in doubt, pick **All events**.
 
 **2. Set the env vars on Render** (PayPal creds are needed here too, to verify
 signatures):
