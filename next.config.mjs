@@ -1,8 +1,12 @@
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-// Enables Cloudflare bindings (env vars, caches) during `next dev`. No-op in
-// production builds.
-initOpenNextCloudflareForDev();
+// Enables Cloudflare bindings (env vars, caches) during `next dev` ONLY.
+// Guard on NODE_ENV: without it, running the app via `next start` (e.g. on
+// Render or any plain Node host) spawns a `workerd` process that crash-loops
+// and floods the logs — the helper is meant for the dev server, not production.
+if (process.env.NODE_ENV === "development") {
+  initOpenNextCloudflareForDev();
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
