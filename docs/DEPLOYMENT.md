@@ -256,10 +256,10 @@ Card capture only appears if guest checkout is turned on for the account:
   take effect. If the card form still doesn't show, confirm the account is a
   **Business** account and is fully verified.)
 
-> The app already asks PayPal for the guest card page
-> (`landing_page: "GUEST_CHECKOUT"` in `lib/paypal.ts`). Without the account
-> setting above, PayPal ignores it and shows the login page instead — so this
-> toggle is what actually unlocks cards.
+> The app already asks PayPal for the card/billing page
+> (`landing_page: "BILLING"` in `lib/paypal.ts`). Without the account setting
+> above, PayPal ignores it and shows the login page instead — so this toggle is
+> what actually unlocks cards.
 
 **3. Set the environment variables** on **Cloudflare** (the host running the app):
 

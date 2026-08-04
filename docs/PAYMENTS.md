@@ -63,7 +63,7 @@ touches our servers** (best case for PCI + security).
 1. Buyer clicks **Pay** → `/api/checkout` creates a PayPal order.
 2. Browser redirects to **PayPal's hosted page**. There the buyer can pay with
    their PayPal balance **or** click **"Pay with Debit or Credit Card"** (guest —
-   no PayPal account), because we send `landing_page: "GUEST_CHECKOUT"` and your
+   no PayPal account), because we send `landing_page: "BILLING"` and your
    account has **"PayPal account optional" ON**.
 3. PayPal returns to `/api/paypal/capture`, which captures, marks **paid**, and
    emails the receipt. (The Render webhook is the backup/reconciliation layer.)
