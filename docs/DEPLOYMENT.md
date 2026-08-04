@@ -266,7 +266,9 @@ Card capture only appears if guest checkout is turned on for the account:
 | `PAYPAL_SECRET` | Live app Secret |
 | `PAYPAL_ENV` | `live` (use `sandbox` while testing) |
 
-No Render webhook is needed — the app creates **and** captures the order itself.
+The app creates **and** captures the order itself, so payments work without a
+webhook. A webhook is **recommended** as a safety net for refunds, disputes, and
+reconciliation — see **4c** below.
 
 **4. Flow:** app creates a PayPal order → buyer is sent to PayPal and pays with
 **PayPal _or_ a card** (guest) → PayPal returns to `/api/paypal/capture` → the app
@@ -285,6 +287,52 @@ switch `PAYPAL_ENV=live` with the live credentials.
 > approve "Advanced Checkout" on your account. The redirect flow above is the
 > no-approval path that already accepts cards; open an issue if you want the
 > embedded-fields upgrade.
+
+### 4c. PayPal webhook (recommended safety net)
+
+The synchronous capture above handles the happy path. The webhook on **Render**
+(`POST /paypal/webhook`) is the reconciliation layer — it catches cases the
+redirect can't: a capture that completes after our page hand-off, and
+**refunds / disputes / chargebacks** that happen days later. It verifies every
+event's signature with PayPal before acting, and the paid→email step is
+idempotent, so it never double-sends alongside the synchronous capture.
+
+**1. Create the webhook** in the PayPal Developer dashboard:
+- **Apps & Credentials** → open your app → scroll to **Webhooks** → **Add Webhook**.
+- **Webhook URL**: `https://<your-render-url>/paypal/webhook`
+- **Event types** — subscribe to:
+  - `PAYMENT.CAPTURE.COMPLETED`
+  - `PAYMENT.CAPTURE.DENIED`
+  - `PAYMENT.CAPTURE.REFUNDED`
+  - `PAYMENT.CAPTURE.REVERSED`
+  - `CUSTOMER.DISPUTE.CREATED`
+- Save, then copy the generated **Webhook ID**.
+
+**2. Set the env vars on Render** (PayPal creds are needed here too, to verify
+signatures):
+
+| Variable | Value |
+| --- | --- |
+| `PAYPAL_CLIENT_ID` / `PAYPAL_SECRET` | same as the app |
+| `PAYPAL_ENV` | `live` (or `sandbox` while testing) |
+| `PAYPAL_WEBHOOK_ID` | the Webhook ID from step 1 |
+
+Redeploy Render. (Until `PAYPAL_WEBHOOK_ID` is set, `/paypal/webhook` returns 503
+and the app still works on the synchronous capture alone.)
+
+**3. What each event does:**
+
+| Event | Effect |
+| --- | --- |
+| `PAYMENT.CAPTURE.COMPLETED` | Marks the order `paid` + emails the receipt — only if still `pending` (dedupes vs the synchronous capture) |
+| `PAYMENT.CAPTURE.DENIED` | Cancels the order (only while still `pending`) |
+| `PAYMENT.CAPTURE.REFUNDED` / `REVERSED` | Marks the order `refunded` + alerts the store owner |
+| `CUSTOMER.DISPUTE.CREATED` | Alerts the store owner to review it |
+
+> Sandbox has its own webhooks — create a separate one pointing at the same
+> Render URL while testing with `PAYPAL_ENV=sandbox`, then swap `PAYPAL_WEBHOOK_ID`
+> for the live one at go-live. Test deliveries can be sent from the webhook's page
+> in the dashboard.
 
 ---
 
@@ -394,6 +442,8 @@ spike.
 - [ ] At least one payment provider connected (Stripe and/or PayPal).
 - [ ] Stripe webhook → Render `/stripe/webhook`, `STRIPE_WEBHOOK_SECRET` set (if
       using Stripe).
+- [ ] PayPal webhook → Render `/paypal/webhook`, `PAYPAL_WEBHOOK_ID` + PayPal
+      creds set on Render (if using PayPal — see §4c).
 - [ ] Resend domain verified; test email received.
 - [ ] Your account promoted to **admin**; a real product uploaded and visible.
 - [ ] `RENDER_BACKEND_URL` variable set; keep-warm workflow green.

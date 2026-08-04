@@ -31,3 +31,14 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      # PayPal — same credentials as the Cloudflare app, used here to verify
+      # inbound webhook signatures. PAYPAL_WEBHOOK_ID comes from the webhook you
+      # create in the PayPal Developer dashboard (see docs/DEPLOYMENT.md §4b).
+      - key: PAYPAL_ENV
+        sync: false # sandbox | live
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
