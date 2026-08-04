@@ -114,3 +114,69 @@ export async function capturePayPalOrder(
   const data = (await res.json().catch(() => ({}))) as { status?: string };
   return { ok: res.ok && data.status === "COMPLETED", status: data.status };
 }
+
+/**
+ * Connectivity diagnostic — exposes exactly why checkout can't reach PayPal,
+ * without leaking any secret. Returns the effective `env` (so a sandbox/live
+ * mismatch is obvious), whether OAuth succeeds, and — when `full` is set — the
+ * result of a throwaway order-create (which also exercises `landing_page`).
+ * Surfaced at GET /api/health/paypal.
+ */
+export async function probePayPal(full = false): Promise<{
+  configured: boolean;
+  env: string;
+  auth?: { ok: boolean; status?: number; reason?: string };
+  order?: { ok: boolean; status?: number; reason?: string };
+}> {
+  const env = (serverEnv("PAYPAL_ENV") || "sandbox").toLowerCase();
+  if (!paypalConfigured()) return { configured: false, env };
+
+  // 1) OAuth — a 401 {"error":"invalid_client"} means wrong creds or the keys
+  // don't match `env` (sandbox keys with env=live, or vice versa).
+  const tokenRes = await fetch(`${base()}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      Authorization: "Basic " + Buffer.from(`${clientId()}:${secret()}`).toString("base64"),
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+    cache: "no-store",
+  }).catch((e) => ({ ok: false, status: 0, text: async () => String((e as Error).message) }) as unknown as Response);
+
+  if (!tokenRes.ok) {
+    const body = await tokenRes.text().catch(() => "");
+    return { configured: true, env, auth: { ok: false, status: tokenRes.status, reason: body.slice(0, 300) } };
+  }
+  const { access_token: token } = (await tokenRes.json()) as { access_token: string };
+  if (!full) return { configured: true, env, auth: { ok: true } };
+
+  // 2) Throwaway $1 order create — exercises the real create path incl.
+  // landing_page. It is never captured, so it just expires.
+  const orderRes = await fetch(`${base()}/v2/checkout/orders`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [{ amount: { currency_code: "USD", value: "1.00" } }],
+      application_context: {
+        brand_name: "E-Drift Trikes & Go Carts",
+        user_action: "PAY_NOW",
+        shipping_preference: "NO_SHIPPING",
+        landing_page: "GUEST_CHECKOUT",
+        return_url: "https://edrifttrikes.shop/api/paypal/capture",
+        cancel_url: "https://edrifttrikes.shop/checkout",
+      },
+    }),
+  });
+  const orderData = (await orderRes.json().catch(() => ({}))) as { id?: string };
+  if (orderRes.ok && orderData.id) {
+    return { configured: true, env, auth: { ok: true }, order: { ok: true } };
+  }
+  return {
+    configured: true,
+    env,
+    auth: { ok: true },
+    order: { ok: false, status: orderRes.status, reason: JSON.stringify(orderData).slice(0, 400) },
+  };
+}
