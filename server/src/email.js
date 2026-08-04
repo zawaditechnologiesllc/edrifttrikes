@@ -123,6 +123,20 @@ export async function newsletterEmail({ email }) {
   );
 }
 
+/**
+ * Generic alert to the store owner (refunds, disputes, etc.). Each line is
+ * escaped, so identifiers coming from a webhook payload can't inject markup.
+ */
+export async function sendOwnerAlert(subject, lines = []) {
+  const to = process.env.ORDERS_NOTIFICATION_EMAIL;
+  if (!to) return { skipped: true };
+  const body = lines
+    .filter(Boolean)
+    .map((l) => `<p style="color:#c3c5d9;line-height:1.6">${esc(l)}</p>`)
+    .join("");
+  return send(to, subject, shell(subject, body));
+}
+
 export async function contactEmails({ name, email, subject, message }) {
   const to = process.env.ORDERS_NOTIFICATION_EMAIL || FROM;
   const safeName = esc(name) || "A rider";

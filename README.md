@@ -151,7 +151,7 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 | `/our-story` · `/support` · `/shipping-warranty` · `/wishlist` | Content pages |
 | `/admin` (+ products, orders, categories, articles) | Admin dashboard |
 | `/api/checkout` · `/api/paypal/capture` · `/auth/callback` | App server endpoints |
-| Render: `/health` `/email/*` `/contact` `/stripe/webhook` | Backend service |
+| Render: `/health` `/email/*` `/contact` `/stripe/webhook` `/paypal/webhook` | Backend service |
 
 ## Deployment
 
