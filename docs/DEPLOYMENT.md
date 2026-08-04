@@ -215,6 +215,10 @@ under the Worker's **Domains & Routes** when ready, then update those places.
 Checkout automatically shows whichever providers are connected — **both** (buyer
 chooses), **one** (that one), or **neither** (order placed + emailed directly).
 
+> **Which key goes on which host, the buyer's flow, and per-config UX:
+> [`PAYMENTS.md`](./PAYMENTS.md)** — the definitive payments reference (env-var
+> matrix, `PAYPAL_ENV` gotcha, and the inline-card upgrade path).
+
 ### 4a. Stripe
 1. Stripe Dashboard → **Developers → API keys**: copy **Secret key** (`sk_...`)
    and **Publishable key** (`pk_...`).
