@@ -1,6 +1,7 @@
 import CheckoutClient from "./CheckoutClient";
 import { stripeConfigured } from "@/lib/stripe";
 import { paypalConfigured } from "@/lib/paypal";
+import { paypalCardFieldsEnabled } from "@/lib/env";
 
 export const metadata = { title: "Checkout" };
 
@@ -14,6 +15,7 @@ export default function CheckoutPage() {
   return (
     <CheckoutClient
       methods={{ stripe: stripeConfigured(), paypal: paypalConfigured() }}
+      paypalCardFields={paypalConfigured() && paypalCardFieldsEnabled()}
     />
   );
 }

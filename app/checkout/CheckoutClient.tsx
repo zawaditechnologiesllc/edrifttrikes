@@ -8,6 +8,7 @@ import { useCart } from "@/components/cart/CartProvider";
 import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeCartTotals } from "@/lib/totals";
+import PayPalCardFields from "@/components/cart/PayPalCardFields";
 
 const FIELDS = [
   ["first_name", "First name", "col-span-1"],
@@ -24,8 +25,10 @@ type PaymentMethod = "stripe" | "paypal" | "";
 
 export default function CheckoutClient({
   methods,
+  paypalCardFields = false,
 }: {
   methods: { stripe: boolean; paypal: boolean };
+  paypalCardFields?: boolean;
 }) {
   const { items, clear } = useCart();
   const settings = useSiteSettings();
@@ -80,6 +83,27 @@ export default function CheckoutClient({
       setLoading(false);
     }
   }
+
+  // Inline PayPal card fields (opt-in) — shown for the PayPal path instead of a
+  // redirect, so buyers enter their card on this page with no account prompt.
+  const showCardFields = paypalCardFields && method === "paypal";
+  const requiredShip = FIELDS.filter(([k]) => k !== "phone").map(([k]) => k);
+  const validatePayment = (): string | null => {
+    if (!email.trim()) return "Enter your email above first.";
+    for (const k of requiredShip) {
+      if (!(shipping[k] || "").trim()) return "Fill in all shipping fields above first.";
+    }
+    return null;
+  };
+  const cardPayload = () => ({
+    email,
+    shipping,
+    items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
+  });
+  const onCardPaid = (orderNumber: string) => {
+    clear();
+    router.push(`/order-confirmation?order=${orderNumber}`);
+  };
 
   if (items.length === 0) {
     return (
@@ -217,20 +241,42 @@ export default function CheckoutClient({
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading || noPayments}
-              className="w-full bg-primary-container text-white py-5 rounded-lg font-label-bold uppercase tracking-[0.2em] hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
-            >
-              {payLabel}
-            </button>
-            <p className="text-center text-[10px] text-outline uppercase tracking-widest">
-              {noPayments
-                ? "High order volume — try again in a few hours"
-                : method === "paypal"
-                  ? "Encrypted · PayPal & cards accepted"
-                  : "Encrypted · Powered by Stripe"}
-            </p>
+            {showCardFields ? (
+              <>
+                {/* Inline card entry — no redirect, no account prompt. */}
+                <PayPalCardFields
+                  getPayload={cardPayload}
+                  validate={validatePayment}
+                  amountLabel={formatMoney(totals.total)}
+                  onPaid={onCardPaid}
+                />
+                {/* Secondary: pay with a PayPal balance/account via the redirect. */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full border border-white/15 text-on-surface-variant py-3 rounded-lg font-label-bold text-xs uppercase tracking-widest hover:text-white hover:border-white/30 transition-all disabled:opacity-50"
+                >
+                  {loading ? "Processing…" : "Or pay with a PayPal account"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="submit"
+                  disabled={loading || noPayments}
+                  className="w-full bg-primary-container text-white py-5 rounded-lg font-label-bold uppercase tracking-[0.2em] hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {payLabel}
+                </button>
+                <p className="text-center text-[10px] text-outline uppercase tracking-widest">
+                  {noPayments
+                    ? "High order volume — try again in a few hours"
+                    : method === "paypal"
+                      ? "Encrypted · PayPal & cards accepted"
+                      : "Encrypted · Powered by Stripe"}
+                </p>
+              </>
+            )}
           </aside>
         </form>
       </main>
