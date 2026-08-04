@@ -205,9 +205,17 @@ export async function POST(request: Request) {
       });
       if (!approveUrl) throw new Error("no approve url");
       return NextResponse.json({ url: approveUrl });
-    } catch {
+    } catch (e) {
+      // Log the real cause to the Worker logs, and echo a short, secret-free
+      // reason in a `debug` field (not shown to buyers — visible in DevTools →
+      // Network) so setup issues can be diagnosed without server log access.
+      const reason = String((e as Error)?.message || e).slice(0, 300);
+      console.error("[checkout] PayPal order create failed:", reason);
       return NextResponse.json(
-        { error: "PayPal is unavailable right now. Please try card instead." },
+        {
+          error: "PayPal is unavailable right now. Please try card instead.",
+          debug: reason,
+        },
         { status: 502 }
       );
     }
@@ -215,6 +223,7 @@ export async function POST(request: Request) {
 
   // Stripe path — real payment (default when configured).
   if (stripe) {
+    try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,
@@ -254,6 +263,14 @@ export async function POST(request: Request) {
     });
     await admin.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
     return NextResponse.json({ url: session.url });
+    } catch (e) {
+      const reason = String((e as Error)?.message || e).slice(0, 300);
+      console.error("[checkout] Stripe session create failed:", reason);
+      return NextResponse.json(
+        { error: "Card checkout is unavailable right now. Please try again.", debug: reason },
+        { status: 502 }
+      );
+    }
   }
 
   // Shouldn't be reachable (both providers were checked up front); if a
