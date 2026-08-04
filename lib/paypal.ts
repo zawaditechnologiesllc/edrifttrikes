@@ -82,13 +82,14 @@ export async function createPayPalOrder(params: {
         brand_name: "E-Drift Trikes & Go Carts",
         user_action: "PAY_NOW",
         shipping_preference: "NO_SHIPPING",
-        // Land buyers on PayPal's guest card-entry page so they can pay with a
-        // debit/credit card WITHOUT a PayPal account. This is what makes the
-        // redirect flow capture card payments. It requires "PayPal account
-        // optional" to be ENABLED on the PayPal Business account (see
-        // docs/DEPLOYMENT.md §4b) — otherwise PayPal falls back to the login
-        // page and cards won't be offered.
-        landing_page: "GUEST_CHECKOUT",
+        // Land buyers on PayPal's card/billing entry page so they can pay with a
+        // debit/credit card WITHOUT a PayPal account. `application_context`
+        // accepts only LOGIN | BILLING | NO_PREFERENCE here — BILLING is the
+        // card-first page. (GUEST_CHECKOUT is NOT valid on application_context;
+        // it only exists on payment_source.paypal.experience_context.) Guest
+        // card checkout also needs "PayPal account optional" ON in the Business
+        // account (see docs/DEPLOYMENT.md §4b).
+        landing_page: "BILLING",
         return_url: params.returnUrl,
         cancel_url: params.cancelUrl,
       },
@@ -163,7 +164,7 @@ export async function probePayPal(full = false): Promise<{
         brand_name: "E-Drift Trikes & Go Carts",
         user_action: "PAY_NOW",
         shipping_preference: "NO_SHIPPING",
-        landing_page: "GUEST_CHECKOUT",
+        landing_page: "BILLING",
         return_url: "https://edrifttrikes.shop/api/paypal/capture",
         cancel_url: "https://edrifttrikes.shop/checkout",
       },
