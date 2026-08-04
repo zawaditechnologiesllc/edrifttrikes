@@ -41,7 +41,10 @@ export async function GET(request: Request) {
       .eq("order_number", orderNumber)
       .select("*, items:order_items(*)")
       .single();
-    if (order) await sendOrderConfirmationEmail(order as Order).catch(() => {});
+    if (order)
+      await sendOrderConfirmationEmail(order as Order).catch((e) =>
+        console.error("[paypal capture] confirmation email failed:", e)
+      );
   }
 
   return NextResponse.redirect(`${siteUrl}/order-confirmation?order=${orderNumber}`);
@@ -87,7 +90,10 @@ export async function POST(request: Request) {
       .eq("status", "pending")
       .select("*, items:order_items(*)")
       .maybeSingle();
-    if (order) await sendOrderConfirmationEmail(order as Order).catch(() => {});
+    if (order)
+      await sendOrderConfirmationEmail(order as Order).catch((e) =>
+        console.error("[paypal capture] confirmation email failed:", e)
+      );
   }
 
   return NextResponse.json({ ok: true, orderNumber: existing.order_number });
