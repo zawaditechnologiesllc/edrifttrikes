@@ -127,6 +127,11 @@ that one; neither → order is placed and emailed directly).
   enable **"PayPal account optional"** on the Business account. See
   [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) §4b.
 
+> **Payments reference — which key goes where + the buyer flow:
+> [`docs/PAYMENTS.md`](./docs/PAYMENTS.md).** The Cloudflare-vs-Render env matrix,
+> the `PAYPAL_ENV` sandbox/live gotcha, what checkout looks like with one or both
+> providers, and how to add inline card fields later.
+
 > The app builds and previews **without any keys** — data calls degrade to empty
 > states so you can see the design before wiring services.
 
