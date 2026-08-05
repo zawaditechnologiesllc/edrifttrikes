@@ -360,31 +360,43 @@ and the app still works on the synchronous capture alone.)
 
 ## 5. Resend (email)
 
-Order receipts, welcome, newsletter and contact mail all go out through Resend
-on **Render**.
+Order receipts, welcome, newsletter and contact mail all go out through Resend.
 
-1. Resend → create an **API key** → `RESEND_API_KEY` on **Render**.
-2. **Verify your sending domain** (Resend → Domains → add `edrifttrikes.shop`,
-   then add the DNS records it gives you). Set `EMAIL_FROM` to an address on that
-   domain, e.g. `E-Drift Trikes <no-reply@edrifttrikes.shop>`.
-3. Set `ORDERS_NOTIFICATION_EMAIL` to where you want new-order/contact alerts.
-4. Redeploy Render.
+### Recommended: send directly from the app (no separate backend)
+
+The app sends email **itself** via the Resend API whenever `RESEND_API_KEY` is
+present — you do **not** need the `/server` Render backend just for email.
+
+1. Resend → create an **API key**.
+2. **On your app host (Cloudflare)** set, as runtime variables:
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM` — an address on a **verified** domain, e.g.
+     `E-Drift Trikes <no-reply@edrifttrikes.shop>`
+   - `ORDERS_NOTIFICATION_EMAIL` — where new-order/contact alerts go
+3. **Verify your sending domain** in Resend → Domains (add `edrifttrikes.shop`
+   and its DNS records; wait for "Verified").
+4. Redeploy.
+
+That's it — receipts send straight from the app. (If instead you run the
+`/server` Render backend, set the same three vars there and point
+`RENDER_API_URL` at it; the app falls back to that when `RESEND_API_KEY` isn't
+set on the app.)
 
 > ### ⚠️ Why a customer's receipt might not arrive
-> This is almost always Resend config, and it used to **fail silently**. Two
-> traps:
-> - **Using the test sender `onboarding@resend.dev`** (the default when
->   `EMAIL_FROM` is unset): Resend only delivers test-domain mail to **your own
->   Resend account address** — so *customers never receive it*. You must verify a
->   domain and set `EMAIL_FROM` to it.
+> Once email is wired, delivery failures are almost always Resend config — and
+> they used to **fail silently**. Two traps:
+> - **Test sender `onboarding@resend.dev`** (the default when `EMAIL_FROM` is
+>   unset): Resend only delivers test-domain mail to **your own Resend account
+>   address** — so *customers never receive it*. Verify a domain and set
+>   `EMAIL_FROM` to it.
 > - **`EMAIL_FROM` on an unverified domain**: Resend rejects the send.
 >
 > **Diagnose in one click** (signed in as an admin):
-> `https://edrifttrikes.shop/api/health/email` reports the backend's email
-> config; `…/api/health/email?to=some-customer@example.com` sends a **real test
-> email** and returns Resend's exact result — including the precise error if it's
-> rejected. (Resend errors now surface in the Render logs too, instead of being
-> swallowed.)
+> `https://edrifttrikes.shop/api/health/email` shows how email is wired
+> (`via: resend-direct` / `render-backend` / `none`) and the `EMAIL_FROM` in use;
+> `…/api/health/email?to=some-customer@example.com` sends a **real test email**
+> and returns Resend's exact result — including the precise error if rejected.
+> Errors are logged too, no longer swallowed.
 
 ---
 
