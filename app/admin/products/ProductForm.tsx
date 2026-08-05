@@ -97,6 +97,11 @@ export default function ProductForm({
               .from("product-images")
               .uploadToSignedUrl(t.path, t.token, files[i], {
                 contentType: files[i].type || "image/jpeg",
+                // Immutable UUID filename → cache for a year so the CDN/browser
+                // don't re-download it hourly (default is only 3600s). Cuts
+                // Supabase Storage egress dramatically. Keep in sync with
+                // IMAGE_CACHE_CONTROL in app/admin/actions.ts.
+                cacheControl: "31536000",
               }),
             120_000,
             `Uploading ${files[i].name}`

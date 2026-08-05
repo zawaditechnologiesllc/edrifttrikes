@@ -90,6 +90,39 @@ path, which is a tiny fraction of traffic.
    bottleneck. Images are served directly (from Supabase Storage's CDN) and lazy
    loaded.
 
+8. **Uploaded images are cached for 1 year** (`cache-control: max-age=31536000`).
+   Filenames are random UUIDs, so every object is immutable — a changed image is
+   always a new URL. This is the single biggest lever on **Supabase Storage
+   egress**: the default TTL is only 1 hour, which makes the CDN and browsers
+   re-download every image hourly. With the long TTL, repeat views come from the
+   browser/CDN cache and never touch Storage.
+   → `IMAGE_CACHE_CONTROL` in `app/admin/actions.ts` + `ProductForm.tsx`
+
+---
+
+### Reducing Supabase Storage egress (if "Cached Egress" is high)
+
+Cached egress = bytes the CDN serves to visitors for your product/article images
+(marketing/hero images live in `public/assets`, served free by Cloudflare — they
+don't count). To cut it:
+
+1. **Long cache-control (done, #8 above).** New uploads cache for a year. For
+   images uploaded *before* this change, re-stamp them once:
+   ```bash
+   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run storage:cache
+   ```
+   (`scripts/reset-storage-cache.mjs` — downloads + re-uploads each object with
+   the 1-year TTL; same URLs, no DB changes, safe to re-run.)
+2. **Upload smaller source images.** A product hero doesn't need to be 3000px /
+   several MB. Resize to ~1600px and prefer **WebP** before uploading — this cuts
+   bytes-per-request for both cached and uncached egress.
+3. **Stable URLs (already the case).** The app stores each image's `getPublicUrl`
+   once and renders it as-is — no per-request signed URLs, no `?t=Date.now()`
+   cache-busting, no `next/image` loader hammering `/object/info`. Don't add those.
+4. **Find the top offenders:** Supabase → Logs Explorer → "Storage egress"
+   template, or sort by `cf_cache_status = 'HIT'`, then resize those specific
+   files.
+
 ---
 
 ## 4. One-time setup you MUST do
