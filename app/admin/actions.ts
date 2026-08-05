@@ -33,6 +33,13 @@ function dollarsToCents(v: FormDataEntryValue | null): number {
 const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif", "avif"]);
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB
 
+// Cache uploaded images for a year. Filenames are random UUIDs, so an object is
+// immutable — a new image is always a new URL. Supabase Storage defaults to
+// only 1 hour (`cache-control: max-age=3600`), which makes the CDN and browsers
+// re-download every image hourly and inflates Storage egress. A long max-age
+// means repeat views are served from browser/CDN cache instead of re-fetched.
+const IMAGE_CACHE_CONTROL = "31536000"; // seconds = 1 year
+
 /** Whitelist the extension, falling back to jpg when it's unknown/unsafe. */
 function safeImageExt(name: string): string {
   const ext = (String(name).split(".").pop() || "")
@@ -66,7 +73,7 @@ async function uploadImage(
   // the memory footprint and CPU cost of a multi-MB upload.
   const { error } = await admin.storage
     .from("product-images")
-    .upload(path, file, { contentType, upsert: false });
+    .upload(path, file, { contentType, upsert: false, cacheControl: IMAGE_CACHE_CONTROL });
   if (error) return { url: null, error: error.message };
   return { url: admin.storage.from("product-images").getPublicUrl(path).data.publicUrl };
 }

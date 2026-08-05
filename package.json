@@ -10,7 +10,8 @@
     "lint": "next lint",
     "cf:build": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "storage:cache": "node scripts/reset-storage-cache.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
