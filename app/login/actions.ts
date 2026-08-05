@@ -79,7 +79,7 @@ export async function signUp(
   if (data.session) redirect("/account");
   return {
     message:
-      "Check your email to confirm your account, then sign in to access the garage.",
+      "Account created! We've emailed you a confirmation link — click it to activate your account, then sign in.",
   };
 }
 
@@ -106,7 +106,7 @@ export async function requestPasswordReset(
   // Don't reveal account existence — same message either way.
   return {
     message:
-      "If that email is registered, a reset link is on its way. Check your inbox.",
+      "If that email is registered, we've sent a password-reset link. Open it to set a new password.",
   };
 }
 

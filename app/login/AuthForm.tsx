@@ -135,7 +135,24 @@ export default function AuthForm() {
           <p className="text-error font-label-bold text-sm uppercase tracking-wide">{state.error}</p>
         )}
         {state.message && (
-          <p className="text-secondary font-label-bold text-sm">{state.message}</p>
+          <div className="bg-secondary/10 border border-secondary/40 rounded-lg p-5 space-y-3">
+            <div className="flex items-center gap-2 text-secondary">
+              <Icon name="mark_email_read" className="w-6 h-6" />
+              <span className="font-label-bold uppercase tracking-widest text-sm">Check your email</span>
+            </div>
+            <p className="text-on-surface text-sm leading-relaxed">{state.message}</p>
+            <div className="bg-signal-orange/10 border border-signal-orange/40 rounded p-3">
+              <p className="text-signal-orange font-label-bold uppercase tracking-widest text-[11px]">
+                Don&apos;t see it within a minute?
+              </p>
+              <p className="text-on-surface-variant text-xs leading-relaxed mt-1">
+                Check your <strong className="text-on-surface">Spam / Junk</strong> folder, open the
+                email, and mark it <strong className="text-on-surface">&ldquo;Not spam&rdquo;</strong>
+                {" "}(or move it to your inbox) — then click the link. Adding us to your contacts keeps
+                future emails out of spam.
+              </p>
+            </div>
+          </div>
         )}
 
         <SubmitGuarded
