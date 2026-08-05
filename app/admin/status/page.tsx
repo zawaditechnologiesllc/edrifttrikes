@@ -5,6 +5,7 @@ import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey, serverEnv } from "@/lib/env";
 import { formatMoney } from "@/lib/format";
 import type { Order } from "@/lib/types";
+import StorageCacheButton from "./StorageCacheButton";
 
 export const metadata = { title: "System status" };
 
@@ -119,6 +120,18 @@ export default async function SystemStatus() {
             Variables and Secrets) to go live.
           </p>
         )}
+      </section>
+
+      <section>
+        <h2 className="font-headline-md text-headline-md text-white uppercase mb-2">
+          Image caching
+        </h2>
+        <p className="text-on-surface-variant text-sm max-w-2xl mb-4">
+          New product images are cached for a year automatically. If your Supabase
+          Storage egress is high, click below once to re-stamp images uploaded
+          earlier (they kept the old 1-hour cache). Safe to run anytime.
+        </p>
+        <StorageCacheButton />
       </section>
 
       {migrations.length > 0 && (
