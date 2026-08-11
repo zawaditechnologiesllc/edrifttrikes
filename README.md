@@ -41,9 +41,13 @@ The system is split into two deployables:
 
 **Admin dashboard** (`/admin`, gated by `role = 'admin'`):
 - Overview with revenue / orders / products / riders.
-- Products CRUD with **image upload to Supabase Storage**.
+- Products CRUD with **image upload to Supabase Storage** — images are
+  auto-optimized (resized + WebP) in the browser and cached for a year to keep
+  Storage egress low ([`docs/SCALING.md`](./docs/SCALING.md)).
 - Orders list + detail with status updates.
 - Categories and Tech Lab article management.
+- **System** page: one-click catalog **export to JSON** (backup / migrate to a
+  fresh project — see [`docs/MIGRATION.md`](./docs/MIGRATION.md)).
 
 **Backend / data**
 - Full Postgres schema with Row-Level Security (`supabase/migrations/0001_init.sql`).

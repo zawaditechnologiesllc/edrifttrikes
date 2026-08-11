@@ -135,6 +135,12 @@ don't count). To cut it:
    template, or sort by `cf_cache_status = 'HIT'`, then resize those specific
    files.
 
+> **Already blown the free egress quota?** You can't reset the counter — it's a
+> per-**organization** cumulative meter that only clears at the billing cycle.
+> To start fresh you either upgrade to Pro or rebuild on a new org/project. See
+> [`MIGRATION.md`](./MIGRATION.md) for the export button, the step-by-step move,
+> and the egress-safe checklist.
+
 ---
 
 ## 4. One-time setup you MUST do

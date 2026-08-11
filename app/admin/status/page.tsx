@@ -127,9 +127,17 @@ export default async function SystemStatus() {
           Image caching
         </h2>
         <p className="text-on-surface-variant text-sm max-w-2xl mb-4">
-          New product images are cached for a year automatically. If your Supabase
-          Storage egress is high, click below once to re-stamp images uploaded
-          earlier (they kept the old 1-hour cache). Safe to run anytime.
+          New product images are cached for a year and auto-optimized to WebP on
+          upload — so on a <span className="text-white">fresh project you never
+          need this button</span>. It exists only to fix images uploaded{" "}
+          <em>before</em> those changes, which kept Supabase&apos;s old 1-hour
+          cache.
+        </p>
+        <p className="text-signal-orange text-sm max-w-2xl mb-4">
+          ⚠️ Heads up: re-stamping <strong>downloads and re-uploads every
+          image</strong>, which itself uses Storage egress. Run it{" "}
+          <strong>once</strong> for a batch of old images — never repeatedly, and
+          not while you&apos;re trying to stay under an egress limit.
         </p>
         <StorageCacheButton />
       </section>
