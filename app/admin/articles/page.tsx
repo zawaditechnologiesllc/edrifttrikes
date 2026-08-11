@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { saveArticle, deleteArticle } from "../actions";
+import CoverImageInput from "./CoverImageInput";
 
 const input = "w-full bg-surface-container-highest border border-white/10 text-white p-3 rounded focus:border-secondary focus:ring-0";
 const lbl = "block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest";
@@ -33,7 +34,7 @@ export default async function AdminArticles() {
         <div><label className={lbl}>Excerpt</label><input name="excerpt" className={input} /></div>
         <div><label className={lbl}>Body</label><textarea name="body" rows={5} className={input} /></div>
         <div className="flex items-center justify-between gap-4">
-          <div className="flex-1"><label className={lbl}>Cover image</label><input name="image" type="file" accept="image/*" className="text-on-surface-variant text-sm" /></div>
+          <div className="flex-1"><label className={lbl}>Cover image</label><CoverImageInput name="image" className="text-on-surface-variant text-sm" /></div>
           <label className="flex items-center gap-2 text-on-surface-variant"><input type="checkbox" name="published" defaultChecked className="w-5 h-5" /><span className="text-xs font-label-bold uppercase tracking-widest">Published</span></label>
         </div>
         <button className="bg-secondary text-on-secondary-fixed px-6 py-3 rounded font-label-bold uppercase tracking-widest">Publish</button>

@@ -134,6 +134,29 @@ export default async function SystemStatus() {
         <StorageCacheButton />
       </section>
 
+      <section>
+        <h2 className="font-headline-md text-headline-md text-white uppercase mb-2">
+          Export / backup catalog
+        </h2>
+        <p className="text-on-surface-variant text-sm max-w-2xl mb-4">
+          Download every product (with its category, gallery images and specs),
+          plus articles and store settings, as one JSON file. It reads only text
+          rows — it does <span className="text-white">not</span> download any
+          image files, so it costs no Storage egress and is safe to run even
+          while you&apos;re over quota. Use it to back up, or to rebuild the
+          store in a fresh Supabase project — then re-upload the images there
+          (the product form auto-optimizes them to cut egress). Image URLs in
+          the file still point at this project.
+        </p>
+        <a
+          href="/api/admin/export"
+          download="edrift-catalog.json"
+          className="inline-block bg-secondary text-on-secondary-fixed px-6 py-3 rounded-lg font-label-bold uppercase tracking-widest text-sm hover:brightness-105 active:scale-95 transition-all"
+        >
+          Download catalog (JSON)
+        </a>
+      </section>
+
       {migrations.length > 0 && (
         <section>
           <h2 className="font-headline-md text-headline-md text-white uppercase mb-4">

@@ -92,11 +92,20 @@ path, which is a tiny fraction of traffic.
 
 8. **Uploaded images are cached for 1 year** (`cache-control: max-age=31536000`).
    Filenames are random UUIDs, so every object is immutable — a changed image is
-   always a new URL. This is the single biggest lever on **Supabase Storage
-   egress**: the default TTL is only 1 hour, which makes the CDN and browsers
-   re-download every image hourly. With the long TTL, repeat views come from the
-   browser/CDN cache and never touch Storage.
+   always a new URL. The default TTL is only 1 hour, which makes the CDN and
+   browsers re-download every image hourly. With the long TTL, repeat views come
+   from the browser/CDN cache and never touch Storage.
    → `IMAGE_CACHE_CONTROL` in `app/admin/actions.ts` + `ProductForm.tsx`
+
+9. **Uploaded images are auto-compressed in the browser** (resize to ~1600px +
+   WebP) before they reach Storage. This is the other half of the egress story:
+   caching cuts the *number* of Storage fetches, compression cuts the *bytes per
+   fetch*. A raw phone photo (3–8 MB) is stored as a ~150–400 KB WebP, so every
+   view — cached, first-time, or from a fresh CDN edge — transfers ~90% fewer
+   bytes. Runs client-side (Workers has no `sharp`); never blocks a save (falls
+   back to the original file on any failure).
+   → `lib/image-compress.ts`, used by `ProductForm.tsx` (hero + gallery) and
+   `app/admin/articles/CoverImageInput.tsx` (article covers)
 
 ---
 
@@ -113,9 +122,12 @@ don't count). To cut it:
    ```
    (`scripts/reset-storage-cache.mjs` — downloads + re-uploads each object with
    the 1-year TTL; same URLs, no DB changes, safe to re-run.)
-2. **Upload smaller source images.** A product hero doesn't need to be 3000px /
-   several MB. Resize to ~1600px and prefer **WebP** before uploading — this cuts
-   bytes-per-request for both cached and uncached egress.
+2. **Smaller source images (now automatic, #9 above).** Uploads are resized to
+   ~1600px and re-encoded as WebP in the browser, so this happens for you. To
+   shrink an image that was uploaded *before* this change, just re-save the
+   product (or article) with the same photo — it goes through the optimizer on
+   the way in. Re-uploading from your local original costs **zero** Supabase
+   egress (unlike the re-stamp script, which downloads each object first).
 3. **Stable URLs (already the case).** The app stores each image's `getPublicUrl`
    once and renders it as-is — no per-request signed URLs, no `?t=Date.now()`
    cache-busting, no `next/image` loader hammering `/object/info`. Don't add those.

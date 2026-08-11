@@ -5,12 +5,17 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveProduct, createUploadUrls } from "../actions";
 import { createClient } from "@/lib/supabase/client";
+import { compressImage } from "@/lib/image-compress";
 import { parseProductText, PRODUCT_TEMPLATE } from "@/lib/product-import";
 import type { Category, Product } from "@/lib/types";
 
-// Per-file ceiling, checked before upload. Images go straight from the
-// browser to Supabase Storage (never through the Worker), so this is a UX
-// guard, not a platform limit.
+// Largest ORIGINAL a photo picker may hand us. Generous on purpose — normal
+// phone photos (2–12 MB) are welcome; they get shrunk in the browser before
+// upload. This only rejects something that isn't a real photo.
+const MAX_SOURCE_MB = 40;
+// Ceiling on the file we actually upload, AFTER in-browser optimization. A
+// resized WebP is a few hundred KB, so this is just a backstop for the rare
+// input the browser couldn't re-encode.
 const MAX_FILE_MB = 10;
 
 /** Reject a hung step with a readable error instead of spinning forever. */
@@ -67,15 +72,33 @@ export default function ProductForm({
       if (heroFile instanceof File && heroFile.size > 0) files.push(heroFile);
       files.push(...galleryFiles);
 
-      const tooBig = files.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
+      const tooBig = files.find((f) => f.size > MAX_SOURCE_MB * 1024 * 1024);
       if (tooBig) {
         setError(
-          `"${tooBig.name}" is ${(tooBig.size / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_FILE_MB} MB per image. Resize/compress it and try again.`
+          `"${tooBig.name}" is ${(tooBig.size / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_SOURCE_MB} MB per image. Pick a smaller file.`
         );
         return;
       }
 
       if (files.length > 0) {
+        // Shrink each image in the browser (resize to ~1600px + WebP) BEFORE it
+        // leaves the device. A multi-MB phone photo becomes a ~200 KB WebP —
+        // the single biggest lever on Supabase Storage egress, since every
+        // future view then transfers far fewer bytes. Order is preserved, so
+        // index 0 stays the hero. Falls back to the original file per-image if
+        // the browser can't re-encode it.
+        setStep("Optimizing images…");
+        for (let i = 0; i < files.length; i++) {
+          files[i] = await compressImage(files[i]);
+        }
+        const stillBig = files.find((f) => f.size > MAX_FILE_MB * 1024 * 1024);
+        if (stillBig) {
+          setError(
+            `"${stillBig.name}" is still ${(stillBig.size / 1024 / 1024).toFixed(1)} MB after optimizing — the limit is ${MAX_FILE_MB} MB. Save it as JPEG or PNG and try again.`
+          );
+          return;
+        }
+
         setStep("Authorizing image upload…");
         const targets = await withTimeout(
           createUploadUrls(files.map((f) => ({ name: f.name, type: f.type }))),
@@ -331,7 +354,7 @@ export default function ProductForm({
           {p?.hero_image && <img src={p.hero_image} alt="" className="w-20 h-20 object-cover rounded border border-white/10" />}
           <input name="image" type="file" accept="image/*" className="text-on-surface-variant text-sm" />
         </div>
-        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Main image, shown on cards. Uploads from your browser straight to Supabase Storage. Max {MAX_FILE_MB} MB. Leave empty to keep current.</p>
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Main image, shown on cards. Auto-optimized to WebP in your browser before upload (cuts storage egress). Max {MAX_SOURCE_MB} MB. Leave empty to keep current.</p>
       </div>
 
       <div>
@@ -351,7 +374,7 @@ export default function ProductForm({
           </div>
         )}
         <input name="gallery" type="file" accept="image/*" multiple className="text-on-surface-variant text-sm" />
-        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Add one or more images for the product-page gallery. Max {MAX_FILE_MB} MB each. Tick existing images to remove them on save.</p>
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-1">Add one or more images for the product-page gallery. Auto-optimized to WebP before upload. Max {MAX_SOURCE_MB} MB each. Tick existing images to remove them on save.</p>
       </div>
 
       {error && (
