@@ -11,11 +11,11 @@ const FAQS = [
   { q: "What's covered under warranty?", a: "Every trike includes a 2-year frame warranty and 1-year coverage on the drivetrain and electronics. See Shipping & Warranty for full details." },
   { q: "Can I return a trike?", a: "Unused rigs can be returned within 30 days, minus return shipping and any restocking fee. Custom builds are final sale. See our Returns & Refunds policy for the full process." },
   { q: "Do you ship internationally?", a: "Yes — we manufacture and ship direct to every country. Duties and taxes are calculated at checkout for supported regions, or billed by your local customs." },
-  { q: "Something's wrong with my order — what should I do?", a: "Contact us first at support@edrifttrikes.com with your order number. We resolve almost everything — delays, wrong or damaged items, defects — quickly and directly. Please reach out before opening a bank or card dispute; it's faster for everyone and it's what our Terms ask." },
+  { q: "Something's wrong with my order — what should I do?", a: "Contact us first at support@edrifttrikes.shop with your order number. We resolve almost everything — delays, wrong or damaged items, defects — quickly and directly. Please reach out before opening a bank or card dispute; it's faster for everyone and it's what our Terms ask." },
 ];
 
 const CHANNELS = [
-  { icon: "mail", title: "Email", value: "support@edrifttrikes.com", href: "mailto:support@edrifttrikes.com" },
+  { icon: "mail", title: "Email", value: "support@edrifttrikes.shop", href: "mailto:support@edrifttrikes.shop" },
   { icon: "local_shipping", title: "Shipping & Warranty", value: "Policies & coverage", href: "/shipping-warranty" },
   { icon: "menu_book", title: "The Tech Lab", value: "Guides & how-tos", href: "/tech-lab" },
 ];

@@ -36,6 +36,14 @@ The system is split into two deployables:
 - Checkout that recomputes prices server-side, creates an order, and either
   redirects to **Stripe Checkout** (when configured) or places the order and
   emails confirmation directly.
+- Guided address form: per-field hints, browser autofill, a country select, and
+  inline validation enforced identically on the client and the server
+  ([`lib/validation.ts`](./lib/validation.ts)).
+- **Import duty disclosure** — cart, checkout, receipt and the confirmation
+  email show an estimated 13.5% customs duty on the goods value. It is
+  **excluded from the order total**: the buyer pays it to their own government
+  on arrival and the store never collects it. Rate lives in
+  [`lib/totals.ts`](./lib/totals.ts) (`DEFAULT_DUTY_RATE_BPS`).
 - Email-only accounts (no Google/Apple): register, login, logout, order history.
 - Tech Lab content (articles) and newsletter signup.
 
@@ -135,7 +143,7 @@ npm run dev                    # http://localhost:3000
 
 ### 1. Supabase
 1. Create a project, copy the URL + anon key + service-role key into `.env.local`.
-2. Run **every file in `supabase/migrations/` in order (0001 → 0007)**, then
+2. Run **every file in `supabase/migrations/` in order (0001 → 0008)**, then
    **`supabase/seed.sql`**, in the Supabase SQL editor (or `supabase db push`).
    This creates all tables, RLS policies, the `product-images` storage bucket,
    the order-tracking timeline, and seeds the catalog. Each migration is safe to

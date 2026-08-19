@@ -13,7 +13,7 @@ export const COMPANY = {
   name: "E-Drift Trikes & Go Carts",
   // TODO: confirm the exact registered legal entity name (e.g. "Zawadi Technologies LLC").
   legalName: "E-Drift Trikes & Go Carts",
-  supportEmail: "support@edrifttrikes.com",
+  supportEmail: "support@edrifttrikes.shop",
   // TODO: set your real registered business address.
   address: "[Registered business address — update in lib/company.ts]",
   // TODO: set the governing-law jurisdiction your lawyer advises (state / country).
@@ -34,7 +34,7 @@ import type { SiteSettings } from "@/lib/types";
  */
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   id: 1,
-  company_email: "hello@edrifttrikes.com",
+  company_email: "hello@edrifttrikes.shop",
   company_phone: "+1 (555) 010-0000",
   address_line1: "100 Drift Lane",
   address_line2: "Los Angeles, CA 90001, USA",
