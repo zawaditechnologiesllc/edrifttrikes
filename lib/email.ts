@@ -1,5 +1,10 @@
 import type { Order } from "@/lib/types";
 import { serverEnv, publicSiteUrl } from "@/lib/env";
+import {
+  STAGE_COPY,
+  stageMessage,
+  type FulfillmentStage,
+} from "@/lib/fulfillment";
 
 /**
  * Email delivery. Primary path: send DIRECTLY via the Resend HTTP API from the
@@ -159,13 +164,15 @@ export async function sendWelcomeEmail(email: string, name?: string) {
 
 export async function sendOrderConfirmationEmail(order: Order) {
   if (directEmail()) {
+    const site = publicSiteUrl() || "";
     const body = `
-      <p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(order.order_number)}</strong> is confirmed.</p>
-      <p style="color:#c3c5d9;line-height:1.6">Delivery typically takes <strong style="color:#fff">12–20 days</strong> depending on the shipping route to your country. We'll email your tracking link the moment it ships.</p>
-      ${orderTable(order)}`;
+      <p style="color:#c3c5d9;line-height:1.6">Thanks for your order — <strong style="color:#c4f731">${esc(order.order_number)}</strong> is in.</p>
+      <p style="color:#c3c5d9;line-height:1.6">We'll send a second email confirming your payment and the start of your shipment as soon as it clears. From there you can follow every step — shipped, arriving, ready for collection — on your rider dashboard.</p>
+      ${orderTable(order)}
+      <a href="${site}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`;
     const result = await resendSend(
       order.email,
-      `Order ${order.order_number} confirmed`,
+      `Order ${order.order_number} received`,
       shell("Order confirmed", body)
     );
 
@@ -191,6 +198,58 @@ export async function sendOrderConfirmationEmail(order: Order) {
     return result;
   }
   return call("/email/order-confirmation", { order });
+}
+
+/**
+ * A staged delivery-journey email — sent when an order reaches a new
+ * fulfillment stage, whether that came from the scheduler (day 3 / 25 / 28),
+ * the payment webhook, or an admin moving the order by hand.
+ *
+ * The subject and body come from STAGE_COPY in lib/fulfillment.ts, so the
+ * wording a customer reads in the email is byte-for-byte the wording they see
+ * on their dashboard tracker.
+ */
+export async function sendFulfillmentEmail(
+  order: Order,
+  stage: FulfillmentStage
+) {
+  const copy = STAGE_COPY[stage];
+  const body = stageMessage(stage, order.estimated_delivery_at);
+  const site = publicSiteUrl() || "";
+
+  if (!directEmail()) {
+    return call("/email/fulfillment", { order, stage, title: copy.title, body });
+  }
+
+  const tracking = order.tracking_number
+    ? `<p style="color:#c3c5d9;line-height:1.6;margin-top:16px">Tracking number: <strong style="color:#c4f731">${esc(
+        order.tracking_number
+      )}</strong>${order.courier ? ` (${esc(order.courier)})` : ""}</p>`
+    : "";
+
+  // The final stage is an action for the customer, so it gets a callout box
+  // rather than another line of body copy they might skim past.
+  const callout =
+    stage === "ready_for_collection"
+      ? `<div style="margin-top:24px;border:1px solid #c4f731;border-radius:8px;padding:16px 20px;background:rgba(196,247,49,0.08)">
+           <p style="margin:0;color:#c4f731;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:12px">Next step</p>
+           <p style="margin:8px 0 0;color:#e4e1e6;line-height:1.6">Please wait for the courier to email or call you to arrange collection or confirm door delivery.</p>
+         </div>`
+      : "";
+
+  return resendSend(
+    order.email,
+    `${copy.title} · ${order.order_number}`,
+    shell(
+      copy.title,
+      `<p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(
+        order.order_number
+      )}</strong></p>
+       <p style="color:#c3c5d9;line-height:1.6">${esc(body)}</p>
+       ${tracking}${callout}
+       <a href="${site}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`
+    )
+  );
 }
 
 export async function sendNewsletterConfirmation(email: string) {

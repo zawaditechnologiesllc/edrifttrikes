@@ -40,4 +40,5 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   address_line2: "Los Angeles, CA 90001, USA",
   shipping_cents: 5000,
   free_shipping: false,
+  tax_rate_bps: 800,
 };

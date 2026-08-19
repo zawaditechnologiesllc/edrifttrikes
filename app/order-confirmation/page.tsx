@@ -5,6 +5,7 @@ import { getOrderByNumber } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 import ClearCartOnMount from "./ClearCartOnMount";
 import { Icon } from "@/components/Icon";
+import OrderTracker from "@/components/storefront/OrderTracker";
 
 export const metadata = { title: "Order Confirmed" };
 
@@ -26,7 +27,8 @@ export default async function OrderConfirmation({
           Order Confirmed
         </h1>
         <p className="text-on-surface-variant font-body-lg mt-3">
-          The garage is on it. {order ? `Confirmation sent to ${order.email}.` : "A confirmation email is on its way."}
+          The garage is on it. {order ? `Confirmation sent to ${order.email}.` : "A confirmation email is on its way."}{" "}
+          You can follow every step here or on your rider dashboard.
         </p>
 
         {order && (
@@ -49,6 +51,12 @@ export default async function OrderConfirmation({
               <div className="flex justify-between text-on-surface-variant"><span>Tax</span><span className="text-white">{formatMoney(order.tax_cents, order.currency)}</span></div>
               <div className="flex justify-between font-label-bold uppercase tracking-widest pt-2"><span className="text-white">Total</span><span className="text-secondary text-xl">{formatMoney(order.total_cents, order.currency)}</span></div>
             </div>
+          </div>
+        )}
+
+        {order && (
+          <div className="mt-8 text-left">
+            <OrderTracker order={order} />
           </div>
         )}
 

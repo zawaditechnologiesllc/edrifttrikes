@@ -222,12 +222,36 @@ export async function getMyOrders(): Promise<Order[]> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return [];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
-    .select("*, items:order_items(*)")
+    .select("*, items:order_items(*), events:order_events(*)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
-  return (data as Order[]) ?? [];
+
+  // order_events arrives with migration 0006. On a database that hasn't run it
+  // yet the embed fails the whole query, so fall back to orders without the
+  // tracking timeline rather than showing the rider an empty dashboard.
+  if (error) {
+    const { data: fallback } = await supabase
+      .from("orders")
+      .select("*, items:order_items(*)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    return (fallback as Order[]) ?? [];
+  }
+  return sortOrderEvents((data as Order[]) ?? []);
+}
+
+/** Timeline rows come back unordered from the embed; the tracker wants oldest first. */
+function sortOrderEvents(orders: Order[]): Order[] {
+  for (const o of orders) {
+    if (o.events) {
+      o.events.sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+    }
+  }
+  return orders;
 }
 
 export async function getWishlist(): Promise<Product[]> {
@@ -265,10 +289,21 @@ export async function isInWishlist(productId: string): Promise<boolean> {
 export async function getOrderByNumber(orderNumber: string): Promise<Order | null> {
   if (!supabaseConfigured()) return null;
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
-    .select("*, items:order_items(*)")
+    .select("*, items:order_items(*), events:order_events(*)")
     .eq("order_number", orderNumber)
     .maybeSingle();
-  return (data as Order) ?? null;
+
+  // Same graceful degradation as getMyOrders when migration 0006 is pending.
+  if (error) {
+    const { data: fallback } = await supabase
+      .from("orders")
+      .select("*, items:order_items(*)")
+      .eq("order_number", orderNumber)
+      .maybeSingle();
+    return (fallback as Order) ?? null;
+  }
+  if (!data) return null;
+  return sortOrderEvents([data as Order])[0];
 }

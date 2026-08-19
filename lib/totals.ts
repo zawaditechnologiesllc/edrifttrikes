@@ -1,12 +1,36 @@
 export const DEFAULT_SHIPPING_CENTS = 5000; // $50 — until the admin sets a fee
-export const TAX_RATE = 0.08;
+
+/**
+ * Fallback sales tax, in basis points (800 = 8.00%), used until an admin sets a
+ * rate in /admin/settings.
+ *
+ * Basis points, not a float: tax feeds a charged amount, and integer math keeps
+ * the result exact instead of accumulating float error.
+ *
+ * ⚠️ ONE FLAT RATE FOR EVERY BUYER. This is a placeholder, not a tax engine —
+ * it has no notion of the buyer's state, country, VAT/GST, or nexus rules. If
+ * you sell across state or national borders, a real tax provider (Stripe Tax,
+ * TaxJar, Avalara) is what you need; the rate here is only a stopgap.
+ */
+export const DEFAULT_TAX_RATE_BPS = 800;
 
 export type ShippingConfig = {
   /** Store-wide flat fee — the default for products without their own fee. */
   shipping_cents?: number;
   /** When true, every order ships free regardless of per-product fees. */
   free_shipping?: boolean;
+  /** Sales tax in basis points (800 = 8.00%). Admin-set in /admin/settings. */
+  tax_rate_bps?: number;
 };
+
+/** Tax on a subtotal, in cents, at the store's configured rate. */
+export function computeTax(subtotalCents: number, config?: ShippingConfig): number {
+  const bps = config?.tax_rate_bps ?? DEFAULT_TAX_RATE_BPS;
+  // Guard against a nonsense value reaching a charge: a negative or absurd rate
+  // means bad data, and falling back beats billing it.
+  const safeBps = Number.isFinite(bps) && bps >= 0 && bps <= 5000 ? bps : DEFAULT_TAX_RATE_BPS;
+  return Math.round((subtotalCents * safeBps) / 10_000);
+}
 
 export type TotalsItem = {
   price_cents: number;
@@ -34,7 +58,7 @@ export function computeCartTotals(items: TotalsItem[], config?: ShippingConfig) 
             n + (i.free_shipping ? 0 : (i.shipping_cents ?? defaultFee)) * i.qty,
           0
         );
-  const tax = Math.round(subtotal * TAX_RATE);
+  const tax = computeTax(subtotal, config);
   const total = subtotal + shipping + tax;
   return { subtotal, shipping, tax, total };
 }

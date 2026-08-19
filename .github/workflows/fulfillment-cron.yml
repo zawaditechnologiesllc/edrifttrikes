@@ -1,0 +1,62 @@
+# Backup scheduler for the order fulfillment journey.
+#
+# The Render service runs this sweep hourly via node-cron and is the PRIMARY
+# scheduler. This workflow is the safety net: if Render is asleep, redeploying,
+# or its cron silently stops, orders still advance and customers still get their
+# shipped / arriving / ready-for-collection emails.
+#
+# Running both is safe. Every stage transition is guarded by a UNIQUE
+# (order_id, stage) row in order_events, so a stage email can only ever be sent
+# once no matter how many schedulers fire.
+#
+# Setup (Settings → Secrets and variables → Actions):
+#   Variable  SITE_URL          e.g. https://edrifttrikes.shop
+#   Secret    INTERNAL_API_KEY  the same value set on Cloudflare and Render
+# If either is missing the job no-ops instead of failing.
+name: Order fulfillment sweep
+
+on:
+  schedule:
+    # Every 6 hours. Deliberately coarser than Render's hourly run — this only
+    # needs to catch what the primary scheduler missed, and the journey moves in
+    # units of days.
+    - cron: "20 */6 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: fulfillment-cron
+  cancel-in-progress: true
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Advance paid orders
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+        run: |
+          if [ -z "$SITE_URL" ] || [ -z "$INTERNAL_API_KEY" ]; then
+            echo "SITE_URL variable or INTERNAL_API_KEY secret not set — skipping."
+            exit 0
+          fi
+
+          # The endpoint processes a bounded batch and reports whether more is
+          # queued; loop until it drains, capped so a bad response can't spin.
+          for page in $(seq 1 20); do
+            response=$(curl -sS -m 60 -w '\n%{http_code}' -X POST \
+              -H "x-internal-key: $INTERNAL_API_KEY" \
+              "${SITE_URL%/}/api/cron/orders") || {
+                echo "::warning::request failed on page $page"; exit 0; }
+
+            code=$(printf '%s' "$response" | tail -n1)
+            body=$(printf '%s' "$response" | sed '$d')
+            echo "page $page → HTTP $code: $body"
+
+            if [ "$code" != "200" ]; then
+              echo "::warning::scheduler returned $code"
+              exit 0
+            fi
+            echo "$body" | grep -q '"remaining":true' || break
+          done

@@ -125,6 +125,44 @@ export async function orderConfirmationEmail(order) {
   return result;
 }
 
+/**
+ * Staged delivery-journey email (shipped / arriving / ready for collection).
+ *
+ * Fallback path only: when the app has its own RESEND_API_KEY it renders and
+ * sends these itself (lib/email.ts). The app passes the already-composed title
+ * and body so the wording stays identical across both paths — this file must
+ * never re-write the copy.
+ */
+export async function fulfillmentEmail({ order, stage, title, body }) {
+  if (!order?.email) throw new Error("fulfillmentEmail: order.email required");
+  const heading = title || "Order update";
+  const tracking = order.tracking_number
+    ? `<p style="color:#c3c5d9;line-height:1.6;margin-top:16px">Tracking number: <strong style="color:#c4f731">${esc(
+        order.tracking_number
+      )}</strong>${order.courier ? ` (${esc(order.courier)})` : ""}</p>`
+    : "";
+  const callout =
+    stage === "ready_for_collection"
+      ? `<div style="margin-top:24px;border:1px solid #c4f731;border-radius:8px;padding:16px 20px;background:rgba(196,247,49,0.08)">
+           <p style="margin:0;color:#c4f731;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:12px">Next step</p>
+           <p style="margin:8px 0 0;color:#e4e1e6;line-height:1.6">Please wait for the courier to email or call you to arrange collection or confirm door delivery.</p>
+         </div>`
+      : "";
+  return send(
+    order.email,
+    `${heading} · ${order.order_number}`,
+    shell(
+      heading,
+      `<p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(
+        order.order_number
+      )}</strong></p>
+       <p style="color:#c3c5d9;line-height:1.6">${esc(body || "")}</p>
+       ${tracking}${callout}
+       <a href="${SITE}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`
+    )
+  );
+}
+
 export async function newsletterEmail({ email }) {
   return send(
     email,

@@ -1,10 +1,12 @@
 import express from "express";
 import cors from "cors";
+import cron from "node-cron";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import {
   welcomeEmail,
   orderConfirmationEmail,
+  fulfillmentEmail,
   newsletterEmail,
   contactEmails,
   sendOwnerAlert,
@@ -26,6 +28,31 @@ function adminSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+/**
+ * Tell the Cloudflare app that an order has been paid.
+ *
+ * The app owns the whole post-payment journey (paid_at, fulfillment stage,
+ * timeline events, emails) — this service only proves the payment really came
+ * from Stripe, which has to happen here because signature verification needs
+ * the raw request body.
+ */
+async function markOrderPaidInApp(payload) {
+  const base = process.env.SITE_URL;
+  if (!base) throw new Error("SITE_URL not set — cannot reach the app");
+  const res = await fetch(`${base.replace(/\/$/, "")}/api/internal/order-paid`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-key": process.env.INTERNAL_API_KEY || "",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`order-paid responded ${res.status}`);
+  }
+  return res.json().catch(() => ({}));
+}
+
 app.use(cors({ origin: process.env.SITE_URL || true }));
 
 // ---- Stripe webhook (raw body, must precede express.json) ----
@@ -40,15 +67,14 @@ app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (re
   }
   if (event.type === "checkout.session.completed") {
     const orderId = event.data.object?.metadata?.order_id;
-    const supabase = adminSupabase();
-    if (orderId && supabase) {
-      const { data: order } = await supabase
-        .from("orders")
-        .update({ status: "paid" })
-        .eq("id", orderId)
-        .select("*, items:order_items(*)")
-        .single();
-      if (order) await orderConfirmationEmail(order).catch((e) => console.error(e));
+    if (orderId) {
+      // Hand the transition to the app rather than doing it here. The app owns
+      // the delivery schedule, the stage timeline and the email templates, and
+      // its /api/internal/order-paid is idempotent — so a Stripe retry (or a
+      // replayed event) cannot double-charge the customer's inbox.
+      await markOrderPaidInApp({ orderId }).catch((e) =>
+        console.error("[stripe webhook] order-paid failed:", e.message)
+      );
     }
   }
   res.json({ received: true });
@@ -90,6 +116,11 @@ app.post("/email/welcome", requireInternalKey, async (req, res) => {
 
 app.post("/email/order-confirmation", requireInternalKey, async (req, res) => {
   try { await orderConfirmationEmail(req.body.order || req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/email/fulfillment", requireInternalKey, async (req, res) => {
+  try { await fulfillmentEmail(req.body || {}); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -152,16 +183,12 @@ async function handlePayPalEvent(supabase, type, resource) {
   if (type === "PAYMENT.CAPTURE.COMPLETED") {
     const order = await findOrder(supabase, resource);
     if (!order) return console.warn("[paypal webhook] completed: no order match");
-    // Atomic pending→paid: only the transition that actually flips the row
-    // gets a non-null result and sends the receipt (dedupes vs the sync capture).
-    const { data: updated } = await supabase
-      .from("orders")
-      .update({ status: "paid" })
-      .eq("id", order.id)
-      .eq("status", "pending")
-      .select(ORDER_SELECT)
-      .maybeSingle();
-    if (updated) await orderConfirmationEmail(updated).catch((e) => console.error(e));
+    // Same path as Stripe and the synchronous capture: the app performs the
+    // transition and owns the emails. Its idempotency guard is what dedupes
+    // this webhook against the capture that already ran in the app.
+    await markOrderPaidInApp({ orderId: order.id }).catch((e) =>
+      console.error("[paypal webhook] order-paid failed:", e.message)
+    );
     return;
   }
 
@@ -233,4 +260,79 @@ app.post("/paypal/webhook", async (req, res) => {
   res.json({ received: true });
 });
 
-app.listen(PORT, () => console.log(`edrift-backend listening on :${PORT}`));
+// ---------------------------------------------------------------------------
+// Order fulfillment scheduler
+//
+// This service is the always-on process in the stack, so it owns the CLOCK.
+// The work itself lives in the app (POST /api/cron/orders) where the delivery
+// schedule, the stage timeline and the email templates already are — keeping
+// one implementation instead of a second, drifting copy here.
+//
+// Runs hourly. The app's endpoint is idempotent (unique (order_id, stage) in
+// the database), so extra runs, overlapping runs and retries are all harmless.
+// A GitHub Actions schedule pings the same endpoint as a backup for when this
+// service is asleep or redeploying.
+// ---------------------------------------------------------------------------
+
+const CRON_SCHEDULE = process.env.FULFILLMENT_CRON || "0 * * * *"; // hourly
+// The app processes a bounded batch per call and reports `remaining`; loop
+// until the queue is drained, with a hard cap so a bug can't spin forever.
+const MAX_CRON_PAGES = 40;
+
+async function runFulfillmentSweep(trigger = "cron") {
+  const base = process.env.SITE_URL;
+  if (!base) return console.warn("[fulfillment] SITE_URL not set — sweep skipped");
+  if (!process.env.INTERNAL_API_KEY) {
+    return console.warn("[fulfillment] INTERNAL_API_KEY not set — sweep skipped");
+  }
+
+  let advanced = 0;
+  let scanned = 0;
+  for (let page = 0; page < MAX_CRON_PAGES; page++) {
+    const res = await fetch(`${base.replace(/\/$/, "")}/api/cron/orders`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-key": process.env.INTERNAL_API_KEY,
+      },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`cron/orders responded ${res.status} ${body.slice(0, 200)}`);
+    }
+    const data = await res.json().catch(() => ({}));
+    advanced += data.advanced || 0;
+    scanned += data.scanned || 0;
+    if (!data.remaining) break;
+  }
+
+  if (advanced > 0 || trigger !== "cron") {
+    console.log(
+      `[fulfillment] ${trigger}: scanned ${scanned}, advanced ${advanced} order(s)`
+    );
+  }
+  return { scanned, advanced };
+}
+
+cron.schedule(CRON_SCHEDULE, () => {
+  runFulfillmentSweep("cron").catch((e) =>
+    console.error("[fulfillment] sweep failed:", e.message)
+  );
+});
+
+// Manual trigger — for testing the journey without waiting for the hour, and
+// as the target for any external cron service you'd rather use.
+app.post("/orders/advance", requireInternalKey, async (_req, res) => {
+  try {
+    const out = await runFulfillmentSweep("manual");
+    res.json({ ok: true, ...out });
+  } catch (e) {
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
+app.listen(PORT, () =>
+  console.log(
+    `edrift-backend listening on :${PORT} — fulfillment cron "${CRON_SCHEDULE}"`
+  )
+);

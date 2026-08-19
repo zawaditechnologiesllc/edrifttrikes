@@ -1,3 +1,5 @@
+import type { FulfillmentStage } from "@/lib/fulfillment";
+
 export type Category = {
   id: string;
   slug: string;
@@ -77,6 +79,17 @@ export type Order = {
   currency: string;
   shipping_address: Record<string, unknown> | null;
   stripe_session_id: string | null;
+  /** When payment actually cleared — the anchor for the delivery schedule. */
+  paid_at?: string | null;
+  /** Where the order is in the delivery journey (see lib/fulfillment.ts). */
+  fulfillment_stage?: FulfillmentStage;
+  stage_updated_at?: string | null;
+  /** Date the customer is told to expect the package. */
+  estimated_delivery_at?: string | null;
+  tracking_number?: string | null;
+  courier?: string | null;
+  /** Timeline rows, newest last. Loaded on the account + confirmation pages. */
+  events?: OrderEvent[];
   created_at: string;
   updated_at: string;
   items?: OrderItem[];
@@ -115,5 +128,17 @@ export type SiteSettings = {
   shipping_cents?: number;
   /** When true every order ships free, ignoring shipping_cents. */
   free_shipping?: boolean;
+  /** Sales tax in basis points (800 = 8.00%). Integer math, no float drift. */
+  tax_rate_bps?: number;
   updated_at?: string;
+};
+
+export type OrderEvent = {
+  id: string;
+  order_id: string;
+  stage: FulfillmentStage;
+  title: string;
+  detail: string | null;
+  email_sent: boolean;
+  created_at: string;
 };
