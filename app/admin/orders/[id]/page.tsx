@@ -4,9 +4,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
-import { updateOrderStatus } from "../../actions";
-
-const STATUSES = ["pending", "paid", "fulfilled", "cancelled", "refunded"];
+import { OrderManageForm } from "../OrderStatusForm";
+import { loadOrderEvents } from "@/lib/orders";
+import {
+  STAGE_COPY,
+  formatDeliveryDate,
+  type FulfillmentStage,
+} from "@/lib/fulfillment";
 
 export default async function AdminOrderDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!adminConfigured()) {
@@ -26,19 +30,28 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
   if (!order) notFound();
 
   const addr = (order.shipping_address ?? {}) as Record<string, string>;
+  const stage = (order.fulfillment_stage ?? "awaiting_payment") as FulfillmentStage;
+  const events = await loadOrderEvents(admin, order.id);
 
   return (
     <div className="p-8 max-w-4xl">
       <Link href="/admin/orders" className="text-on-surface-variant hover:text-white text-sm font-label-bold uppercase tracking-widest">← Orders</Link>
       <div className="flex flex-wrap items-center justify-between gap-4 mt-4 mb-8">
         <h1 className="font-display-lg text-display-lg-mobile text-white uppercase">{order.order_number}</h1>
-        <form action={updateOrderStatus} className="flex items-center gap-2">
-          <input type="hidden" name="id" value={order.id} />
-          <select name="status" defaultValue={order.status} className="bg-surface-container-highest border border-white/10 text-white rounded px-3 py-2 focus:border-secondary focus:ring-0">
-            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button className="bg-secondary text-on-secondary-fixed px-5 py-2 rounded font-label-bold uppercase tracking-widest text-sm">Update</button>
-        </form>
+        <div className="text-right">
+          <p className="font-label-bold text-[10px] uppercase tracking-widest text-on-surface-variant">Delivery stage</p>
+          <p className="font-headline-md text-secondary text-lg">{STAGE_COPY[stage].label}</p>
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <OrderManageForm
+          orderId={order.id}
+          status={order.status}
+          stage={stage}
+          trackingNumber={order.tracking_number ?? null}
+          courier={order.courier ?? null}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -73,6 +86,38 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               {addr.country}
             </p>
           </div>
+          {order.paid_at && (
+            <div>
+              <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-1">Delivery estimate</h3>
+              <p className="text-white text-sm">{formatDeliveryDate(order.estimated_delivery_at)}</p>
+              <p className="text-on-surface-variant text-xs mt-1">
+                Paid {new Date(order.paid_at).toLocaleDateString()}
+              </p>
+            </div>
+          )}
+          {order.tracking_number && (
+            <div>
+              <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-1">Tracking</h3>
+              <p className="text-white text-sm break-all">{order.tracking_number}</p>
+              {order.courier && <p className="text-on-surface-variant text-xs">{order.courier}</p>}
+            </div>
+          )}
+          {events.length > 0 && (
+            <div>
+              <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-2">Timeline</h3>
+              <ol className="space-y-2">
+                {events.map((e) => (
+                  <li key={e.id} className="text-sm">
+                    <span className="text-white">{e.title}</span>
+                    <span className="block text-on-surface-variant text-xs">
+                      {new Date(e.created_at).toLocaleString()}
+                      {e.email_sent ? " · emailed" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
       </div>
     </div>

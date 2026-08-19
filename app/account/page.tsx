@@ -8,6 +8,8 @@ import { getCurrentProfile, getMyOrders } from "@/lib/db";
 import { supabaseConfigured } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
 import { signOut } from "@/app/login/actions";
+import OrderTracker from "@/components/storefront/OrderTracker";
+import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 
 export const metadata = { title: "Rider Dashboard" };
 
@@ -75,7 +77,11 @@ export default async function AccountPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 mb-4">
                   <span className="font-headline-md text-lg text-white">{o.order_number}</span>
                   <span className={`font-label-bold uppercase tracking-widest text-sm ${STATUS_COLOR[o.status] || "text-on-surface-variant"}`}>
-                    {o.status}
+                    {/* Once paid, the delivery stage is what the rider actually
+                        cares about — "paid" tells them nothing they don't know. */}
+                    {o.paid_at
+                      ? STAGE_COPY[(o.fulfillment_stage ?? "confirmed") as FulfillmentStage].label
+                      : o.status}
                   </span>
                   <span className="text-on-surface-variant text-sm">{new Date(o.created_at).toLocaleDateString()}</span>
                   <span className="text-secondary font-label-bold">{formatMoney(o.total_cents, o.currency)}</span>
@@ -83,6 +89,11 @@ export default async function AccountPage() {
                 <p className="text-on-surface-variant text-sm">
                   {(o.items ?? []).map((i) => `${i.name} × ${i.qty}`).join("  ·  ")}
                 </p>
+
+                {/* Live delivery tracking, from payment through to collection. */}
+                <div className="mt-6">
+                  <OrderTracker order={o} />
+                </div>
               </div>
             ))}
           </div>

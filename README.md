@@ -44,16 +44,43 @@ The system is split into two deployables:
 - Products CRUD with **image upload to Supabase Storage** — images are
   auto-optimized (resized + WebP) in the browser and cached for a year to keep
   Storage egress low ([`docs/SCALING.md`](./docs/SCALING.md)).
-- Orders list + detail with status updates.
+- Orders list + detail: change payment status, move the delivery stage, and
+  save a tracking number / courier — each save reports success or the exact
+  error. Marking an order **paid** by hand starts the delivery journey and
+  emails the customer, exactly as a payment webhook would.
 - Categories and Tech Lab article management.
 - **System** page: one-click catalog **export to JSON** (backup / migrate to a
   fresh project — see [`docs/MIGRATION.md`](./docs/MIGRATION.md)).
 
+**Order tracking + automated delivery journey**
+- Order confirmation email goes out **immediately** when the buyer places the
+  order, before they're handed to Stripe/PayPal.
+- Once payment clears (Stripe webhook, PayPal capture, or an admin marking it
+  paid) the order enters a tracked delivery journey and the customer gets a
+  shipping confirmation.
+- A scheduler then advances every paid order and emails at each step:
+
+  | Day after payment | Stage | What the customer is told |
+  | --- | --- | --- |
+  | 0 | Confirmed | Payment cleared, shipment being prepared |
+  | 3 | Shipped | Left the garage, with the shipping partner |
+  | 25 | Arriving | Shipping complete, quotes the arrival date |
+  | 28 | Ready for collection | Wait for the courier to call/email to collect or confirm door delivery |
+
+- Riders follow it live on `/account` and the receipt page; admins see the same
+  timeline, can jump an order forward, and can attach a tracking number.
+- Timings live in one place — [`lib/fulfillment.ts`](./lib/fulfillment.ts).
+
+> **Full guide: [`docs/FULFILLMENT.md`](./docs/FULFILLMENT.md)** — the schedule,
+> how orders get marked paid, why nobody is ever emailed twice, the scheduler
+> setup, and how to test the whole 28-day journey in a minute.
+
 **Backend / data**
 - Full Postgres schema with Row-Level Security (`supabase/migrations/0001_init.sql`).
 - Seed of real catalog + articles (`supabase/seed.sql`).
-- Resend emails: welcome, order confirmation, newsletter.
-- Stripe Checkout + webhook (`/api/stripe/webhook`) to mark orders paid.
+- Resend emails: welcome, order confirmation, delivery-stage updates, newsletter.
+- Stripe Checkout + webhook to mark orders paid; PayPal captures verified
+  against the order before anything is marked paid.
 
 ## Project structure
 
@@ -67,18 +94,25 @@ app/
   tech-lab/  tech-lab/[slug]/ # content hub + articles
   our-story/ support/ shipping-warranty/ wishlist/ electric-trikes/
   admin/                     # dashboard, products, orders, categories, articles
-  api/checkout/  api/stripe/webhook/  auth/callback/
+  api/checkout/  api/paypal/capture/  auth/callback/
+  api/cron/orders/           # the fulfillment scheduler
+  api/internal/order-paid/   # shared paid transition (called by Render)
   not-found.tsx
 components/
   cart/{CartProvider,CartDrawer,AddToCartButton}.tsx
   storefront/{SiteHeader,SiteFooter,ProductCard,NewsletterForm}.tsx
   Enhancements.tsx
 lib/
-  db.ts types.ts format.ts totals.ts email.ts stripe.ts api.ts
+  db.ts types.ts format.ts totals.ts email.ts stripe.ts paypal.ts
+  fulfillment.ts             # the delivery schedule — stages, timings, copy
+  orders.ts                  # markOrderPaid / advanceOrder (one impl, idempotent)
+  internal-auth.ts           # shared-secret auth for server-to-server calls
   actions/newsletter.ts
-  supabase/{client,server,admin,middleware}.ts
+  supabase/{client,server,admin,public,middleware}.ts
+tests/                       # node --test: money math + delivery schedule
 supabase/
   migrations/0001_init.sql   # schema + RLS + storage bucket
+  migrations/0006_...sql     # fulfillment tracking + configurable tax
   seed.sql                   # catalog + articles
 public/assets/               # migrated product/hero imagery
 ```
@@ -93,9 +127,11 @@ npm run dev                    # http://localhost:3000
 
 ### 1. Supabase
 1. Create a project, copy the URL + anon key + service-role key into `.env.local`.
-2. Run **`supabase/migrations/0001_init.sql`** then **`supabase/seed.sql`** in the
-   Supabase SQL editor (or `supabase db push`). This creates all tables, RLS
-   policies, the `product-images` storage bucket, and seeds the catalog.
+2. Run **every file in `supabase/migrations/` in order (0001 → 0006)**, then
+   **`supabase/seed.sql`**, in the Supabase SQL editor (or `supabase db push`).
+   This creates all tables, RLS policies, the `product-images` storage bucket,
+   the order-tracking timeline, and seeds the catalog. Each migration is safe to
+   re-run.
 3. **Make yourself an admin**: register through `/login`, then in the SQL editor:
    ```sql
    update public.profiles set role = 'admin' where email = 'you@example.com';
@@ -160,7 +196,8 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 | `/our-story` · `/support` · `/shipping-warranty` · `/wishlist` | Content pages |
 | `/admin` (+ products, orders, categories, articles) | Admin dashboard |
 | `/api/checkout` · `/api/paypal/capture` · `/auth/callback` | App server endpoints |
-| Render: `/health` `/email/*` `/contact` `/stripe/webhook` `/paypal/webhook` | Backend service |
+| `/api/cron/orders` · `/api/internal/order-paid` | Internal — shared-secret auth |
+| Render: `/health` `/email/*` `/contact` `/stripe/webhook` `/paypal/webhook` `/orders/advance` | Backend service |
 
 ## Deployment
 

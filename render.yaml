@@ -5,6 +5,11 @@ services:
     name: edrift-backend
     runtime: node
     rootDir: server
+    # `starter` (not free) is required: this service runs the hourly fulfillment
+    # cron, and a free instance sleeps after ~15 min of inactivity — a sleeping
+    # scheduler silently stops advancing orders. On free, the keep-render-warm
+    # workflow is what holds it up, and the fulfillment-cron workflow is the
+    # backup that keeps orders moving regardless.
     plan: starter
     buildCommand: npm install
     startCommand: npm start
@@ -42,3 +47,8 @@ services:
         sync: false
       - key: PAYPAL_WEBHOOK_ID
         sync: false
+      # Fulfillment scheduler (see server/src/index.js). Standard 5-field cron,
+      # hourly by default. The work runs in the app at /api/cron/orders, so
+      # SITE_URL + INTERNAL_API_KEY above are what make this function.
+      - key: FULFILLMENT_CRON
+        value: "0 * * * *"

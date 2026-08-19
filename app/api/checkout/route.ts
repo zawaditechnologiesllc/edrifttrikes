@@ -4,7 +4,9 @@ import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeCartTotals } from "@/lib/totals";
+import { sendOrderConfirmationEmail } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
+import type { Order } from "@/lib/types";
 
 type IncomingItem = { productId: string; qty: number };
 
@@ -188,6 +190,27 @@ export async function POST(request: Request) {
       image_url: i.image_url,
     }))
   );
+
+  // Order confirmation goes out IMMEDIATELY, the moment the buyer places the
+  // order — before they are handed to Stripe/PayPal, not after payment clears.
+  // A buyer who closes the tab mid-payment still has a receipt with their order
+  // number. The separate "payment cleared / preparing shipment" email is sent
+  // by markOrderPaid() once the provider confirms (lib/orders.ts).
+  //
+  // Never let a mail failure kill a paid-for order: log and carry on.
+  await sendOrderConfirmationEmail({
+    ...(order as Order),
+    items: lineItems.map((i) => ({
+      id: i.product_id,
+      order_id: order.id,
+      product_id: i.product_id,
+      name: i.name,
+      slug: i.slug,
+      price_cents: i.price_cents,
+      qty: i.qty,
+      image_url: i.image_url,
+    })),
+  }).catch((e) => console.error("[checkout] order confirmation email failed:", e));
 
   const siteUrl = publicSiteUrl() || new URL(request.url).origin;
   const method = (payload.method || "").toLowerCase();

@@ -1,5 +1,6 @@
-# Build check — proves every pushed commit can build exactly the way
-# Cloudflare Workers Builds does (npm clean-install, then the OpenNext build).
+# Build check — runs the unit tests and a typecheck, then proves every pushed
+# commit can build exactly the way Cloudflare Workers Builds does (npm
+# clean-install, then the OpenNext build).
 # If this is green and a Cloudflare deploy still fails, the problem is in the
 # Cloudflare project settings (build command / branch / variables), not the code.
 name: CI
@@ -18,6 +19,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Unit tests first: a money-math or delivery-schedule regression should
+      # fail here in seconds, not after a full OpenNext build.
+      - run: npm test
+      - run: npx tsc --noEmit
       - run: npm run cf:build
       - name: Validate wrangler config (dry run)
         run: npx wrangler deploy --dry-run

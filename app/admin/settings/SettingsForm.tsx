@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { saveSiteSettings, type SettingsState } from "../actions";
 import type { SiteSettings } from "@/lib/types";
+import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 
 function Save() {
   const { pending } = useFormStatus();
@@ -97,6 +98,25 @@ export default function SettingsForm({ settings }: { settings: SiteSettings }) {
           Default fee for products without their own (each product can set one
           on its form). Tick free shipping to make every order ship free —
           cart, checkout, and receipts update immediately.
+        </p>
+      </div>
+
+      <div>
+        <label className={lbl}>Sales tax rate (%)</label>
+        <input
+          name="tax_rate"
+          inputMode="decimal"
+          defaultValue={(
+            (settings.tax_rate_bps ?? DEFAULT_TAX_RATE_BPS) / 100
+          ).toFixed(2)}
+          placeholder="8.00"
+          className={`${input} max-w-[12rem]`}
+        />
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-2">
+          Applied to every order&apos;s subtotal. One flat rate for all buyers —
+          it does not vary by state or country. If you sell across tax
+          jurisdictions, use a real tax service (Stripe Tax, TaxJar) instead of
+          relying on this.
         </p>
       </div>
 

@@ -103,17 +103,70 @@ export async function createPayPalOrder(params: {
   return { id: data.id, approveUrl };
 }
 
+export type PayPalCapture = {
+  ok: boolean;
+  status?: string;
+  /** Amount PayPal actually captured, in cents. */
+  amountCents?: number;
+  currency?: string;
+  /** Our order id — set as `custom_id` when the PayPal order was created. */
+  customId?: string;
+  /** Our order number — set as `invoice_id` / `reference_id` at create time. */
+  invoiceId?: string;
+  referenceId?: string;
+};
+
+/**
+ * Capture an approved PayPal order and report back WHAT was captured.
+ *
+ * Returning the identifiers and amount is the point: the caller must verify
+ * that the money PayPal took actually corresponds to the order it is about to
+ * mark paid. Without that check, the buyer controls both the order number and
+ * the PayPal token in the return URL, and can approve a cheap order while
+ * pointing the capture at an expensive one.
+ */
 export async function capturePayPalOrder(
   paypalOrderId: string
-): Promise<{ ok: boolean; status?: string }> {
+): Promise<PayPalCapture> {
   const token = await accessToken();
   const res = await fetch(`${base()}/v2/checkout/orders/${paypalOrderId}/capture`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     cache: "no-store",
   });
-  const data = (await res.json().catch(() => ({}))) as { status?: string };
-  return { ok: res.ok && data.status === "COMPLETED", status: data.status };
+  const data = (await res.json().catch(() => ({}))) as {
+    status?: string;
+    purchase_units?: {
+      reference_id?: string;
+      custom_id?: string;
+      invoice_id?: string;
+      payments?: {
+        captures?: {
+          custom_id?: string;
+          invoice_id?: string;
+          amount?: { value?: string; currency_code?: string };
+        }[];
+      };
+    }[];
+  };
+
+  const unit = data.purchase_units?.[0];
+  const capture = unit?.payments?.captures?.[0];
+  const value = capture?.amount?.value;
+
+  return {
+    ok: res.ok && data.status === "COMPLETED",
+    status: data.status,
+    // PayPal returns a decimal string ("1234.56"); parse via cents to avoid
+    // float rounding on the comparison the caller is about to make.
+    amountCents: value ? Math.round(parseFloat(value) * 100) : undefined,
+    currency: capture?.amount?.currency_code,
+    // The identifiers echo back on the capture or the purchase unit depending
+    // on the flow, so check both.
+    customId: capture?.custom_id ?? unit?.custom_id,
+    invoiceId: capture?.invoice_id ?? unit?.invoice_id,
+    referenceId: unit?.reference_id,
+  };
 }
 
 /**

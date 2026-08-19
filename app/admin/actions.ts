@@ -5,6 +5,9 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
+import { markOrderPaid, setOrderStage } from "@/lib/orders";
+import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
+import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 
 async function requireAdmin() {
   if (!adminConfigured()) redirect("/login");
@@ -25,6 +28,17 @@ async function requireAdmin() {
 function dollarsToCents(v: FormDataEntryValue | null): number {
   const n = parseFloat(String(v ?? "0").replace(/[^0-9.]/g, ""));
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
+}
+
+/**
+ * Percent input → basis points ("8.25" → 825), which is how the tax rate is
+ * stored so the charged amount stays exact integer math.
+ * Clamped to 0–50%, matching the database CHECK constraint.
+ */
+function percentToBps(v: FormDataEntryValue | null): number {
+  const n = parseFloat(String(v ?? "").replace(/[^0-9.]/g, ""));
+  if (!Number.isFinite(n)) return DEFAULT_TAX_RATE_BPS;
+  return Math.max(0, Math.min(5000, Math.round(n * 100)));
 }
 
 // Only ever store real image files, with a safe, whitelisted extension. This
@@ -268,15 +282,128 @@ export async function deleteProduct(formData: FormData) {
   revalidatePath("/shop");
 }
 
-export async function updateOrderStatus(formData: FormData) {
+export type OrderUpdateState = { ok?: boolean; error?: string; message?: string };
+
+/** The order_status enum in the database — anything else is rejected. */
+const ORDER_STATUSES = [
+  "pending",
+  "paid",
+  "fulfilled",
+  "cancelled",
+  "refunded",
+] as const;
+type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+/**
+ * Update an order's status, delivery stage and tracking details.
+ *
+ * Returns state instead of silently swallowing failures — the previous version
+ * discarded the Supabase error and rendered nothing, so a rejected write looked
+ * exactly like a successful one and the control appeared to "do nothing".
+ *
+ * Setting the status to `paid` runs the SAME transition the payment webhooks do
+ * (markOrderPaid): it stamps paid_at, starts the delivery schedule and sends the
+ * shipping confirmation. An order marked paid by hand is therefore tracked
+ * exactly like one paid through Stripe or PayPal.
+ */
+export async function updateOrderStatus(
+  _prev: OrderUpdateState,
+  formData: FormData
+): Promise<OrderUpdateState> {
   await requireAdmin();
+
+  const id = String(formData.get("id") || "").trim();
+  if (!id) return { error: "Missing order id." };
+
+  const status = String(formData.get("status") || "").trim() as OrderStatus;
+  if (!ORDER_STATUSES.includes(status)) {
+    return { error: `"${status}" is not a valid order status.` };
+  }
+
   const admin = createAdminClient();
-  await admin
+  const notes: string[] = [];
+
+  // --- status -------------------------------------------------------------
+  const { data: current, error: readErr } = await admin
     .from("orders")
-    .update({ status: String(formData.get("status")) })
-    .eq("id", String(formData.get("id")));
+    .select("id, status, fulfillment_stage, order_number")
+    .eq("id", id)
+    .maybeSingle();
+  if (readErr) return { error: `Could not read the order: ${readErr.message}` };
+  if (!current) return { error: "Order not found." };
+
+  if (current.status !== status) {
+    if (status === "paid") {
+      // Route through the shared transition so the customer journey starts.
+      const paid = await markOrderPaid(admin, { id });
+      if (!paid.ok) {
+        return { error: `Could not mark paid: ${paid.reason ?? "unknown error"}` };
+      }
+      notes.push(
+        paid.transitioned
+          ? "marked paid — shipping confirmation sent"
+          : "marked paid (confirmation already sent earlier)"
+      );
+    } else {
+      const { error } = await admin.from("orders").update({ status }).eq("id", id);
+      if (error) return { error: `Could not update status: ${error.message}` };
+      notes.push(`status → ${status}`);
+
+      // Closing an order stops the scheduler from marching it through the
+      // delivery stages and emailing a customer about a package that isn't
+      // coming.
+      if (status === "cancelled" || status === "refunded") {
+        await admin
+          .from("orders")
+          .update({ fulfillment_stage: "cancelled", stage_updated_at: new Date().toISOString() })
+          .eq("id", id);
+      } else if (status === "fulfilled") {
+        await admin
+          .from("orders")
+          .update({ fulfillment_stage: "delivered", stage_updated_at: new Date().toISOString() })
+          .eq("id", id);
+      }
+    }
+  }
+
+  // --- tracking details ----------------------------------------------------
+  // Written before any stage email so the email carries the tracking number.
+  const tracking = String(formData.get("tracking_number") || "").trim().slice(0, 120);
+  const courier = String(formData.get("courier") || "").trim().slice(0, 80);
+  if (formData.has("tracking_number") || formData.has("courier")) {
+    const { error } = await admin
+      .from("orders")
+      .update({ tracking_number: tracking || null, courier: courier || null })
+      .eq("id", id);
+    if (error) return { error: `Could not save tracking details: ${error.message}` };
+  }
+
+  // --- delivery stage ------------------------------------------------------
+  const stage = String(formData.get("stage") || "").trim() as FulfillmentStage;
+  if (stage && stage !== current.fulfillment_stage) {
+    if (!ALL_STAGES.includes(stage)) {
+      return { error: `"${stage}" is not a valid delivery stage.` };
+    }
+    // Unchecking "email the customer" lets an admin correct a mistaken stage
+    // silently. The form pairs the checkbox with a hidden "off" input, because
+    // an unchecked checkbox submits nothing at all — so presence of the values
+    // is what distinguishes "opted out" from "this form has no such control".
+    const notifyValues = formData.getAll("notify");
+    const notify = notifyValues.length === 0 || notifyValues.includes("on");
+    const moved = await setOrderStage(admin, id, stage, { sendEmail: notify });
+    if (!moved.ok) return { error: `Could not update stage: ${moved.error}` };
+    notes.push(
+      moved.emailed ? `stage → ${stage} (customer emailed)` : `stage → ${stage}`
+    );
+  }
+
   revalidatePath("/admin/orders");
-  revalidatePath(`/admin/orders/${formData.get("id")}`);
+  revalidatePath(`/admin/orders/${id}`);
+
+  return {
+    ok: true,
+    message: notes.length ? `Saved: ${notes.join(", ")}.` : "No changes to save.",
+  };
 }
 
 export async function saveCategory(formData: FormData) {
@@ -356,6 +483,7 @@ export async function saveSiteSettings(
     address_line2: trimmed("address_line2"),
     shipping_cents: dollarsToCents(formData.get("shipping_fee")),
     free_shipping: formData.get("free_shipping") === "on",
+    tax_rate_bps: percentToBps(formData.get("tax_rate")),
     updated_at: new Date().toISOString(),
   };
   let { error } = await admin.from("site_settings").upsert(row, { onConflict: "id" });
@@ -364,19 +492,20 @@ export async function saveSiteSettings(
   if (error && "shipping_cents" in row) {
     delete row.shipping_cents;
     delete row.free_shipping;
+    delete row.tax_rate_bps;
     ({ error } = await admin.from("site_settings").upsert(row, { onConflict: "id" }));
     if (!error) {
       revalidateTag(SETTINGS_TAG);
       return {
         error:
-          "Contact info saved, but shipping settings need migration supabase/migrations/0004_shipping_and_articles.sql — run it in the Supabase SQL Editor, then save again.",
+          "Contact info saved, but the shipping and tax settings need migrations supabase/migrations/0004_shipping_and_articles.sql and 0006_fulfillment_tracking.sql — run them in the Supabase SQL Editor, then save again.",
       };
     }
   }
   if (error) {
     return {
       error:
-        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003 and 0004) first.",
+        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003, 0004 and 0006) first.",
     };
   }
   revalidateTag(SETTINGS_TAG);
