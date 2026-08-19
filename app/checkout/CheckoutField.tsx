@@ -5,8 +5,12 @@ import type { FieldSpec } from "@/lib/validation";
 
 /**
  * One checkout input, with everything a buyer needs to fill it correctly:
- * a label, a hint saying exactly what goes in it, a realistic placeholder, and
- * the `autocomplete` token that lets a browser fill the whole address at once.
+ * a label, a hint saying exactly what goes in it, a placeholder instructing
+ * what to type, and the `autocomplete` token that lets a browser fill the whole
+ * address at once.
+ *
+ * Placeholders are instructions, never specimen names or addresses — see the
+ * PLACEHOLDER CONVENTION note in lib/validation.ts.
  *
  * Errors only render once a field has been touched, so the form doesn't shout
  * at someone before they've typed anything — but once shown, the message says

@@ -253,7 +253,7 @@ export default function CheckoutClient({
                 aria-invalid={(touched.email && Boolean(validation.errors.email)) || undefined}
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={() => markTouched("email")}
-                placeholder="you@example.com"
+                placeholder="Enter your email address"
                 className={`w-full bg-surface-container-highest border text-white p-4 rounded focus:ring-0 placeholder:text-outline transition-colors ${
                   touched.email && validation.errors.email
                     ? "border-error focus:border-error"

@@ -48,13 +48,19 @@ export type FieldSpec = {
  * `autoComplete` values are the standard HTML tokens — with these, a browser
  * fills the entire address from a saved profile in one tap, which is the single
  * biggest thing that makes a checkout feel seamless.
+ *
+ * PLACEHOLDER CONVENTION: placeholders describe what to enter — they are never
+ * a sample name, street or city. A specimen identity in a form field reads as
+ * someone's real data, is easy to mistake for a prefilled value, and only makes
+ * sense to buyers from whichever country the sample came from. `hint` carries
+ * the explanation; `placeholder` carries the instruction.
  */
 export const CHECKOUT_FIELDS: FieldSpec[] = [
   {
     name: "first_name",
     label: "First name",
     hint: "As it appears on your ID — couriers may check it on delivery.",
-    placeholder: "Alex",
+    placeholder: "Enter your first name",
     autoComplete: "given-name",
     required: true,
     maxLength: 60,
@@ -64,7 +70,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     name: "last_name",
     label: "Last name",
     hint: "Your family or surname.",
-    placeholder: "Mwangi",
+    placeholder: "Enter your last name",
     autoComplete: "family-name",
     required: true,
     maxLength: 60,
@@ -74,7 +80,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     name: "address",
     label: "Street address",
     hint: "House or building number and street name.",
-    placeholder: "1420 Voltage Avenue",
+    placeholder: "Building number and street name",
     autoComplete: "street-address",
     required: true,
     maxLength: 200,
@@ -84,7 +90,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     name: "address2",
     label: "Apartment, suite, unit (optional)",
     hint: "Anything else the courier needs to find you — floor, buzzer, gate code.",
-    placeholder: "Apt 3B",
+    placeholder: "Apartment, suite, floor or gate code",
     autoComplete: "address-line2",
     required: false,
     maxLength: 120,
@@ -94,7 +100,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     name: "city",
     label: "City / Town",
     hint: "The city or town for delivery.",
-    placeholder: "Nairobi",
+    placeholder: "Enter your city or town",
     autoComplete: "address-level2",
     required: true,
     maxLength: 80,
@@ -104,7 +110,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     name: "state",
     label: "State / Province / Region",
     hint: "Enter your region. If your country has none, put the city again.",
-    placeholder: "Nairobi County",
+    placeholder: "Enter your state, province or region",
     autoComplete: "address-level1",
     required: true,
     maxLength: 80,
@@ -114,7 +120,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     name: "zip",
     label: "Postal / ZIP code",
     hint: "2–12 characters. If your country doesn't use one, enter 00000.",
-    placeholder: "00100",
+    placeholder: "Enter your postal or ZIP code",
     autoComplete: "postal-code",
     required: true,
     maxLength: 12,
@@ -124,7 +130,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     name: "country",
     label: "Country",
     hint: "Pick from the list — it sets your shipping route.",
-    placeholder: "Select a country",
+    placeholder: "Select your country",
     // "country" (not "country-name") because the control's value is the ISO
     // code — this is the token that tells a browser to autofill the code.
     autoComplete: "country",
@@ -136,7 +142,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     name: "phone",
     label: "Phone number",
     hint: "Strongly recommended — the courier calls or texts this to arrange delivery or collection.",
-    placeholder: "+254 712 345 678",
+    placeholder: "Include your country code",
     autoComplete: "tel",
     type: "tel",
     inputMode: "tel",
@@ -227,7 +233,7 @@ export function validateShippingField(
       // Optional — but if given, it must be dialable, because the courier uses
       // it to arrange delivery.
       if (!PHONE_RE.test(v)) {
-        return "Enter a reachable phone number, e.g. +254 712 345 678.";
+        return "Enter a reachable phone number, including your country code.";
       }
       return null;
 
