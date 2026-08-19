@@ -81,6 +81,8 @@ export type Order = {
   stripe_session_id: string | null;
   /** When payment actually cleared — the anchor for the delivery schedule. */
   paid_at?: string | null;
+  /** How it was paid: 'stripe' | 'paypal' | 'manual' (admin marked it). */
+  paid_via?: string | null;
   /** Where the order is in the delivery journey (see lib/fulfillment.ts). */
   fulfillment_stage?: FulfillmentStage;
   stage_updated_at?: string | null;
@@ -140,5 +142,19 @@ export type OrderEvent = {
   title: string;
   detail: string | null;
   email_sent: boolean;
+  created_at: string;
+};
+
+export type ContactMessage = {
+  id: string;
+  name: string | null;
+  email: string;
+  subject: string | null;
+  message: string;
+  /** True once an admin has replied or explicitly marked it done. */
+  handled: boolean;
+  replied_at?: string | null;
+  reply_body?: string | null;
+  replied_by?: string | null;
   created_at: string;
 };

@@ -1,4 +1,4 @@
-# Order tracking & the automated delivery journey
+# Orders, tracking & the support inbox
 
 Every paid order walks a fixed timeline. The customer is emailed at each step
 and can watch the same timeline live on their dashboard.
@@ -107,11 +107,56 @@ Render must be on a plan that doesn't sleep (`starter` or above) for the primary
 scheduler to be reliable. On the free plan, the keep-warm workflow and the
 GitHub backup scheduler are what keep orders moving.
 
-Run **`supabase/migrations/0006_fulfillment_tracking.sql`** before deploying.
+Run **`supabase/migrations/0006_fulfillment_tracking.sql`** and
+**`0007_paid_source_and_replies.sql`** before deploying.
 Until it runs, the tracker degrades to the plain order list and the scheduler
 returns an error telling you exactly which file to run. The migration also
 backfills existing paid orders onto the right stage and marks their past stages
 as already-emailed, so switching this on does not blast old customers.
+
+## Paid orders view
+
+`/admin/orders/paid` shows every order money has actually been received for.
+It's separate from the main orders list because that list includes abandoned
+`pending` rows, which makes it useless for answering "what have we taken?".
+
+Each row carries a **source badge** read from `orders.paid_via`, recorded by
+`markOrderPaid()`:
+
+| Badge | Set by |
+| --- | --- |
+| Stripe | The Stripe webhook on Render, after signature verification |
+| PayPal | The PayPal capture in the app, or the PayPal webhook on Render |
+| Manual | An admin flipping the status to `paid` in the dashboard |
+| Unknown | Orders paid before migration 0007 ran that couldn't be inferred |
+
+Manual is deliberately the odd one out visually: it's the row that didn't come
+from a gateway, so it's the one worth a second look when reconciling takings.
+Migration 0007 backfills existing orders by inspecting `stripe_session_id`
+(`cs_…` means Stripe; anything else non-empty means PayPal).
+
+`fulfilled` orders count as paid — they're paid orders that have since been
+delivered, and excluding them would understate revenue.
+
+## Support inbox
+
+`/admin/messages` is the contact form's inbox. Replying emails the customer via
+Resend with their original message quoted underneath.
+
+**The message row is written by the app** (`lib/actions/contact.ts`) at
+submission time, before the notification email is sent. That ordering is
+deliberate: if the mail provider is down you still have the message. Previously
+only the Render `/contact` endpoint persisted, which meant that on the primary
+direct-Resend path *nothing was ever stored* and this inbox would have been
+permanently empty. Render's endpoint no longer inserts, so messages aren't
+doubled on the fallback path.
+
+A reply is emailed **before** the message is marked replied — if Resend rejects
+it, the message stays flagged unanswered rather than being filed away with a
+reply the customer never got. If the email sends but the record fails to save,
+the admin is told exactly that, so nobody sends it twice.
+
+The nav badge and the overview tile both count `handled = false`.
 
 ## Admin controls
 

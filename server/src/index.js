@@ -7,6 +7,7 @@ import {
   welcomeEmail,
   orderConfirmationEmail,
   fulfillmentEmail,
+  supportReplyEmail,
   newsletterEmail,
   contactEmails,
   sendOwnerAlert,
@@ -72,7 +73,7 @@ app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (re
       // the delivery schedule, the stage timeline and the email templates, and
       // its /api/internal/order-paid is idempotent — so a Stripe retry (or a
       // replayed event) cannot double-charge the customer's inbox.
-      await markOrderPaidInApp({ orderId }).catch((e) =>
+      await markOrderPaidInApp({ orderId, paidVia: "stripe" }).catch((e) =>
         console.error("[stripe webhook] order-paid failed:", e.message)
       );
     }
@@ -124,6 +125,11 @@ app.post("/email/fulfillment", requireInternalKey, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post("/email/support-reply", requireInternalKey, async (req, res) => {
+  try { await supportReplyEmail(req.body || {}); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post("/email/newsletter", requireInternalKey, async (req, res) => {
   try { await newsletterEmail(req.body); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -132,11 +138,9 @@ app.post("/email/newsletter", requireInternalKey, async (req, res) => {
 app.post("/contact", requireInternalKey, async (req, res) => {
   const { name, email, subject, message } = req.body || {};
   if (!email || !message) return res.status(400).json({ error: "email and message required" });
-  // Persist (best-effort) + email
-  const supabase = adminSupabase();
-  if (supabase) {
-    await supabase.from("contact_messages").insert({ name, email, subject, message }).catch(() => {});
-  }
+  // Email only — the APP now writes the contact_messages row before it calls
+  // here (lib/actions/contact.ts), so persisting again would double every
+  // message in the admin inbox.
   try { await contactEmails({ name, email, subject, message }); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -186,7 +190,7 @@ async function handlePayPalEvent(supabase, type, resource) {
     // Same path as Stripe and the synchronous capture: the app performs the
     // transition and owns the emails. Its idempotency guard is what dedupes
     // this webhook against the capture that already ran in the app.
-    await markOrderPaidInApp({ orderId: order.id }).catch((e) =>
+    await markOrderPaidInApp({ orderId: order.id, paidVia: "paypal" }).catch((e) =>
       console.error("[paypal webhook] order-paid failed:", e.message)
     );
     return;
