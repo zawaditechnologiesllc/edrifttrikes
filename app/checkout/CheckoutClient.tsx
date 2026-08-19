@@ -9,17 +9,9 @@ import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeCartTotals } from "@/lib/totals";
 import PayPalCardFields from "@/components/cart/PayPalCardFields";
-
-const FIELDS = [
-  ["first_name", "First name", "col-span-1"],
-  ["last_name", "Last name", "col-span-1"],
-  ["address", "Address", "col-span-2"],
-  ["city", "City", "col-span-1"],
-  ["state", "State / Region", "col-span-1"],
-  ["zip", "Postal code", "col-span-1"],
-  ["country", "Country", "col-span-1"],
-  ["phone", "Phone", "col-span-2"],
-] as const;
+import CheckoutField from "./CheckoutField";
+import { CHECKOUT_FIELDS, validateCheckout } from "@/lib/validation";
+import { ESTIMATED_DELIVERY_DAYS } from "@/lib/fulfillment";
 
 type PaymentMethod = "stripe" | "paypal" | "";
 
@@ -47,6 +39,34 @@ export default function CheckoutClient({
   const [shipping, setShipping] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A field is "touched" once the buyer has left it. Errors only render for
+  // touched fields, so the form doesn't turn red before anyone has typed.
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Live validation of everything, recomputed each render. Cheap (a handful of
+  // regexes) and it keeps the pay button's disabled state honest.
+  const validation = validateCheckout({ email, shipping });
+
+  const markTouched = (name: string) =>
+    setTouched((t) => (t[name] ? t : { ...t, [name]: true }));
+
+  /**
+   * Reveal every problem at once and jump to the first one.
+   *
+   * Called when the buyer tries to pay with an incomplete form. Marking
+   * everything touched is what turns the silent fields red; scrolling means
+   * they don't have to hunt for the offending input on a long form.
+   */
+  function revealErrors(v: typeof validation): void {
+    const all: Record<string, boolean> = { email: true };
+    for (const f of CHECKOUT_FIELDS) all[f.name] = true;
+    setTouched(all);
+    if (!v.firstErrorField) return;
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(v.firstErrorField);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    (el as HTMLInputElement | null)?.focus({ preventScroll: true });
+  }
 
   // Show a chooser only when more than one method is connected. Otherwise use
   // whichever single method is connected (or fall back to the direct/email path).
@@ -61,6 +81,16 @@ export default function CheckoutClient({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Catch it here rather than letting the server bounce it back — the buyer
+    // gets the problem highlighted on the exact field instead of one line of
+    // red text at the bottom of the page.
+    if (!validation.ok) {
+      revealErrors(validation);
+      setError(validation.firstErrorMessage);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/checkout", {
@@ -74,10 +104,28 @@ export default function CheckoutClient({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Checkout failed.");
-      clear();
+      if (!res.ok) {
+        // The server validates independently. If it rejected a field, surface
+        // it on that field rather than as an anonymous failure.
+        if (data.field) {
+          setTouched((t) => ({ ...t, [data.field]: true }));
+          document.getElementById(data.field)?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+        throw new Error(data.error || "Checkout failed.");
+      }
+      // NOTE: the cart is deliberately NOT cleared here. The buyer is about to
+      // be handed to Stripe/PayPal and may well come back without paying —
+      // emptying their cart at that point loses the sale. The confirmation
+      // page clears it once payment has actually gone through
+      // (app/order-confirmation/ClearCartOnMount.tsx).
       if (data.url) window.location.href = data.url; // Stripe or PayPal
-      else router.push(`/order-confirmation?order=${data.orderNumber}`);
+      else {
+        clear();
+        router.push(`/order-confirmation?order=${data.orderNumber}`);
+      }
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);
@@ -87,13 +135,15 @@ export default function CheckoutClient({
   // Inline PayPal card fields (opt-in) — shown for the PayPal path instead of a
   // redirect, so buyers enter their card on this page with no account prompt.
   const showCardFields = paypalCardFields && method === "paypal";
-  const requiredShip = FIELDS.filter(([k]) => k !== "phone").map(([k]) => k);
+  /**
+   * Gate for the inline card fields. Returns the specific problem rather than
+   * "fill in all shipping fields above" — and highlights it, so the buyer isn't
+   * left scanning the form for whatever is missing.
+   */
   const validatePayment = (): string | null => {
-    if (!email.trim()) return "Enter your email above first.";
-    for (const k of requiredShip) {
-      if (!(shipping[k] || "").trim()) return "Fill in all shipping fields above first.";
-    }
-    return null;
+    if (validation.ok) return null;
+    revealErrors(validation);
+    return validation.firstErrorMessage;
   };
   const cardPayload = () => ({
     email,
@@ -125,11 +175,18 @@ export default function CheckoutClient({
         ? "Pay with PayPal or card"
         : `Pay ${formatMoney(totals.total)} securely`;
 
+  // Mirrors the real journey in lib/fulfillment.ts — the emails a buyer
+  // actually receives. Quoting a different window here than the one the system
+  // then emails them is how a store ends up arguing with its own customers.
   const STEPS = [
-    ["1", "Place your order", "Pay securely by card or PayPal."],
-    ["2", "Confirmation email", "Your receipt arrives within minutes."],
-    ["3", "We ship it", "Tracking is emailed the moment it leaves."],
-    ["4", "Delivery", "12–20 days depending on the route."],
+    ["1", "Place your order", "Pay securely by card or PayPal. Receipt emailed straight away."],
+    ["2", "Payment confirmed", "We confirm and start preparing your build."],
+    ["3", "Shipped", "Leaves the garage in about 3 days. Tracking is emailed."],
+    [
+      "4",
+      "Delivery",
+      `Around ${ESTIMATED_DELIVERY_DAYS} days, tracked at every step on your dashboard.`,
+    ],
   ] as const;
 
   const methodBtn = (active: boolean) =>
@@ -171,38 +228,81 @@ export default function CheckoutClient({
 
         <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-10">
-            <section className="bg-surface-container-low p-8 border border-white/10 rounded-lg">
-              <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary mb-6">01 — Contact</h2>
-              <label className="block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest">Email address</label>
+            <section className="bg-surface-container-low p-6 sm:p-8 border border-white/10 rounded-lg">
+              <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary mb-1">01 — Contact</h2>
+              <p className="text-on-surface-variant text-sm mb-6">
+                We send your receipt and every delivery update to this address.
+              </p>
+              <label
+                htmlFor="email"
+                className="block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest"
+              >
+                Email address <span className="text-secondary ml-1">*</span>
+              </label>
               <input
+                id="email"
+                name="email"
                 type="email"
                 required
+                maxLength={254}
+                autoComplete="email"
                 value={email}
+                aria-describedby={
+                  touched.email && validation.errors.email ? "email-error" : "email-hint"
+                }
+                aria-invalid={(touched.email && Boolean(validation.errors.email)) || undefined}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="RACER@EDRIFT.COM"
-                className="w-full bg-surface-container-highest border border-white/10 text-white p-4 rounded focus:border-secondary focus:ring-0"
+                onBlur={() => markTouched("email")}
+                placeholder="you@example.com"
+                className={`w-full bg-surface-container-highest border text-white p-4 rounded focus:ring-0 placeholder:text-outline transition-colors ${
+                  touched.email && validation.errors.email
+                    ? "border-error focus:border-error"
+                    : "border-white/10 focus:border-secondary"
+                }`}
               />
+              {touched.email && validation.errors.email ? (
+                <p id="email-error" className="text-error text-xs mt-1.5">
+                  {validation.errors.email}
+                </p>
+              ) : (
+                <p id="email-hint" className="text-outline text-xs mt-1.5">
+                  Double-check it — a typo here means you never get your tracking updates.
+                </p>
+              )}
             </section>
 
-            <section className="bg-surface-container-low p-8 border border-white/10 rounded-lg">
-              <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary mb-6">02 — Shipping</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {FIELDS.map(([key, label, span]) => (
-                  <div key={key} className={span}>
-                    <label className="block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest">{label}</label>
-                    <input
-                      required={key !== "phone"}
-                      value={shipping[key] || ""}
-                      onChange={(e) => setShipping((s) => ({ ...s, [key]: e.target.value }))}
-                      className="w-full bg-surface-container-highest border border-white/10 text-white p-4 rounded focus:border-secondary focus:ring-0"
-                    />
-                  </div>
+            <section className="bg-surface-container-low p-6 sm:p-8 border border-white/10 rounded-lg">
+              <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary mb-1">02 — Shipping address</h2>
+              <p className="text-on-surface-variant text-sm mb-6">
+                Where the rig is delivered. Fields marked{" "}
+                <span className="text-secondary">*</span> are required — your browser
+                can fill most of this for you.
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+                {CHECKOUT_FIELDS.map((spec) => (
+                  <CheckoutField
+                    key={spec.name}
+                    spec={spec}
+                    value={shipping[spec.name] || ""}
+                    error={validation.errors[spec.name]}
+                    touched={Boolean(touched[spec.name])}
+                    // No need to re-check on change: the field renders an error
+                    // only while `touched && error`, so correcting the value
+                    // clears the message on the very next keystroke.
+                    onChange={(value) =>
+                      setShipping((prev) => ({ ...prev, [spec.name]: value }))
+                    }
+                    onBlur={() => markTouched(spec.name)}
+                  />
                 ))}
               </div>
             </section>
 
             {error && (
-              <p className="bg-error-container/30 border border-error/40 text-error-container px-4 py-3 rounded font-label-bold uppercase tracking-widest text-sm">
+              <p
+                role="alert"
+                className="bg-error-container/30 border border-error/40 text-error-container px-4 py-3 rounded text-sm"
+              >
                 {error}
               </p>
             )}

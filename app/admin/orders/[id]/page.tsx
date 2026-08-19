@@ -82,8 +82,15 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
             <p className="text-white text-sm leading-relaxed">
               {[addr.first_name, addr.last_name].filter(Boolean).join(" ")}<br />
               {addr.address}<br />
+              {addr.address2 && <>{addr.address2}<br /></>}
               {[addr.city, addr.state, addr.zip].filter(Boolean).join(", ")}<br />
               {addr.country}
+              {addr.phone && (
+                <>
+                  <br />
+                  <span className="text-on-surface-variant">{addr.phone}</span>
+                </>
+              )}
             </p>
           </div>
           {order.paid_at && (
