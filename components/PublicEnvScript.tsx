@@ -1,4 +1,10 @@
-import { supabaseUrl, supabaseAnonKey, paypalClientId, paypalCardFieldsEnabled } from "@/lib/env";
+import {
+  supabaseUrl,
+  supabaseAnonKey,
+  paypalClientId,
+  paypalCardFieldsEnabled,
+  turnstileSiteKey,
+} from "@/lib/env";
 
 /**
  * Server component that exposes PUBLIC config to the browser as
@@ -17,6 +23,7 @@ export default function PublicEnvScript() {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey() ?? "",
     NEXT_PUBLIC_PAYPAL_CLIENT_ID: paypalClientId() ?? "",
     NEXT_PUBLIC_PAYPAL_CARD_FIELDS: paypalCardFieldsEnabled() ? "1" : "",
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey() ?? "",
   };
   return (
     <script
