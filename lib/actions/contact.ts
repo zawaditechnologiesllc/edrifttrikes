@@ -1,8 +1,9 @@
 "use server";
 
-import { sendContactMessage } from "@/lib/email";
+import { sendContactMessage, type ContactSendResult } from "@/lib/email";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
+import { COMPANY } from "@/lib/company";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -18,6 +19,10 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
  *
  * Order matters: persist first, email second. If the mail provider is down we
  * still have the message and the admin can reply from the dashboard.
+ *
+ * NOTHING IN HERE MAY THROW. An uncaught throw in a server action surfaces as
+ * a 500 in the customer's browser. Every failure below is caught and turned
+ * into a returned state.
  */
 export async function submitContact(
   _prev: { ok?: boolean; error?: string } | undefined,
@@ -36,18 +41,52 @@ export async function submitContact(
   const passed = await verifyTurnstile(String(formData.get("cf-turnstile-response") || ""));
   if (!passed) return { error: "Verification failed. Please try again." };
 
-  // Best-effort persist. A storage failure must not lose the customer their
-  // message — the email still goes out and we log the reason.
+  // --- 1. Capture the message ------------------------------------------------
+  let stored = false;
   if (adminConfigured()) {
-    const { error } = await createAdminClient()
-      .from("contact_messages")
-      .insert({ name: name || null, email, subject: subject || null, message });
-    if (error) {
-      console.error("[contact] could not store message:", error.message);
+    try {
+      const { error } = await createAdminClient()
+        .from("contact_messages")
+        .insert({ name: name || null, email, subject: subject || null, message });
+      if (error) {
+        console.error("[contact] could not store message:", error.message);
+      } else {
+        stored = true;
+      }
+    } catch (e) {
+      console.error("[contact] storage threw:", String((e as Error)?.message || e));
     }
   }
 
-  const res = await sendContactMessage({ name, email, subject, message });
-  if ((res as { error?: boolean })?.error) return { error: "Could not send. Try again." };
-  return { ok: true };
+  // --- 2. Notify the store and acknowledge the sender ------------------------
+  let sent: ContactSendResult = { ownerNotified: false, customerAcknowledged: false };
+  try {
+    sent = await sendContactMessage({ name, email, subject, message });
+  } catch (e) {
+    // sendContactMessage is written not to throw; this is the belt to its
+    // braces, because the cost of being wrong is a 500 on a support form.
+    console.error("[contact] send threw:", String((e as Error)?.message || e));
+  }
+
+  // --- 3. Decide what to tell the customer -----------------------------------
+  // The message counts as delivered if it landed ANYWHERE we'll see it: the
+  // admin inbox or the store's mailbox. A failed acknowledgement email is not
+  // the customer's problem and must not be reported as a failure — telling
+  // someone their message failed when it is sitting in /admin/messages is worse
+  // than saying nothing, because they give up instead of waiting for a reply.
+  if (stored || sent.ownerNotified) {
+    if (!sent.customerAcknowledged) {
+      console.warn(
+        `[contact] message from ${email} captured but no acknowledgement sent` +
+          (sent.error ? `: ${sent.error}` : "")
+      );
+    }
+    return { ok: true };
+  }
+
+  // Nothing captured it — say so honestly and give them another way through.
+  console.error(`[contact] LOST message from ${email}${sent.error ? `: ${sent.error}` : ""}`);
+  return {
+    error: `We couldn't record your message just now. Please email us directly at ${COMPANY.supportEmail} and we'll pick it up.`,
+  };
 }
