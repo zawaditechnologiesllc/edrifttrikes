@@ -90,7 +90,7 @@ export default function AuthForm() {
           label="Commander email"
           name="email"
           type="email"
-          placeholder="PILOT@EDRIFT.COM"
+          placeholder="Enter your email address"
           value={email}
           onChange={setEmail}
           autoComplete="email"

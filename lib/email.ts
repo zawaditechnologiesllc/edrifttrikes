@@ -5,6 +5,7 @@ import {
   stageMessage,
   type FulfillmentStage,
 } from "@/lib/fulfillment";
+import { computeDuty, DEFAULT_DUTY_RATE_BPS } from "@/lib/totals";
 
 /**
  * Email delivery. Primary path: send DIRECTLY via the Resend HTTP API from the
@@ -80,13 +81,36 @@ function orderTable(order: Order): string {
     )
     .join("");
   const shippingCell = order.shipping_cents === 0 ? "FREE" : money(order.shipping_cents, currency);
+  // Import duty is disclosed, never charged — so it sits BELOW the total, in
+  // muted type, with the wording that makes clear who collects it.
+  const duty = computeDuty(order.subtotal_cents);
+  const dutyPct = DEFAULT_DUTY_RATE_BPS / 100;
+  const dutyBlock =
+    duty > 0
+      ? `<div style="margin-top:16px;border-top:1px dashed rgba(255,255,255,0.15);padding-top:12px">
+           <table style="width:100%;border-collapse:collapse">
+             <tr>
+               <td style="color:#8d90a2">Import duty (${dutyPct}%) — not charged by us</td>
+               <td style="text-align:right;color:#8d90a2">${money(duty, currency)}</td>
+             </tr>
+           </table>
+           <p style="margin:8px 0 0;color:#8d90a2;font-size:12px;line-height:1.6">
+             Estimated customs duty on the value of your goods, payable by you to
+             your local government when the shipment arrives. It is not included
+             in the total above and we never collect it. Your country's customs
+             authority sets the exact amount.
+           </p>
+         </div>`
+      : "";
+
   return `
     <table style="width:100%;border-collapse:collapse;margin-top:24px">${rows}
       <tr><td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.1);color:#8d90a2">Subtotal</td><td style="padding:12px 0;border-top:1px solid rgba(255,255,255,0.1);text-align:right;color:#e4e1e6">${money(order.subtotal_cents, currency)}</td></tr>
       <tr><td style="padding:4px 0;color:#8d90a2">Shipping</td><td style="padding:4px 0;text-align:right;color:#e4e1e6">${shippingCell}</td></tr>
       <tr><td style="padding:4px 0;color:#8d90a2">Tax</td><td style="padding:4px 0;text-align:right;color:#e4e1e6">${money(order.tax_cents, currency)}</td></tr>
       <tr><td style="padding:12px 0;font-weight:700;color:#fff">Total</td><td style="padding:12px 0;text-align:right;font-weight:700;color:#c4f731">${money(order.total_cents, currency)}</td></tr>
-    </table>`;
+    </table>
+    ${dutyBlock}`;
 }
 
 // ---- Resend direct send (Workers-safe: plain HTTPS, no SDK) ----

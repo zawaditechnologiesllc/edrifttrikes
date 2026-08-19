@@ -2,8 +2,10 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   computeCartTotals,
+  computeDuty,
   computeTax,
   productShippingCents,
+  DEFAULT_DUTY_RATE_BPS,
   DEFAULT_SHIPPING_CENTS,
   DEFAULT_TAX_RATE_BPS,
 } from "../lib/totals";
@@ -49,7 +51,7 @@ describe("computeCartTotals", () => {
     ...over,
   });
 
-  test("totals = subtotal + shipping + tax", () => {
+  test("totals = subtotal + shipping + tax (duty excluded)", () => {
     const t = computeCartTotals([item()], { shipping_cents: 5000, tax_rate_bps: 800 });
     assert.equal(t.subtotal, 100_000);
     assert.equal(t.shipping, 5000);
@@ -91,13 +93,58 @@ describe("computeCartTotals", () => {
 
   test("an empty cart costs nothing — no phantom shipping or tax", () => {
     const t = computeCartTotals([], { shipping_cents: 5000 });
-    assert.deepEqual(t, { subtotal: 0, shipping: 0, tax: 0, total: 0 });
+    assert.deepEqual(t, { subtotal: 0, shipping: 0, tax: 0, total: 0, duty: 0 });
   });
 
   test("falls back to the documented defaults with no config at all", () => {
     const t = computeCartTotals([item()]);
     assert.equal(t.shipping, DEFAULT_SHIPPING_CENTS);
     assert.equal(t.tax, (100_000 * DEFAULT_TAX_RATE_BPS) / 10_000);
+  });
+});
+
+describe("import duty", () => {
+  test("is 13.5% by default", () => {
+    assert.equal(DEFAULT_DUTY_RATE_BPS, 1350);
+    assert.equal(computeDuty(100_000), 13_500); // 13.5% of $1,000
+  });
+
+  test("is assessed on the goods value, never on the order total", () => {
+    // Charging duty on top of our shipping and sales tax would overstate what
+    // customs will actually bill.
+    const items = [{ price_cents: 100_000, qty: 1 }];
+    const t = computeCartTotals(items, { shipping_cents: 5000, tax_rate_bps: 800 });
+    assert.equal(t.duty, computeDuty(t.subtotal));
+    assert.notEqual(t.duty, computeDuty(t.total));
+  });
+
+  test("IS NOT ADDED TO THE TOTAL — the buyer pays it to their government", () => {
+    // The load-bearing test. `total` is what gets charged to a card; if duty
+    // ever leaks into it, the store is taking money for a tax it does not remit.
+    const items = [{ price_cents: 100_000, qty: 2 }];
+    const config = { shipping_cents: 5000, tax_rate_bps: 800 };
+    const t = computeCartTotals(items, config);
+
+    assert.equal(t.total, t.subtotal + t.shipping + t.tax);
+    assert.ok(t.duty > 0, "duty should still be reported");
+    assert.notEqual(t.total, t.subtotal + t.shipping + t.tax + t.duty);
+  });
+
+  test("rounds to whole cents", () => {
+    const duty = computeDuty(3333);
+    assert.equal(Number.isInteger(duty), true);
+    assert.equal(duty, 450); // 13.5% of 33.33 = 449.955
+  });
+
+  test("honours an override and falls back on nonsense", () => {
+    assert.equal(computeDuty(10_000, { duty_rate_bps: 0 }), 0);
+    assert.equal(computeDuty(10_000, { duty_rate_bps: 500 }), 500);
+    assert.equal(computeDuty(10_000, { duty_rate_bps: -1 }), 1350);
+    assert.equal(computeDuty(10_000, { duty_rate_bps: NaN }), 1350);
+  });
+
+  test("an empty cart owes no duty", () => {
+    assert.equal(computeCartTotals([]).duty, 0);
   });
 });
 

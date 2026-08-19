@@ -6,6 +6,8 @@ import { formatMoney } from "@/lib/format";
 import ClearCartOnMount from "./ClearCartOnMount";
 import { Icon } from "@/components/Icon";
 import OrderTracker from "@/components/storefront/OrderTracker";
+import { DutyRow } from "@/components/storefront/DutyNotice";
+import { computeDuty } from "@/lib/totals";
 
 export const metadata = { title: "Order Confirmed" };
 
@@ -50,6 +52,13 @@ export default async function OrderConfirmation({
               <div className="flex justify-between text-on-surface-variant"><span>Shipping</span><span className="text-white">{order.shipping_cents === 0 ? "FREE" : formatMoney(order.shipping_cents, order.currency)}</span></div>
               <div className="flex justify-between text-on-surface-variant"><span>Tax</span><span className="text-white">{formatMoney(order.tax_cents, order.currency)}</span></div>
               <div className="flex justify-between font-label-bold uppercase tracking-widest pt-2"><span className="text-white">Total</span><span className="text-secondary text-xl">{formatMoney(order.total_cents, order.currency)}</span></div>
+              {/* Recomputed from the stored subtotal rather than persisted: the
+                  store never collects this, so there is nothing to reconcile —
+                  and it keeps the receipt in step with the published rate. */}
+              <DutyRow
+                duty={computeDuty(order.subtotal_cents)}
+                currency={order.currency}
+              />
             </div>
           </div>
         )}

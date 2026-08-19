@@ -406,11 +406,11 @@ The admin dashboard (`/admin`) is gated on `profiles.role = 'admin'`. Signing up
 creates a profile with role `customer`, so promote yourself once:
 
 1. On the **live site**, go to `/login` and **register** with your email
-   (`okoth59@gmail.com`).
+   (the address you registered with).
 2. In Supabase **SQL Editor**, run:
    ```sql
    update public.profiles set role = 'admin'
-   where email = 'okoth59@gmail.com';
+   where email = 'you@example.com';  -- the address you registered with
    ```
 3. Reload `/admin` — you now have access.
 

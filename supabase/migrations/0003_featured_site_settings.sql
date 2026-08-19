@@ -36,5 +36,5 @@ create policy site_settings_admin_write on public.site_settings
 
 -- Placeholder contact info — edit in /admin/settings once deployed.
 insert into public.site_settings (id, company_email, company_phone, address_line1, address_line2)
-values (1, 'hello@edrifttrikes.com', '+1 (555) 010-0000', '100 Drift Lane', 'Los Angeles, CA 90001, USA')
+values (1, 'hello@edrifttrikes.shop', '+1 (555) 010-0000', '100 Drift Lane', 'Los Angeles, CA 90001, USA')
 on conflict (id) do nothing;

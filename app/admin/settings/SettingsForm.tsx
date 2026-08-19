@@ -35,7 +35,7 @@ export default function SettingsForm({ settings }: { settings: SiteSettings }) {
             name="company_email"
             type="email"
             defaultValue={settings.company_email ?? ""}
-            placeholder="hello@edrifttrikes.com"
+            placeholder="hello@edrifttrikes.shop"
             className={input}
           />
         </div>
