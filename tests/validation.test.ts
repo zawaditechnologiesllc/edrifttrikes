@@ -77,6 +77,26 @@ describe("required fields", () => {
       assert.ok(spec.autoComplete.length > 0, `${spec.name} can't be autofilled`);
     }
   });
+
+  test("placeholders instruct — they are never specimen names or addresses", () => {
+    // A sample identity in a form field ("Alex", "Nairobi", "1420 Voltage
+    // Avenue") reads as someone's real data, is easy to mistake for a value
+    // that's already filled in, and only makes sense to buyers from the country
+    // the sample came from. Instructions are phrases and carry no digits;
+    // specimen values are one or two words, or contain numbers.
+    for (const spec of CHECKOUT_FIELDS) {
+      const words = spec.placeholder.trim().split(/\s+/);
+      assert.ok(
+        words.length >= 3,
+        `${spec.name} placeholder "${spec.placeholder}" reads as a sample value, not an instruction`
+      );
+      assert.doesNotMatch(
+        spec.placeholder,
+        /\d/,
+        `${spec.name} placeholder "${spec.placeholder}" contains a specimen number`
+      );
+    }
+  });
 });
 
 describe("names and address", () => {
