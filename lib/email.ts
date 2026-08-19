@@ -104,9 +104,37 @@ async function resendSend(to: string, subject: string, html: string): Promise<{ 
   if (!res.ok) {
     const msg = data?.message || data?.name || `HTTP ${res.status}`;
     console.error(`[email] Resend rejected "${subject}" -> ${to}: ${msg}`);
+    const hint = resendFailureHint(msg);
+    if (hint) console.error(`[email] ${hint}`);
     throw new Error(`Resend: ${msg}`);
   }
   return data;
+}
+
+/**
+ * Turn a Resend rejection into the action that actually fixes it.
+ *
+ * The dominant failure in production is sending from an unverified domain (or
+ * the shared `onboarding@resend.dev` fallback): mail to your OWN address is
+ * accepted, mail to a customer is rejected. That asymmetry is confusing — the
+ * store owner sees their copy arrive and assumes email works — so name it
+ * explicitly in the logs.
+ */
+export function resendFailureHint(message: string): string | null {
+  const m = (message || "").toLowerCase();
+  if (
+    m.includes("only send testing emails") ||
+    m.includes("not verified") ||
+    m.includes("verify a domain") ||
+    m.includes("domain is not verified")
+  ) {
+    return (
+      "Resend will only deliver to your own account address until a sending " +
+      "domain is verified. Verify your domain at resend.com/domains and set " +
+      "EMAIL_FROM to an address on it — mail to customers is being rejected."
+    );
+  }
+  return null;
 }
 
 // ---- Render backend fallback (legacy path) ----
@@ -311,15 +339,48 @@ export async function sendNewsletterConfirmation(email: string) {
   return call("/email/newsletter", { email });
 }
 
+export type ContactSendResult = {
+  /** The store was told about the message — this is the one that matters. */
+  ownerNotified: boolean;
+  /** The customer got their "we got it" acknowledgement. Nice to have. */
+  customerAcknowledged: boolean;
+  /** First failure reason, for logging. Never shown to the customer. */
+  error?: string;
+};
+
+/**
+ * Deliver a contact-form message: notify the store, acknowledge to the sender.
+ *
+ * NEVER THROWS. This is called from a server action, and an uncaught throw
+ * there is a 500 in the customer's browser. It previously returned the
+ * acknowledgement send un-caught, so any Resend rejection on the CUSTOMER's
+ * address — the normal state of affairs until a sending domain is verified —
+ * turned a perfectly good support message into a 500.
+ *
+ * The two sends are reported separately because they are not equally
+ * important: losing the acknowledgement is cosmetic, losing the notification
+ * means nobody knows the customer wrote in.
+ */
 export async function sendContactMessage(msg: {
   name: string;
   email: string;
   subject: string;
   message: string;
-}) {
-  if (directEmail()) {
-    const to = ordersNotify() || emailFrom();
-    const safeName = esc(msg.name) || "A rider";
+}): Promise<ContactSendResult> {
+  if (!directEmail()) {
+    const res = (await call("/contact", msg)) as { error?: boolean; skipped?: boolean };
+    const ok = Boolean(res) && !res.error && !res.skipped;
+    return { ownerNotified: ok, customerAcknowledged: ok };
+  }
+
+  const to = ordersNotify() || emailFrom();
+  const safeName = esc(msg.name) || "A rider";
+
+  let ownerNotified = false;
+  let customerAcknowledged = false;
+  let error: string | undefined;
+
+  try {
     await resendSend(
       to,
       `Support: ${msg.subject || "New message"}`,
@@ -329,8 +390,15 @@ export async function sendContactMessage(msg: {
          <p style="color:#c3c5d9">Subject: ${esc(msg.subject) || "—"}</p>
          <p style="color:#c3c5d9;line-height:1.6">${esc(msg.message)}</p>`
       )
-    ).catch((e) => console.error("[email] contact notify failed", e));
-    return resendSend(
+    );
+    ownerNotified = true;
+  } catch (e) {
+    error = String((e as Error)?.message || e);
+    console.error("[email] contact notify failed:", error);
+  }
+
+  try {
+    await resendSend(
       msg.email,
       "We got your message",
       shell(
@@ -338,8 +406,14 @@ export async function sendContactMessage(msg: {
         `<p style="color:#c3c5d9;line-height:1.6">Thanks ${safeName} — the garage crew will get back to you within one business day.</p>`
       )
     );
+    customerAcknowledged = true;
+  } catch (e) {
+    const reason = String((e as Error)?.message || e);
+    error = error ?? reason;
+    console.error("[email] contact acknowledgement failed:", reason);
   }
-  return call("/contact", msg);
+
+  return { ownerNotified, customerAcknowledged, error };
 }
 
 // ---- Diagnostics (used by /api/health/email) ----
