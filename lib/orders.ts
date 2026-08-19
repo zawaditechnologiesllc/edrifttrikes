@@ -4,9 +4,13 @@
  *
  * Every payment path funnels through here so the behaviour can't drift:
  *   Stripe webhook (Render) → POST /api/internal/order-paid → markOrderPaid()
+ *   PayPal webhook (Render) → POST /api/internal/order-paid → markOrderPaid()
  *   PayPal capture (app)    → markOrderPaid()
  *   Admin sets status=paid  → markOrderPaid()
  *   Scheduler (cron)        → advanceOrder()
+ *
+ * Each records HOW it was paid (`paid_via`), which the admin Paid Orders view
+ * reads back.
  *
  * IDEMPOTENCY is enforced in the database, not in application logic: the
  * `order_events` table has UNIQUE (order_id, stage), so a duplicate webhook, a
@@ -79,6 +83,13 @@ export async function loadOrder(
   return (data as Order) ?? null;
 }
 
+/**
+ * How an order came to be paid. Recorded on the order so the admin Paid Orders
+ * view can distinguish a gateway-confirmed payment from one an admin flipped by
+ * hand — which matters when reconciling takings.
+ */
+export type PaidVia = "stripe" | "paypal" | "manual";
+
 export type PaidResult = {
   ok: boolean;
   /** True when THIS call performed the transition (and sent the email). */
@@ -97,7 +108,7 @@ export type PaidResult = {
 export async function markOrderPaid(
   admin: Admin,
   by: { id?: string; orderNumber?: string; paypalOrderId?: string },
-  opts: { paidAt?: Date; sendEmail?: boolean } = {}
+  opts: { paidAt?: Date; sendEmail?: boolean; paidVia?: PaidVia } = {}
 ): Promise<PaidResult> {
   const order = await loadOrder(admin, by);
   if (!order) return { ok: false, transitioned: false, reason: "order_not_found" };
@@ -125,6 +136,7 @@ export async function markOrderPaid(
       .update({
         status: "paid",
         paid_at: paidAt.toISOString(),
+        paid_via: opts.paidVia ?? "manual",
         fulfillment_stage: "confirmed",
         stage_updated_at: new Date().toISOString(),
         estimated_delivery_at: eta.toISOString(),

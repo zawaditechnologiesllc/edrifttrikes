@@ -335,7 +335,7 @@ export async function updateOrderStatus(
   if (current.status !== status) {
     if (status === "paid") {
       // Route through the shared transition so the customer journey starts.
-      const paid = await markOrderPaid(admin, { id });
+      const paid = await markOrderPaid(admin, { id }, { paidVia: "manual" });
       if (!paid.ok) {
         return { error: `Could not mark paid: ${paid.reason ?? "unknown error"}` };
       }

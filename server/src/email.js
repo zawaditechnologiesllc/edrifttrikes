@@ -163,6 +163,31 @@ export async function fulfillmentEmail({ order, stage, title, body }) {
   );
 }
 
+/**
+ * Admin reply to a support message. Fallback path only — when the app has its
+ * own RESEND_API_KEY it renders and sends this itself (lib/email.ts).
+ */
+export async function supportReplyEmail({ to, name, subject, reply, original }) {
+  if (!to) throw new Error("supportReplyEmail: `to` required");
+  const greeting = name ? `Hi ${esc(name)},` : "Hi,";
+  const replyHtml = esc(reply || "").replace(/\n/g, "<br />");
+  const originalHtml = esc(original || "").replace(/\n/g, "<br />");
+  return send(
+    to,
+    subject || "Re: your message to E-Drift Trikes",
+    shell(
+      "Reply from the garage",
+      `<p style="color:#c3c5d9;line-height:1.6">${greeting}</p>
+       <p style="color:#c3c5d9;line-height:1.6">${replyHtml}</p>
+       <div style="margin-top:32px;border-left:2px solid rgba(255,255,255,0.15);padding-left:16px">
+         <p style="margin:0 0 8px;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">Your original message</p>
+         <p style="margin:0;color:#8d90a2;line-height:1.6;font-size:14px">${originalHtml}</p>
+       </div>
+       <a href="${SITE}/support" style="display:inline-block;margin-top:28px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Write to us again</a>`
+    )
+  );
+}
+
 export async function newsletterEmail({ email }) {
   return send(
     email,

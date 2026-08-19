@@ -33,21 +33,56 @@ export default async function AdminOverview() {
   }
   const admin = createAdminClient();
 
-  const [{ count: products }, { count: orders }, { count: customers }, { data: paid }, { data: recent }] =
-    await Promise.all([
-      admin.from("products").select("*", { count: "exact", head: true }),
-      admin.from("orders").select("*", { count: "exact", head: true }),
-      admin.from("profiles").select("*", { count: "exact", head: true }),
-      admin.from("orders").select("total_cents").in("status", ["paid", "fulfilled"]),
-      admin.from("orders").select("*").order("created_at", { ascending: false }).limit(6),
-    ]);
+  const [
+    { count: products },
+    { count: orders },
+    { count: customers },
+    { data: paid },
+    { data: recent },
+    unansweredMessages,
+  ] = await Promise.all([
+    admin.from("products").select("*", { count: "exact", head: true }),
+    admin.from("orders").select("*", { count: "exact", head: true }),
+    admin.from("profiles").select("*", { count: "exact", head: true }),
+    admin.from("orders").select("total_cents").in("status", ["paid", "fulfilled"]),
+    admin.from("orders").select("*").order("created_at", { ascending: false }).limit(6),
+    // Best-effort: a missing contact_messages table must not break the whole
+    // overview, so this resolves to 0 rather than rejecting. Wrapped in an
+    // async function because the Supabase builder is a PromiseLike, not a real
+    // Promise — it has no .catch() to hang the fallback off.
+    (async () => {
+      try {
+        const { count, error } = await admin
+          .from("contact_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("handled", false);
+        return error ? 0 : (count ?? 0);
+      } catch {
+        return 0;
+      }
+    })(),
+  ]);
 
   const revenue = (paid ?? []).reduce((n, o) => n + (o.total_cents as number), 0);
+  const paidCount = (paid ?? []).length;
 
   const stats = [
-    { label: "Revenue", value: formatMoney(revenue), icon: "payments" },
-    { label: "Orders", value: String(orders ?? 0), icon: "receipt_long" },
-    { label: "Products", value: String(products ?? 0), icon: "inventory_2" },
+    {
+      label: "Revenue",
+      value: formatMoney(revenue),
+      icon: "payments",
+      href: "/admin/orders/paid",
+      hint: `${paidCount} paid order${paidCount === 1 ? "" : "s"}`,
+    },
+    { label: "Orders", value: String(orders ?? 0), icon: "receipt_long", href: "/admin/orders" },
+    { label: "Products", value: String(products ?? 0), icon: "inventory_2", href: "/admin/products" },
+    {
+      label: "Messages",
+      value: String(unansweredMessages),
+      icon: "mail",
+      href: "/admin/messages",
+      hint: unansweredMessages > 0 ? "Awaiting a reply" : "All answered",
+    },
     { label: "Riders", value: String(customers ?? 0), icon: "group" },
   ];
 
@@ -55,14 +90,34 @@ export default async function AdminOverview() {
     <div className="p-8">
       <h1 className="font-display-lg text-display-lg-mobile text-white uppercase mb-8">Control Room</h1>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-gutter mb-12">
-        {stats.map((s) => (
-          <div key={s.label} className="bg-surface-container border border-white/10 rounded-lg p-6">
-            <Icon name={s.icon} className="w-6 h-6 text-secondary" />
-            <p className="text-3xl font-headline-md text-white mt-3">{s.value}</p>
-            <p className="text-on-surface-variant text-xs uppercase tracking-widest font-label-bold mt-1">{s.label}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-gutter mb-12">
+        {stats.map((s) => {
+          const tile = (
+            <>
+              <Icon name={s.icon} className="w-6 h-6 text-secondary" />
+              <p className="text-3xl font-headline-md text-white mt-3">{s.value}</p>
+              <p className="text-on-surface-variant text-xs uppercase tracking-widest font-label-bold mt-1">{s.label}</p>
+              {s.hint && (
+                <p className="text-outline text-[11px] mt-1">{s.hint}</p>
+              )}
+            </>
+          );
+          // Tiles that lead somewhere useful become links; the rest stay plain
+          // so nothing looks clickable that isn't.
+          return s.href ? (
+            <Link
+              key={s.label}
+              href={s.href}
+              className="bg-surface-container border border-white/10 rounded-lg p-6 hover:border-secondary/40 hover:bg-white/5 transition-colors"
+            >
+              {tile}
+            </Link>
+          ) : (
+            <div key={s.label} className="bg-surface-container border border-white/10 rounded-lg p-6">
+              {tile}
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-center justify-between mb-4">

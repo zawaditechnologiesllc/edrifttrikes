@@ -105,7 +105,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${siteUrl}/checkout?error=paypal`);
   }
 
-  await markOrderPaid(admin, { id: order.id });
+  await markOrderPaid(admin, { id: order.id }, { paidVia: "paypal" });
 
   return NextResponse.redirect(`${siteUrl}/order-confirmation?order=${orderNumber}`);
 }
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "capture_mismatch" }, { status: 400 });
   }
 
-  await markOrderPaid(admin, { id: order.id });
+  await markOrderPaid(admin, { id: order.id }, { paidVia: "paypal" });
 
   return NextResponse.json({ ok: true, orderNumber: order.order_number });
 }

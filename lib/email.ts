@@ -252,6 +252,51 @@ export async function sendFulfillmentEmail(
   );
 }
 
+/**
+ * An admin's reply to a customer's support message, sent from /admin/messages.
+ *
+ * Quotes the original underneath the reply so the customer has the context —
+ * this may land days after they wrote in, and a bare answer to a forgotten
+ * question is worse than no answer.
+ */
+export async function sendSupportReply(msg: {
+  to: string;
+  name?: string | null;
+  subject?: string | null;
+  reply: string;
+  original: string;
+}) {
+  const site = publicSiteUrl() || "";
+  const greeting = msg.name ? `Hi ${esc(msg.name)},` : "Hi,";
+  const subject = msg.subject
+    ? `Re: ${msg.subject}`
+    : "Re: your message to E-Drift Trikes";
+
+  // Preserve the admin's line breaks; escape first so the reply text can never
+  // inject markup into the email.
+  const replyHtml = esc(msg.reply).replace(/\n/g, "<br />");
+  const originalHtml = esc(msg.original).replace(/\n/g, "<br />");
+
+  if (!directEmail()) {
+    return call("/email/support-reply", { ...msg, subject });
+  }
+
+  return resendSend(
+    msg.to,
+    subject,
+    shell(
+      "Reply from the garage",
+      `<p style="color:#c3c5d9;line-height:1.6">${greeting}</p>
+       <p style="color:#c3c5d9;line-height:1.6">${replyHtml}</p>
+       <div style="margin-top:32px;border-left:2px solid rgba(255,255,255,0.15);padding-left:16px">
+         <p style="margin:0 0 8px;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">Your original message</p>
+         <p style="margin:0;color:#8d90a2;line-height:1.6;font-size:14px">${originalHtml}</p>
+       </div>
+       <a href="${site}/support" style="display:inline-block;margin-top:28px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Write to us again</a>`
+    )
+  );
+}
+
 export async function sendNewsletterConfirmation(email: string) {
   if (directEmail()) {
     return resendSend(

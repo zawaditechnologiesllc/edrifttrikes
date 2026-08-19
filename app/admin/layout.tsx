@@ -1,16 +1,36 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/db";
-import { supabaseConfigured } from "@/lib/supabase/admin";
+import { supabaseConfigured, createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { signOut } from "@/app/login/actions";
 import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "Admin" };
 
+/**
+ * Count of contact messages nobody has answered yet, shown as a badge on the
+ * Messages nav item. Best-effort: a missing table (migration 0002/0007 not run)
+ * must not take down every admin page, so failures degrade to no badge.
+ */
+async function unreadMessageCount(): Promise<number> {
+  if (!adminConfigured()) return 0;
+  try {
+    const { count, error } = await createAdminClient()
+      .from("contact_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("handled", false);
+    return error ? 0 : (count ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
 const NAV = [
   { href: "/admin", label: "Overview", icon: "dashboard" },
   { href: "/admin/products", label: "Products", icon: "inventory_2" },
   { href: "/admin/orders", label: "Orders", icon: "receipt_long" },
+  { href: "/admin/orders/paid", label: "Paid orders", icon: "payments" },
+  { href: "/admin/messages", label: "Messages", icon: "mail", badge: true },
   { href: "/admin/categories", label: "Categories", icon: "category" },
   { href: "/admin/articles", label: "Tech Lab", icon: "article" },
   { href: "/admin/settings", label: "Settings", icon: "settings" },
@@ -39,6 +59,8 @@ export default async function AdminLayout({
   if (!profile) redirect("/login");
   if (profile.role !== "admin") redirect("/account");
 
+  const unread = await unreadMessageCount();
+
   return (
     <div className="min-h-screen bg-surface-container-lowest text-on-surface flex">
       <aside className="w-64 shrink-0 border-r border-white/10 bg-surface-container-low hidden md:flex flex-col">
@@ -54,7 +76,12 @@ export default async function AdminLayout({
               className="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant hover:bg-white/5 hover:text-white font-label-bold text-sm uppercase tracking-widest transition-colors"
             >
               <Icon name={n.icon} className="w-5 h-5" />
-              {n.label}
+              <span className="flex-1">{n.label}</span>
+              {n.badge && unread > 0 && (
+                <span className="rounded-full bg-secondary text-on-secondary-fixed px-2 py-0.5 text-[10px] leading-none">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

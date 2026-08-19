@@ -48,6 +48,12 @@ The system is split into two deployables:
   save a tracking number / courier — each save reports success or the exact
   error. Marking an order **paid** by hand starts the delivery journey and
   emails the customer, exactly as a payment webhook would.
+- **Paid orders** (`/admin/orders/paid`): everything money has actually been
+  received for, whether confirmed by a Stripe/PayPal webhook or marked paid by
+  an admin. Revenue totals, a source badge per order, and filters by gateway.
+- **Messages** (`/admin/messages`): the support inbox fed by the contact form,
+  with an unanswered badge in the nav. Reply from the dashboard and the
+  customer is emailed directly, with their original message quoted.
 - Categories and Tech Lab article management.
 - **System** page: one-click catalog **export to JSON** (backup / migrate to a
   fresh project — see [`docs/MIGRATION.md`](./docs/MIGRATION.md)).
@@ -93,7 +99,8 @@ app/
   login/                     # email auth (AuthForm + server actions)
   tech-lab/  tech-lab/[slug]/ # content hub + articles
   our-story/ support/ shipping-warranty/ wishlist/ electric-trikes/
-  admin/                     # dashboard, products, orders, categories, articles
+  admin/                     # dashboard, products, orders, paid orders,
+                             # messages, categories, articles
   api/checkout/  api/paypal/capture/  auth/callback/
   api/cron/orders/           # the fulfillment scheduler
   api/internal/order-paid/   # shared paid transition (called by Render)
@@ -113,6 +120,7 @@ tests/                       # node --test: money math + delivery schedule
 supabase/
   migrations/0001_init.sql   # schema + RLS + storage bucket
   migrations/0006_...sql     # fulfillment tracking + configurable tax
+  migrations/0007_...sql     # payment source + contact-message replies
   seed.sql                   # catalog + articles
 public/assets/               # migrated product/hero imagery
 ```
@@ -127,7 +135,7 @@ npm run dev                    # http://localhost:3000
 
 ### 1. Supabase
 1. Create a project, copy the URL + anon key + service-role key into `.env.local`.
-2. Run **every file in `supabase/migrations/` in order (0001 → 0006)**, then
+2. Run **every file in `supabase/migrations/` in order (0001 → 0007)**, then
    **`supabase/seed.sql`**, in the Supabase SQL editor (or `supabase db push`).
    This creates all tables, RLS policies, the `product-images` storage bucket,
    the order-tracking timeline, and seeds the catalog. Each migration is safe to
@@ -194,7 +202,7 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 | `/login` · `/account` | Email auth + rider dashboard |
 | `/tech-lab` · `/tech-lab/[slug]` | Content hub + articles |
 | `/our-story` · `/support` · `/shipping-warranty` · `/wishlist` | Content pages |
-| `/admin` (+ products, orders, categories, articles) | Admin dashboard |
+| `/admin` (+ products, orders, paid orders, messages, categories, articles) | Admin dashboard |
 | `/api/checkout` · `/api/paypal/capture` · `/auth/callback` | App server endpoints |
 | `/api/cron/orders` · `/api/internal/order-paid` | Internal — shared-secret auth |
 | Render: `/health` `/email/*` `/contact` `/stripe/webhook` `/paypal/webhook` `/orders/advance` | Backend service |

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { isInternalRequest } from "@/lib/internal-auth";
-import { markOrderPaid } from "@/lib/orders";
+import { markOrderPaid, type PaidVia } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * Auth: the INTERNAL_API_KEY shared secret. Idempotent — a replayed Stripe
  * event returns transitioned:false and sends no second email.
  *
- * POST { orderId?, orderNumber?, paypalOrderId? }
+ * POST { orderId?, orderNumber?, paypalOrderId?, paidVia? }
  */
 export async function POST(request: Request) {
   if (!isInternalRequest(request)) {
@@ -30,7 +30,15 @@ export async function POST(request: Request) {
     orderId?: string;
     orderNumber?: string;
     paypalOrderId?: string;
+    paidVia?: string;
   };
+
+  // Whitelist the source rather than storing whatever the caller sent — this
+  // value is displayed to the admin as the record of how money arrived.
+  const paidVia: PaidVia | undefined =
+    body.paidVia === "stripe" || body.paidVia === "paypal" || body.paidVia === "manual"
+      ? body.paidVia
+      : undefined;
 
   const by = {
     id: typeof body.orderId === "string" ? body.orderId : undefined,
@@ -45,7 +53,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await markOrderPaid(createAdminClient(), by);
+  const result = await markOrderPaid(createAdminClient(), by, { paidVia });
   if (!result.ok) {
     return NextResponse.json(
       { ok: false, reason: result.reason },
