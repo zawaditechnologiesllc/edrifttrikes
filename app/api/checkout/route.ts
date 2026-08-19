@@ -4,6 +4,7 @@ import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeCartTotals } from "@/lib/totals";
+import { validateCheckout, normalizeShipping } from "@/lib/validation";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import type { Order } from "@/lib/types";
@@ -15,8 +16,6 @@ type IncomingItem = { productId: string; qty: number };
 const CHECKOUT_PAUSED =
   "We're receiving a very high volume of orders right now — please try again in a few hours.";
 
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
 /** Coerce a client-supplied quantity to a sane positive integer (1–999). */
 function safeQty(v: unknown): number {
   const n = Math.floor(Number(v));
@@ -25,24 +24,18 @@ function safeQty(v: unknown): number {
 }
 
 /**
- * Keep only well-formed string shipping fields and bound their size, so a
- * crafted request can't store an oversized/abusive blob on the order.
+ * Keep only well-formed string values from the client's shipping object.
+ *
+ * Runs BEFORE validation so the validator sees strings, never objects or
+ * numbers a crafted request might have sent.
  */
-function sanitizeShipping(input: unknown): Record<string, string> | null {
-  if (!input || typeof input !== "object") return null;
+function stringFields(input: unknown): Record<string, string> {
+  if (!input || typeof input !== "object") return {};
   const out: Record<string, string> = {};
-  let count = 0;
   for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
-    if (count >= 20) break;
-    if (typeof v !== "string") continue;
-    const key = k.slice(0, 40);
-    const val = v.trim().slice(0, 200);
-    if (val) {
-      out[key] = val;
-      count++;
-    }
+    if (typeof v === "string") out[k] = v;
   }
-  return Object.keys(out).length ? out : null;
+  return out;
 }
 
 export async function POST(request: Request) {
@@ -68,15 +61,24 @@ export async function POST(request: Request) {
 
   const email = (payload.email || "").trim().toLowerCase().slice(0, 254);
   const rawItems = Array.isArray(payload.items) ? payload.items : [];
-  if (!email || rawItems.length === 0) {
-    return NextResponse.json({ error: "Email and at least one item are required." }, { status: 400 });
-  }
-  if (!EMAIL_RE.test(email)) {
-    return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+  if (rawItems.length === 0) {
+    return NextResponse.json({ error: "Your cart is empty." }, { status: 400 });
   }
   // Bound the work a single request can cause (DB lookups, order rows).
   if (rawItems.length > 50) {
     return NextResponse.json({ error: "Too many items in one order." }, { status: 400 });
+  }
+
+  // Validate the contact + address with the SAME rules the form uses
+  // (lib/validation.ts). The browser check is a convenience for the buyer; this
+  // is the one that decides whether an order is created, because anything can
+  // POST here. `field` tells the form which input to highlight.
+  const check = validateCheckout({ email, shipping: stringFields(payload.shipping) });
+  if (!check.ok) {
+    return NextResponse.json(
+      { error: check.firstErrorMessage, field: check.firstErrorField },
+      { status: 400 }
+    );
   }
 
   // Normalize incoming items: keep only string product ids, coerce quantities
@@ -96,7 +98,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No valid items in cart." }, { status: 400 });
   }
 
-  const shipping = sanitizeShipping(payload.shipping);
+  // Trimmed, length-bounded, whitelisted keys only, with the country stored in
+  // its canonical spelling.
+  const shipping = normalizeShipping(stringFields(payload.shipping));
 
   const admin = createAdminClient();
 
