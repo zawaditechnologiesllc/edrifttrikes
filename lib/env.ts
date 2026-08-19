@@ -88,3 +88,22 @@ export function paypalClientId(): string | undefined {
 export function paypalCardFieldsEnabled(): boolean {
   return (serverEnv("NEXT_PUBLIC_PAYPAL_CARD_FIELDS") || "") === "1";
 }
+
+/**
+ * Turnstile SITE key for the browser widget. Public by design — it ships in the
+ * widget markup.
+ *
+ * Exists for the same reason as the PayPal/Supabase readers: on Cloudflare,
+ * NEXT_PUBLIC_* is inlined at BUILD time, so a key set only as a runtime Worker
+ * variable never reaches the client bundle. Without this, the widget silently
+ * fails to render while the server still demands a token — which rejects every
+ * real submission.
+ */
+export function turnstileSiteKey(): string | undefined {
+  return (
+    serverEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY") ||
+    serverEnv("TURNSTILE_SITE_KEY") ||
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+    undefined
+  );
+}

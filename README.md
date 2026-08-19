@@ -46,6 +46,16 @@ The system is split into two deployables:
   [`lib/totals.ts`](./lib/totals.ts) (`DEFAULT_DUTY_RATE_BPS`).
 - Email-only accounts (no Google/Apple): register, login, logout, order history.
 - Tech Lab content (articles) and newsletter signup.
+- Contact form with Turnstile bot protection and a 2-minute cooldown between
+  messages, enforced server-side (by email **and** a salted IP hash) with a live
+  countdown in the UI.
+
+> **Turnstile on Cloudflare:** set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` as a
+> *runtime* Worker variable and it still reaches the browser — statically
+> prerendered pages read it from `/api/public-env`, dynamic pages from the
+> layout's injected env. If the secret is set but the site key isn't reachable,
+> verification is skipped (with a loud log) rather than rejecting every real
+> visitor.
 
 **Admin dashboard** (`/admin`, gated by `role = 'admin'`):
 - Overview with revenue / orders / products / riders.
@@ -143,7 +153,7 @@ npm run dev                    # http://localhost:3000
 
 ### 1. Supabase
 1. Create a project, copy the URL + anon key + service-role key into `.env.local`.
-2. Run **every file in `supabase/migrations/` in order (0001 → 0008)**, then
+2. Run **every file in `supabase/migrations/` in order (0001 → 0009)**, then
    **`supabase/seed.sql`**, in the Supabase SQL editor (or `supabase db push`).
    This creates all tables, RLS policies, the `product-images` storage bucket,
    the order-tracking timeline, and seeds the catalog. Each migration is safe to

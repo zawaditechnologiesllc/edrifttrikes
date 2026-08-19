@@ -5,6 +5,8 @@ import { useFormStatus } from "react-dom";
 import { subscribeNewsletter } from "@/lib/actions/newsletter";
 import Turnstile from "@/components/Turnstile";
 
+// Build-time value when present; Turnstile falls back to the runtime-injected
+// key (window.__EDRIFT_ENV) when it is not — see components/Turnstile.tsx.
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 function SubmitBtn() {
