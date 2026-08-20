@@ -188,6 +188,27 @@ export async function supportReplyEmail({ to, name, subject, reply, original }) 
   );
 }
 
+/**
+ * Account invite for a guest buyer. Fallback path only — the app renders and
+ * sends this itself when it has RESEND_API_KEY.
+ */
+export async function accountInviteEmail({ to, orderNumber, actionLink, subject }) {
+  if (!to || !actionLink) throw new Error("accountInviteEmail: to and actionLink required");
+  return send(
+    to,
+    subject || `Track order ${orderNumber} — set up your E-Drift account`,
+    shell(
+      "Track your order",
+      `<p style="color:#c3c5d9;line-height:1.6">You placed order <strong style="color:#c4f731">${esc(
+        orderNumber
+      )}</strong> with us as a guest.</p>
+       <p style="color:#c3c5d9;line-height:1.6">Set up an account with this email address and that order — plus every delivery update — appears on your rider dashboard automatically.</p>
+       <a href="${esc(actionLink)}" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Create your account</a>
+       <p style="color:#8d90a2;line-height:1.6;font-size:12px;margin-top:24px">This link signs you in and is for you alone — please don't forward it. If you didn't order from us, you can ignore this email.</p>`
+    )
+  );
+}
+
 export async function newsletterEmail({ email }) {
   return send(
     email,

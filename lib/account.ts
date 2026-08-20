@@ -71,3 +71,20 @@ export function orderOwnershipFilter(
   if (!safe) return owned;
   return `${owned},and(user_id.is.null,email.eq.${safe})`;
 }
+
+/**
+ * Mask an email for display to someone who has not proved they own it.
+ *
+ * "rider@example.com" → "r•••r@example.com". Enough for the buyer to recognise
+ * which address their receipt went to, not enough to harvest the address from
+ * a receipt page reached with only an order number.
+ */
+export function maskEmail(email: string | null | undefined): string {
+  const value = (email ?? "").trim();
+  const at = value.lastIndexOf("@");
+  if (at < 1) return "your email";
+  const local = value.slice(0, at);
+  const domain = value.slice(at);
+  if (local.length <= 2) return `${local[0]}•••${domain}`;
+  return `${local[0]}•••${local[local.length - 1]}${domain}`;
+}

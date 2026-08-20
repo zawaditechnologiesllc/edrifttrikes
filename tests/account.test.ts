@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   filterSafeEmail,
+  maskEmail,
   orderOwnershipFilter,
   verifiedUserEmail,
 } from "../lib/account";
@@ -103,5 +104,33 @@ describe("orderOwnershipFilter", () => {
       f,
       `user_id.eq.${USER},and(user_id.is.null,email.eq.x@y.comuser_id.not.is.null)`
     );
+  });
+});
+
+describe("maskEmail", () => {
+  test("keeps enough for the buyer to recognise their own address", () => {
+    assert.equal(maskEmail("rider@example.com"), "r•••r@example.com");
+    assert.equal(maskEmail("michael@edrifttrikes.shop"), "m•••l@edrifttrikes.shop");
+  });
+
+  test("never reveals the middle of the local part", () => {
+    // The receipt page is reachable with only an order number, so the address
+    // must not be harvestable from it.
+    const masked = maskEmail("verylongaddress@example.com");
+    assert.ok(!masked.includes("verylongaddress"));
+    assert.ok(masked.includes("•••"));
+  });
+
+  test("handles short local parts without exposing them whole", () => {
+    assert.equal(maskEmail("ab@example.com"), "a•••@example.com");
+    assert.equal(maskEmail("a@example.com"), "a•••@example.com");
+  });
+
+  test("degrades safely on junk rather than echoing it back", () => {
+    assert.equal(maskEmail(""), "your email");
+    assert.equal(maskEmail(null), "your email");
+    assert.equal(maskEmail(undefined), "your email");
+    assert.equal(maskEmail("not-an-email"), "your email");
+    assert.equal(maskEmail("@example.com"), "your email");
   });
 });

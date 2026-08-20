@@ -8,6 +8,7 @@ import {
   orderConfirmationEmail,
   fulfillmentEmail,
   supportReplyEmail,
+  accountInviteEmail,
   newsletterEmail,
   contactEmails,
   sendOwnerAlert,
@@ -127,6 +128,11 @@ app.post("/email/fulfillment", requireInternalKey, async (req, res) => {
 
 app.post("/email/support-reply", requireInternalKey, async (req, res) => {
   try { await supportReplyEmail(req.body || {}); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/email/account-invite", requireInternalKey, async (req, res) => {
+  try { await accountInviteEmail(req.body || {}); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 

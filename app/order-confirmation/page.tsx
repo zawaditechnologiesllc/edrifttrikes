@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
-import { getOrderByNumber } from "@/lib/db";
+import { getReceiptByNumber } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 import ClearCartOnMount from "./ClearCartOnMount";
 import { Icon } from "@/components/Icon";
@@ -17,7 +17,12 @@ export default async function OrderConfirmation({
   searchParams: Promise<{ order?: string }>;
 }) {
   const searchParams = await searchParamsPromise;
-  const order = searchParams.order ? await getOrderByNumber(searchParams.order) : null;
+  // Works for a guest who has just paid as well as a signed-in rider; the
+  // guest copy has personal details stripped. See getReceiptByNumber.
+  const receipt = searchParams.order
+    ? await getReceiptByNumber(searchParams.order)
+    : null;
+  const order = receipt?.order ?? null;
 
   return (
     <div className="bg-background text-on-surface min-h-screen flex flex-col">
