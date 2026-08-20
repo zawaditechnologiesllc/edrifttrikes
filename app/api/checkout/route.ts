@@ -7,10 +7,11 @@ import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { matchColor, productColors } from "@/lib/colors";
 import { publicSiteUrl } from "@/lib/env";
 import type { Order } from "@/lib/types";
 
-type IncomingItem = { productId: string; qty: number };
+type IncomingItem = { productId: string; qty: number; color?: string | null };
 
 // Shown when no payment provider is reachable — buyers get a friendly pause
 // message instead of an order that can't be paid.
@@ -85,16 +86,24 @@ export async function POST(request: Request) {
   // Normalize incoming items: keep only string product ids, coerce quantities
   // to sane integers, and collapse duplicates so a client can't smuggle in
   // NaN/negative/huge quantities.
-  const qtyById = new Map<string, number>();
+  // Keyed by product AND colour: the same trike in two colours is two order
+  // lines, so collapsing on product id alone would silently merge them and ship
+  // the wrong thing.
+  const byLine = new Map<string, { productId: string; color: string | null; qty: number }>();
   for (const it of rawItems) {
     const pid = typeof it?.productId === "string" ? it.productId : "";
     if (!pid) continue;
-    qtyById.set(pid, Math.min(999, (qtyById.get(pid) ?? 0) + safeQty(it?.qty)));
+    const color =
+      typeof it?.color === "string" && it.color.trim() ? it.color.trim().slice(0, 40) : null;
+    const key = `${pid}::${color ?? ""}`;
+    const existing = byLine.get(key);
+    byLine.set(key, {
+      productId: pid,
+      color,
+      qty: Math.min(999, (existing?.qty ?? 0) + safeQty(it?.qty)),
+    });
   }
-  const items: IncomingItem[] = [...qtyById.entries()].map(([productId, qty]) => ({
-    productId,
-    qty,
-  }));
+  const items: IncomingItem[] = [...byLine.values()];
   if (items.length === 0) {
     return NextResponse.json({ error: "No valid items in cart." }, { status: 400 });
   }
@@ -118,17 +127,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No valid products in cart." }, { status: 400 });
   }
 
+  // A colour the product doesn't come in must never reach an order — the
+  // packing slip would name something that cannot be shipped. matchColor also
+  // returns the PRODUCT's spelling, so the order reads consistently however the
+  // request capitalised it.
+  let colorError: string | null = null;
+
   const lineItems = items
     .map((i) => {
       const p = products.find((x) => x.id === i.productId);
       if (!p || p.status !== "active") return null;
       const qty = Math.max(1, Math.min(i.qty, p.stock > 0 ? p.stock : i.qty));
+
+      const offered = productColors(p.colors);
+      let color: string | null = null;
+      if (offered.length > 0) {
+        color = matchColor(offered, i.color);
+        if (!color) {
+          colorError =
+            i.color
+              ? `"${String(i.color).slice(0, 40)}" isn't a colour ${p.name} comes in. Please choose again.`
+              : `Choose a colour for ${p.name} before checking out.`;
+          return null;
+        }
+      }
+
       return {
         product_id: p.id as string,
         name: p.name as string,
         slug: p.slug as string,
         price_cents: p.price_cents as number,
         qty,
+        color,
         image_url: p.hero_image as string | null,
         shipping_cents: (p.shipping_cents ?? null) as number | null,
         free_shipping: Boolean(p.free_shipping),
@@ -140,10 +170,15 @@ export async function POST(request: Request) {
     slug: string;
     price_cents: number;
     qty: number;
+    color: string | null;
     image_url: string | null;
     shipping_cents: number | null;
     free_shipping: boolean;
   }[];
+
+  if (colorError) {
+    return NextResponse.json({ error: colorError }, { status: 400 });
+  }
 
   if (lineItems.length === 0) {
     return NextResponse.json({ error: "No purchasable items in cart." }, { status: 400 });
@@ -184,17 +219,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not create order." }, { status: 500 });
   }
 
-  await admin.from("order_items").insert(
-    lineItems.map((i) => ({
-      order_id: order.id,
-      product_id: i.product_id,
-      name: i.name,
-      slug: i.slug,
-      price_cents: i.price_cents,
-      qty: i.qty,
-      image_url: i.image_url,
-    }))
-  );
+  const itemRows = lineItems.map((i) => ({
+    order_id: order.id,
+    product_id: i.product_id,
+    name: i.name,
+    slug: i.slug,
+    price_cents: i.price_cents,
+    qty: i.qty,
+    image_url: i.image_url,
+    color: i.color,
+  }));
+  {
+    const { error } = await admin.from("order_items").insert(itemRows);
+    // Migration 0012 not run yet → no `color` column. Store the line without
+    // it: losing the colour on the record beats losing the whole order.
+    if (error) {
+      console.error("[checkout] order_items insert failed:", error.message);
+      await admin.from("order_items").insert(
+        itemRows.map(({ color: _color, ...rest }) => rest)
+      );
+    }
+  }
 
   // Order confirmation goes out IMMEDIATELY, the moment the buyer places the
   // order — before they are handed to Stripe/PayPal, not after payment clears.
@@ -214,6 +259,7 @@ export async function POST(request: Request) {
       price_cents: i.price_cents,
       qty: i.qty,
       image_url: i.image_url,
+      color: i.color,
     })),
   }).catch((e) => console.error("[checkout] order confirmation email failed:", e));
 

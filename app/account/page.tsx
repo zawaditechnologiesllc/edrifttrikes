@@ -104,7 +104,9 @@ export default async function AccountPage() {
                   <span className="text-secondary font-label-bold">{formatMoney(o.total_cents, o.currency)}</span>
                 </div>
                 <p className="text-on-surface-variant text-sm">
-                  {(o.items ?? []).map((i) => `${i.name} × ${i.qty}`).join("  ·  ")}
+                  {(o.items ?? [])
+                    .map((i) => `${i.name}${i.color ? ` (${i.color})` : ""} × ${i.qty}`)
+                    .join("  ·  ")}
                 </p>
 
                 {/* Live delivery tracking, from payment through to collection. */}

@@ -10,6 +10,7 @@ import { sendAccountInviteEmail } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
 import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
+import { parseColors } from "@/lib/colors";
 
 async function requireAdmin() {
   if (!adminConfigured()) redirect("/login");
@@ -181,16 +182,19 @@ export async function saveProduct(
     free_shipping: formData.get("free_shipping") === "on",
     badge: String(formData.get("badge") || "") || null,
     hero_image: hero,
+    // Parsed on the way in so the stored shape is always canonical, whatever
+    // the admin typed or the .txt import produced.
+    colors: parseColors(String(formData.get("colors") || "")),
   };
 
   // Columns added by later migrations (0003/0005) — stripped and retried if
   // the database hasn't run them yet, so the rest of the product still saves.
   // When that happens the admin gets an explicit warning below: silently
   // dropping the shipping fee looked like the fee being "ignored".
-  const optionalColumns = ["featured", "shipping_cents", "free_shipping"];
+  const optionalColumns = ["featured", "shipping_cents", "free_shipping", "colors"];
   const stripOptional = () => optionalColumns.forEach((c) => delete row[c]);
   const MISSING_MIGRATIONS_WARNING =
-    "Product saved, BUT the featured/shipping settings were NOT stored — your database is missing a migration. Run supabase/migrations/0003_featured_site_settings.sql and 0005_product_shipping.sql in the Supabase SQL Editor (Admin → System shows which are missing), then edit and save this product again.";
+    "Product saved, BUT the featured/shipping/colour settings were NOT stored — your database is missing a migration. Run supabase/migrations/0003_featured_site_settings.sql, 0005_product_shipping.sql and 0012_product_colors.sql in the Supabase SQL Editor (Admin → System shows which are missing), then edit and save this product again.";
   let strippedOptional = false;
 
   let productId = id;

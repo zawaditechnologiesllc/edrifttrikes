@@ -32,6 +32,11 @@ The system is split into two deployables:
 
 **Storefront** — dynamic, data-driven from Supabase:
 - Shop with category / power / sort filters, dynamic product pages, search.
+- **Product colours**: a `Colors:` line in the admin product .txt becomes
+  selectable swatches on the product page. The choice is part of the cart line
+  (one product in two colours is two lines), is validated server-side against
+  what the product actually offers, and is recorded on the order, receipt,
+  emails and packing view.
 - Client cart (drawer + full cart page) with live totals.
 - Checkout that recomputes prices server-side, creates an order, and either
   redirects to **Stripe Checkout** (when configured) or places the order and
@@ -157,7 +162,7 @@ npm run dev                    # http://localhost:3000
 
 ### 1. Supabase
 1. Create a project, copy the URL + anon key + service-role key into `.env.local`.
-2. Run **every file in `supabase/migrations/` in order (0001 → 0011)**, then
+2. Run **every file in `supabase/migrations/` in order (0001 → 0012)**, then
    **`supabase/seed.sql`**, in the Supabase SQL editor (or `supabase db push`).
    This creates all tables, RLS policies, the `product-images` storage bucket,
    the order-tracking timeline, and seeds the catalog. Each migration is safe to

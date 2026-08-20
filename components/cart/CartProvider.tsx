@@ -21,15 +21,32 @@ export type CartItem = {
   // values fall back to the store-wide fee at display time.
   shippingCents?: number | null;
   freeShipping?: boolean;
+  /**
+   * Colour the buyer chose, when the product offers any. Part of the line's
+   * IDENTITY: the same trike in two colours is two cart lines, not one with a
+   * doubled quantity.
+   */
+  color?: string | null;
 };
+
+/**
+ * Identity of a cart line.
+ *
+ * Product id alone is not enough once colours exist. Carts saved before colours
+ * have no colour and key as `id::`, so they keep working untouched.
+ */
+export function cartLineKey(item: Pick<CartItem, "productId" | "color">): string {
+  return `${item.productId}::${item.color ?? ""}`;
+}
 
 type CartContextValue = {
   items: CartItem[];
   count: number;
   subtotalCents: number;
   add: (item: Omit<CartItem, "qty">, qty?: number) => void;
-  setQty: (productId: string, qty: number) => void;
-  remove: (productId: string) => void;
+  /** Keyed by cartLineKey, not product id — colours make those differ. */
+  setQty: (lineKey: string, qty: number) => void;
+  remove: (lineKey: string) => void;
   clear: () => void;
   open: boolean;
   setOpen: (v: boolean) => void;
@@ -60,7 +77,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     setItems((prev) => {
       if (prev.length === 0) return prev;
-      const ids = prev.map((i) => i.productId).join(",");
+      // Distinct product ids — two colours of one product are two lines but a
+      // single product to look up.
+      const ids = [...new Set(prev.map((i) => i.productId))].join(",");
       fetch(`/api/product-info?ids=${encodeURIComponent(ids)}`)
         .then((r) => (r.ok ? r.json() : null))
         .then(
@@ -112,23 +131,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
       subtotalCents: items.reduce((n, i) => n + i.priceCents * i.qty, 0),
       add: (item, qty = 1) =>
         setItems((prev) => {
-          const existing = prev.find((i) => i.productId === item.productId);
+          const key = cartLineKey(item);
+          const existing = prev.find((i) => cartLineKey(i) === key);
           if (existing)
             return prev.map((i) =>
-              i.productId === item.productId
+              cartLineKey(i) === key
                 ? { ...i, qty: clampQty(i.qty + qty, i.stock) }
                 : i
             );
           return [...prev, { ...item, qty: clampQty(qty, item.stock) }];
         }),
-      setQty: (productId, qty) =>
+      setQty: (lineKey, qty) =>
         setItems((prev) =>
           prev.map((i) =>
-            i.productId === productId ? { ...i, qty: clampQty(qty, i.stock) } : i
+            cartLineKey(i) === lineKey ? { ...i, qty: clampQty(qty, i.stock) } : i
           )
         ),
-      remove: (productId) =>
-        setItems((prev) => prev.filter((i) => i.productId !== productId)),
+      remove: (lineKey) =>
+        setItems((prev) => prev.filter((i) => cartLineKey(i) !== lineKey)),
       clear: () => setItems([]),
       open,
       setOpen,

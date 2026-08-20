@@ -607,3 +607,38 @@ months). Only do this once you're sure the site is always HTTPS.
   never committed. (`.env*` is git-ignored.)
 - The service-role key bypasses RLS — treat it like a root password. Rotate it in
   Supabase (Settings → API) if it's ever exposed.
+
+
+## Product colours
+
+Add a `Colors:` line to a product .txt and buyers get swatches to choose from:
+
+```
+Colors: Midnight Black #101010, Voltage Blue #1e5bff
+Hazard Lime
+- Gunmetal #4a4a4a
+```
+
+One line, one per line, or both — a blank line ends the list. `Colours:` works
+too. The hex is optional and only paints the swatch; a colour without one shows
+as a labelled button. Duplicates are dropped and the list is capped at 24.
+
+Import the file in the admin product form and the Colours field fills in, with
+a live swatch preview so a typo shows up there rather than on the live page.
+You can also just type the field directly.
+
+What it changes downstream:
+
+- The product page requires a choice before Add to Cart or Buy Now, and says so
+  if the buyer clicks without picking.
+- The colour is part of the cart line's identity — the same trike in two
+  colours is two lines, not one with a doubled quantity.
+- The checkout API re-validates the colour against the product, so a crafted
+  request can't order a variant that doesn't exist, and stores the product's own
+  spelling on the order line.
+- The colour appears in the cart, at checkout, on the receipt, in the
+  confirmation and shipping emails, on the rider dashboard, and on the admin
+  order page for packing.
+
+Requires `supabase/migrations/0012_product_colors.sql`. Until it runs, products
+save without colours and the admin form warns which migration is missing.
