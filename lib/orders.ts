@@ -21,6 +21,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Order, OrderEvent } from "@/lib/types";
 import { sendFulfillmentEmail } from "@/lib/email";
+import { publicSiteUrl } from "@/lib/env";
 import {
   STAGE_COPY,
   dueStage,
@@ -175,9 +176,19 @@ export async function markOrderPaid(
   const fresh = (await loadOrder(admin, { id: order.id })) ?? order;
 
   if (claimed && opts.sendEmail !== false) {
-    await sendFulfillmentEmail(fresh, "confirmed").catch((e) =>
-      console.error("[orders] confirmed email failed:", e)
+    // A guest buyer has nowhere to track this yet. Resolve that BEFORE the
+    // email goes out so the one message they're most likely to keep carries
+    // the link that sets them up — rather than sending a second email later,
+    // or pointing them at a dashboard that would look empty.
+    const link = await ensureCustomerAccountLink(
+      admin,
+      fresh,
+      publicSiteUrl() || ""
     );
+
+    await sendFulfillmentEmail(fresh, "confirmed", {
+      inviteLink: link.linked ? undefined : link.inviteLink,
+    }).catch((e) => console.error("[orders] confirmed email failed:", e));
   }
 
   return { ok: true, transitioned: claimed, order: fresh };
@@ -289,6 +300,73 @@ export async function setOrderStage(
     );
   }
   return { ok: true, emailed: claimed };
+}
+
+export type AccountLinkResult = {
+  /** True when the order now belongs to an account. */
+  linked: boolean;
+  /** Supabase invite link, when there was no account to link to. */
+  inviteLink?: string;
+  reason?: string;
+};
+
+/**
+ * Make sure an order belongs to a customer account — or produce the invite
+ * that would create one.
+ *
+ * Called automatically when payment clears, and by the admin "connect order"
+ * button, so both routes behave identically.
+ *
+ *  - Order already owned            → nothing to do.
+ *  - An account exists for its email → claim the order for it.
+ *  - No account                      → generate a Supabase invite link. The
+ *    ORDER IS NOT TOUCHED: it stays a guest order until the customer actually
+ *    accepts, so an unaccepted invite leaves no trace of a relationship that
+ *    doesn't exist yet.
+ *
+ * Never throws. It runs inside the payment path, where taking the money and
+ * then failing on an invite would be a far worse outcome than no invite.
+ */
+export async function ensureCustomerAccountLink(
+  admin: Admin,
+  order: Pick<Order, "id" | "email" | "user_id">,
+  siteUrl: string
+): Promise<AccountLinkResult> {
+  try {
+    if (order.user_id) return { linked: true, reason: "already_linked" };
+
+    const email = String(order.email || "").trim().toLowerCase();
+    if (!email) return { linked: false, reason: "no_email" };
+
+    const { data: existing } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (existing?.id) {
+      const claimed = await claimGuestOrders(admin, existing.id as string, email);
+      return { linked: claimed > 0, reason: claimed > 0 ? "claimed" : "claim_failed" };
+    }
+
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo: `${siteUrl}/auth/callback?next=/account` },
+    });
+    if (error) {
+      // The commonest cause is an auth user existing without a profile row —
+      // not worth failing a payment over.
+      console.error("[orders] invite link failed:", error.message);
+      return { linked: false, reason: error.message };
+    }
+    const inviteLink = data?.properties?.action_link;
+    if (!inviteLink) return { linked: false, reason: "no_link_returned" };
+    return { linked: false, inviteLink };
+  } catch (e) {
+    console.error("[orders] account link failed:", String((e as Error)?.message || e));
+    return { linked: false, reason: String((e as Error)?.message || e) };
+  }
 }
 
 /**

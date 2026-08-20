@@ -20,6 +20,31 @@ Change a number in `FULFILLMENT_SCHEDULE` or a sentence in `STAGE_COPY` and the
 scheduler, the emails, the admin panel and the customer tracker all follow. Do
 not hardcode a day count or a message anywhere else.
 
+## What the emails contain
+
+**The payment-confirmed email is a complete receipt** — the document a customer
+keeps. It has to answer, months later and without them logging in: what did I
+buy, what did I pay, where is it going, and who do I chase. So it carries the
+order number, the date placed, the date paid, the estimated delivery, every
+line item, subtotal / shipping / tax / total, the import-duty disclosure, the
+full delivery address, and the support address to quote the order number to.
+
+The same receipt block appears on the order-received email sent at checkout.
+Later stage emails (shipped, arriving, ready for collection) are short status
+updates and deliberately do not repeat it.
+
+**Guest buyers get an account invite in that same email.** When payment clears
+on an order with no account behind it, `markOrderPaid` resolves the account
+question BEFORE sending — linking the order if an account already exists for
+that address, or generating a Supabase invite link if not. The link goes in the
+confirmation itself rather than a second email, because that is the message a
+buyer actually opens, and it replaces a "Track your order" button that would
+otherwise point at an empty dashboard.
+
+Following the link signs them in and confirms their address, which is exactly
+what attaches the order (see the guest-order section below). Until they accept,
+the order is untouched.
+
 ## The two emails at purchase time
 
 These are deliberately separate:
