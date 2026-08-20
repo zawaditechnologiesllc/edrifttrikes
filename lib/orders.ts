@@ -291,6 +291,52 @@ export async function setOrderStage(
   return { ok: true, emailed: claimed };
 }
 
+/**
+ * Attach a buyer's guest orders to their account.
+ *
+ * Buyers check out without an account, so those orders carry user_id = NULL.
+ * When the same person registers, this links every order placed with their
+ * email so their history is permanently theirs — visible on the dashboard,
+ * and owned by them at the RLS level rather than only matched by email.
+ *
+ * ⚠️ The CALLER must have established that the email is confirmed. This
+ * function trusts what it is given; passing an unverified address here would
+ * hand one person another's orders — name, address, phone and all. See
+ * verifiedUserEmail() in lib/db.ts, which is the only intended caller path.
+ *
+ * Idempotent: rows already claimed have a non-null user_id and are skipped, so
+ * running it on every dashboard view costs one indexed read and nothing else.
+ */
+export async function claimGuestOrders(
+  admin: Admin,
+  userId: string,
+  verifiedEmail: string
+): Promise<number> {
+  const email = verifiedEmail.trim().toLowerCase();
+  if (!userId || !email) return 0;
+
+  const { data, error } = await admin
+    .from("orders")
+    .update({ user_id: userId })
+    .is("user_id", null)
+    .eq("email", email)
+    .select("id");
+
+  if (error) {
+    // Never let this break the dashboard — RLS already lets the user read
+    // unclaimed orders placed with their confirmed email (migration 0010), so
+    // a failure here costs the permanent link, not the visibility.
+    console.error("[orders] could not claim guest orders:", error.message);
+    return 0;
+  }
+
+  const claimed = data?.length ?? 0;
+  if (claimed > 0) {
+    console.log(`[orders] linked ${claimed} guest order(s) to account ${userId}`);
+  }
+  return claimed;
+}
+
 /** Timeline for the customer-facing tracker, oldest first. */
 export async function loadOrderEvents(
   admin: Admin,

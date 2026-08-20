@@ -1,8 +1,9 @@
 import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
-import { supabaseConfigured } from "@/lib/supabase/admin";
+import { supabaseConfigured, adminConfigured, createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/company";
+import { orderOwnershipFilter, verifiedUserEmail } from "@/lib/account";
 import type { Article, Category, Order, Product, Profile, SiteSettings } from "@/lib/types";
 
 /**
@@ -215,6 +216,21 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   return (data as Profile) ?? null;
 }
 
+/**
+ * Every order belonging to the signed-in rider — including the ones they placed
+ * as a guest, before they had an account.
+ *
+ * Guest checkouts store user_id = NULL, so matching on user_id alone hid a
+ * buyer's own purchase history from them permanently. Two mechanisms cover it:
+ *
+ *  1. `claimGuestOrders` links those rows to the account, making the ownership
+ *     permanent (and correct at the RLS level) rather than re-derived forever.
+ *  2. The query still matches unclaimed rows by confirmed email, so the
+ *     dashboard is right even on the request where claiming failed or the
+ *     migration hasn't run.
+ *
+ * Both are gated on a CONFIRMED email — see verifiedUserEmail above.
+ */
 export async function getMyOrders(): Promise<Order[]> {
   if (!supabaseConfigured()) return [];
   const supabase = await createClient();
@@ -222,10 +238,31 @@ export async function getMyOrders(): Promise<Order[]> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return [];
+
+  const email = verifiedUserEmail(user);
+
+  // Link any guest orders to this account first, so what follows is simply
+  // "their orders". Best-effort: the query below still finds them if it fails.
+  if (email && adminConfigured()) {
+    try {
+      // Imported lazily: lib/orders pulls in the email templates, and lib/db is
+      // imported by nearly every page — a static import would put the mail
+      // stack in all of their bundles for the sake of one dashboard call.
+      const { claimGuestOrders } = await import("@/lib/orders");
+      await claimGuestOrders(createAdminClient(), user.id, email);
+    } catch (e) {
+      console.error("[db] claiming guest orders failed:", String((e as Error)?.message || e));
+    }
+  }
+
+  // Covers both routes in one round trip: rows already owned, plus unclaimed
+  // rows placed with this confirmed address. See lib/account.ts.
+  const ownership = orderOwnershipFilter(user.id, email);
+
   const { data, error } = await supabase
     .from("orders")
     .select("*, items:order_items(*), events:order_events(*)")
-    .eq("user_id", user.id)
+    .or(ownership)
     .order("created_at", { ascending: false });
 
   // order_events arrives with migration 0006. On a database that hasn't run it
@@ -235,7 +272,7 @@ export async function getMyOrders(): Promise<Order[]> {
     const { data: fallback } = await supabase
       .from("orders")
       .select("*, items:order_items(*)")
-      .eq("user_id", user.id)
+      .or(ownership)
       .order("created_at", { ascending: false });
     return (fallback as Order[]) ?? [];
   }

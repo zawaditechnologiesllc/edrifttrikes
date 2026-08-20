@@ -158,6 +158,41 @@ the admin is told exactly that, so nobody sends it twice.
 
 The nav badge and the overview tile both count `handled = false`.
 
+## Guest orders on the rider dashboard
+
+Buyers check out without an account, so those orders are stored with
+`user_id = NULL`. When the same person registers later, their history follows
+them — matched on the email they checked out with.
+
+Two mechanisms, deliberately overlapping:
+
+1. **RLS** lets a signed-in user read an unclaimed order placed with their
+   email, so the dashboard is right even if the claim below hasn't run.
+2. **`claimGuestOrders()`** (`lib/orders.ts`) sets `user_id` on those rows,
+   making the link permanent rather than re-derived on every request. It runs
+   on every dashboard load and is idempotent — a claimed row has a non-null
+   `user_id` and is skipped, so the steady-state cost is one indexed read.
+
+Migration 0010 also backfills: anyone who bought as a guest and registered
+*before* it ran sees their history on their next visit.
+
+Order status keeps updating exactly as before — the scheduler selects on status
+and stage, not on who owns the row, so linking an order changes nothing about
+its journey.
+
+### ⚠️ The security gate
+
+The match is gated on the account's email being **confirmed**
+(`verifiedUserEmail` in [`lib/account.ts`](../lib/account.ts), and
+`public.current_user_email()` in the database). Without that gate, anyone could
+register with a stranger's email and immediately read their name, full shipping
+address, phone number and purchases.
+
+**That gate is only as strong as your Supabase setting.** With
+Authentication → Providers → Email → "Confirm email" turned **off**, Supabase
+stamps `email_confirmed_at` at signup and the check passes for anybody. Keep
+email confirmation on.
+
 ## Admin controls
 
 `/admin/orders/<id>` gives you, in one save:
