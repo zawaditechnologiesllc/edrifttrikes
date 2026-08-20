@@ -64,7 +64,7 @@ export default async function SystemStatus() {
     const admin = createAdminClient();
     const columnExists = async (table: string, column: string) =>
       !(await admin.from(table).select(column).limit(1)).error;
-    const [m3, m4a, m4b, m5, { data }] = await Promise.all([
+    const [m3, m4a, m4b, m5, m6, m12, m13, { data }] = await Promise.all([
       columnExists("site_settings", "id"),
       columnExists("site_settings", "shipping_cents"),
       columnExists("articles", "id").then(async (ok) => {
@@ -75,12 +75,18 @@ export default async function SystemStatus() {
         return (count ?? 0) >= 6;
       }),
       columnExists("products", "shipping_cents"),
+      columnExists("orders", "paid_at"),
+      columnExists("products", "colors"),
+      columnExists("site_settings", "logo_url"),
       admin.from("orders").select("*").order("created_at", { ascending: false }).limit(30),
     ]);
     migrations.push(
       { label: "0003 — featured flag + site settings", ok: m3 },
       { label: "0004 — store shipping fee + Tech Lab articles", ok: m4a && m4b },
-      { label: "0005 — per-product shipping fee", ok: m5 }
+      { label: "0005 — per-product shipping fee", ok: m5 },
+      { label: "0006 — fulfilment tracking + stage emails", ok: m6 },
+      { label: "0012 — product colours", ok: m12 },
+      { label: "0013 — store logo for product sheets", ok: m13 }
     );
     orders = (data as Order[]) ?? [];
   }

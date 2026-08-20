@@ -14,6 +14,12 @@ export const COMPANY = {
   // TODO: confirm the exact registered legal entity name (e.g. "Zawadi Technologies LLC").
   legalName: "E-Drift Trikes & Go Carts",
   supportEmail: "support@edrifttrikes.shop",
+  /**
+   * The canonical storefront URL. Used where a link has to be absolute and no
+   * request is in hand — the PDF product sheets, for instance. NEXT_PUBLIC_SITE_URL
+   * takes precedence wherever it is set; this is the fallback.
+   */
+  siteUrl: "https://edrifttrikes.shop",
   // TODO: set your real registered business address.
   address: "[Registered business address — update in lib/company.ts]",
   // TODO: set the governing-law jurisdiction your lawyer advises (state / country).
@@ -41,4 +47,5 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   shipping_cents: 5000,
   free_shipping: false,
   tax_rate_bps: 800,
+  logo_url: null,
 };

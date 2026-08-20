@@ -140,6 +140,8 @@ export type SiteSettings = {
   free_shipping?: boolean;
   /** Sales tax in basis points (800 = 8.00%). Integer math, no float drift. */
   tax_rate_bps?: number;
+  /** Store logo, drawn on the PDF product sheets. Null until one is uploaded. */
+  logo_url?: string | null;
   updated_at?: string;
 };
 

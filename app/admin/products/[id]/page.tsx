@@ -28,7 +28,20 @@ export default async function EditProduct({ params }: { params: Promise<{ id: st
   p.images = (p.images ?? []).sort((a, b) => a.position - b.position);
   return (
     <div className="p-8">
-      <h1 className="font-display-lg text-display-lg-mobile text-white uppercase mb-8">Edit Product</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-4 mb-8">
+        <h1 className="font-display-lg text-display-lg-mobile text-white uppercase">Edit Product</h1>
+        {/* The sheet is generated from this record on request, so this is
+            always what a buyer would get right now — the quickest way to check
+            the logo, colours and specs came out right. */}
+        <a
+          href={`/product/${p.slug}/information`}
+          target="_blank"
+          rel="noopener"
+          className="font-label-bold uppercase text-xs tracking-widest text-secondary hover:underline"
+        >
+          Preview product sheet (PDF) →
+        </a>
+      </div>
       <ProductForm product={p} categories={(categories as Category[]) ?? []} />
     </div>
   );

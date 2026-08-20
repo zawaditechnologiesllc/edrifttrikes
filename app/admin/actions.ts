@@ -504,30 +504,71 @@ export async function saveSiteSettings(
     tax_rate_bps: percentToBps(formData.get("tax_rate")),
     updated_at: new Date().toISOString(),
   };
+
+  // The logo column is only included when the admin actually changed it —
+  // PostgREST's upsert updates exactly the columns present in the payload, so
+  // leaving it out keeps the stored logo instead of clearing it on every save.
+  const logoResult = await resolveLogo(formData);
+  if ("error" in logoResult) return { error: logoResult.error };
+  if (logoResult.changed) row.logo_url = logoResult.url;
+
   let { error } = await admin.from("site_settings").upsert(row, { onConflict: "id" });
-  // Migration 0004 not run yet → shipping columns don't exist. Save the rest
-  // and tell the admin what to run.
+  // Columns added by later migrations (0004 shipping/tax, 0013 logo). If the
+  // database hasn't run them, save what it does have and name the file to run —
+  // silently dropping a setting looks like the setting being ignored.
   if (error && "shipping_cents" in row) {
     delete row.shipping_cents;
     delete row.free_shipping;
     delete row.tax_rate_bps;
+    delete row.logo_url;
     ({ error } = await admin.from("site_settings").upsert(row, { onConflict: "id" }));
     if (!error) {
       revalidateTag(SETTINGS_TAG);
       return {
         error:
-          "Contact info saved, but the shipping and tax settings need migrations supabase/migrations/0004_shipping_and_articles.sql and 0006_fulfillment_tracking.sql — run them in the Supabase SQL Editor, then save again.",
+          "Contact info saved, but the shipping, tax and logo settings need migrations supabase/migrations/0004_shipping_and_articles.sql, 0006_fulfillment_tracking.sql and 0013_store_logo.sql — run them in the Supabase SQL Editor, then save again.",
       };
     }
   }
   if (error) {
     return {
       error:
-        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003, 0004 and 0006) first.",
+        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003, 0004, 0006 and 0013) first.",
     };
   }
   revalidateTag(SETTINGS_TAG);
   return { ok: true };
+}
+
+// PDF can embed exactly these two raster formats. The admin's browser converts
+// anything else to PNG before upload (see logoToPng in lib/image-compress.ts);
+// this is what catches the cases where it couldn't.
+const PDF_EMBEDDABLE_TYPES = new Set(["image/png", "image/jpeg"]);
+
+/**
+ * Work out what should happen to the store logo on this save: cleared, replaced
+ * with a freshly uploaded file, or left exactly as it is.
+ */
+async function resolveLogo(
+  formData: FormData
+): Promise<{ changed: boolean; url: string | null } | { error: string }> {
+  if (formData.get("remove_logo") === "on") return { changed: true, url: null };
+
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) return { changed: false, url: null };
+
+  if (!PDF_EMBEDDABLE_TYPES.has(file.type)) {
+    return {
+      error:
+        "The logo must be a PNG or a JPEG — those are the only image formats a PDF can embed. Your browser normally converts the file for you; if it couldn't, export the logo as a PNG (which keeps a transparent background) and upload that.",
+    };
+  }
+
+  const { url, error } = await uploadImage(file);
+  if (error || !url) {
+    return { error: `Could not upload the logo: ${error ?? "the upload returned nothing"}` };
+  }
+  return { changed: true, url };
 }
 
 
