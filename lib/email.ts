@@ -2,6 +2,7 @@ import type { Order } from "@/lib/types";
 import { serverEnv, publicSiteUrl } from "@/lib/env";
 import {
   STAGE_COPY,
+  formatDeliveryDate,
   stageMessage,
   type FulfillmentStage,
 } from "@/lib/fulfillment";
@@ -166,7 +167,15 @@ function orderTable(order: Order): string {
          <td style="padding:8px 0;text-align:right;color:#e4e1e6">${money(i.price_cents * i.qty, currency)}</td></tr>`
     )
     .join("");
-  const shippingCell = order.shipping_cents === 0 ? "FREE" : money(order.shipping_cents, currency);
+  // Free shipping is worth saying out loud — it is a benefit the buyer chose
+  // this store for, and a bare "0" reads like a missing value.
+  const freeShipping = order.shipping_cents === 0;
+  const shippingCell = freeShipping
+    ? `<span style="color:#c4f731;font-weight:700">FREE</span>`
+    : money(order.shipping_cents, currency);
+  const freeShippingNote = freeShipping
+    ? `<p style="margin:12px 0 0;color:#c4f731;font-size:12px;line-height:1.6">Free shipping applied to this order — you paid nothing for delivery.</p>`
+    : "";
   // Import duty is disclosed, never charged — so it sits BELOW the total, in
   // muted type, with the wording that makes clear who collects it.
   const duty = computeDuty(order.subtotal_cents);
@@ -196,7 +205,44 @@ function orderTable(order: Order): string {
       <tr><td style="padding:4px 0;color:#8d90a2">Tax</td><td style="padding:4px 0;text-align:right;color:#e4e1e6">${money(order.tax_cents, currency)}</td></tr>
       <tr><td style="padding:12px 0;font-weight:700;color:#fff">Total</td><td style="padding:12px 0;text-align:right;font-weight:700;color:#c4f731">${money(order.total_cents, currency)}</td></tr>
     </table>
+    ${freeShippingNote}
     ${dutyBlock}`;
+}
+
+/**
+ * What this customer actually bought, as an itemised block.
+ *
+ * Every stage email carries it. A status update that only says "your order has
+ * shipped" is the same message every store sends about every parcel; naming the
+ * items makes it unmistakably about THEIR purchase, and saves them opening a
+ * receipt to remember what is coming.
+ */
+function purchasedItemsBlock(order: Order): string {
+  const items = order.items ?? [];
+  if (items.length === 0) return "";
+  const currency = order.currency || "usd";
+  const rows = items
+    .map(
+      (i) =>
+        `<tr>
+           <td style="padding:6px 0;color:#e4e1e6">${esc(i.name)} × ${esc(i.qty)}</td>
+           <td style="padding:6px 0;text-align:right;color:#8d90a2">${money(
+             i.price_cents * i.qty,
+             currency
+           )}</td>
+         </tr>`
+    )
+    .join("");
+  return `
+    <div style="margin-top:24px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:16px 20px">
+      <p style="margin:0 0 8px;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">In this shipment</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
+      ${
+        order.shipping_cents === 0
+          ? `<p style="margin:10px 0 0;color:#c4f731;font-size:12px">Shipped free of charge.</p>`
+          : ""
+      }
+    </div>`;
 }
 
 // ---- Resend direct send (Workers-safe: plain HTTPS, no SDK) ----
@@ -391,8 +437,23 @@ export async function sendFulfillmentEmail(
       : "";
 
   // The payment-confirmed email is the one a customer keeps, so it carries the
-  // complete receipt. Later stages are short status updates and don't repeat it.
-  const receipt = stage === "confirmed" ? receiptBlock(order) : "";
+  // complete receipt. Later stages get the itemised list instead of the full
+  // receipt — enough that the message is unmistakably about THEIR order rather
+  // than a generic status ping, without repeating the whole document.
+  const detail =
+    stage === "confirmed" ? receiptBlock(order) : purchasedItemsBlock(order);
+
+  // Delivery date, but only where the stage copy doesn't already carry it —
+  // most messages interpolate {date} themselves, and printing it twice in a row
+  // reads like a template bug.
+  const messageHasDate = STAGE_COPY[stage].message.includes("{date}");
+  const stillInFlight = stage !== "delivered" && stage !== "cancelled";
+  const eta =
+    !messageHasDate && stillInFlight && order.estimated_delivery_at
+      ? `<p style="margin:16px 0 0;color:#c3c5d9;line-height:1.6">Estimated delivery: <strong style="color:#fff">${esc(
+          formatDeliveryDate(order.estimated_delivery_at)
+        )}</strong></p>`
+      : "";
 
   // A guest buyer has no dashboard to send them to yet. Rather than link them
   // somewhere that will look empty, offer the account that makes tracking work
@@ -417,7 +478,8 @@ export async function sendFulfillmentEmail(
         order.order_number
       )}</strong></p>
        <p style="color:#c3c5d9;line-height:1.6">${esc(body)}</p>
-       ${tracking}${callout}${receipt}
+       ${eta}
+       ${tracking}${callout}${detail}
        ${cta}`
     )
   );

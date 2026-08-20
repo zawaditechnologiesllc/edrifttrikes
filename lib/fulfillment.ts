@@ -156,6 +156,16 @@ export function stageMessage(
   );
 }
 
+/**
+ * Days after payment that a scheduled stage falls due, or null for the
+ * manual-only stages. Used to back-date an anchor when an admin moves an order
+ * forward by hand, so the scheduler carries on from the right point.
+ */
+export function stageOffsetDays(stage: FulfillmentStage): number | null {
+  const step = FULFILLMENT_SCHEDULE.find((s) => s.stage === stage);
+  return step ? step.afterDays : null;
+}
+
 /** Position of a stage in the scheduled sequence, or -1 for manual stages. */
 export function stageIndex(stage: FulfillmentStage): number {
   return SCHEDULED_STAGES.indexOf(stage);
