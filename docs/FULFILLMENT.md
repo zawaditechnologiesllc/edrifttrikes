@@ -205,6 +205,26 @@ Order status keeps updating exactly as before — the scheduler selects on statu
 and stage, not on who owns the row, so linking an order changes nothing about
 its journey.
 
+### When the link happens
+
+Four points, so a customer's history is theirs before they reach any page:
+
+| Trigger | Covers |
+| --- | --- |
+| **Database trigger** (`on_auth_user_confirmed`, migration 0011) | The instant Supabase stamps `email_confirmed_at` — confirmation, an accepted invite, a changed address. No app code involved, so no route can forget. |
+| `/auth/callback` | Email confirmation, magic links, accepted invites — attaches before the redirect, so the dashboard is right on arrival. |
+| Sign-in and sign-up | A session beginning without the address newly changing. |
+| Dashboard load | The safety net, and what keeps things correct on a database where the trigger could not be installed. |
+
+The database trigger is the real guarantee; the app-side calls are belt and
+braces. All of them are idempotent and cost one indexed read when there is
+nothing to claim.
+
+**The one case none of this can cover** is a customer who checked out with a
+different address than they registered with — there is nothing to match on. The
+empty dashboard says so plainly, names the address being matched, and points
+them at support, rather than leaving them to conclude their order vanished.
+
 ### ⚠️ The security gate
 
 The match is gated on the account's email being **confirmed**

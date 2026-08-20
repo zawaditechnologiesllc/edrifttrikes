@@ -26,7 +26,15 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(`${origin}${next}`);
+    if (!error) {
+      // This is the moment an address becomes proven — email confirmation, a
+      // magic link, or an accepted invite. Attach any orders placed with it
+      // BEFORE redirecting, so the dashboard is already correct on arrival
+      // rather than filling in on some later visit.
+      const { syncOrdersForCurrentUser } = await import("@/lib/orders");
+      await syncOrdersForCurrentUser();
+      return NextResponse.redirect(`${origin}${next}`);
+    }
   }
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }

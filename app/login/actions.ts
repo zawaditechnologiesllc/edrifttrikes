@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/admin";
 import { publicSiteUrl } from "@/lib/env";
 import { sendWelcomeEmail } from "@/lib/email";
+import { syncOrdersForCurrentUser } from "@/lib/orders";
 
 export type AuthState = { error?: string; message?: string };
 
@@ -36,6 +37,12 @@ export async function signIn(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
+
+  // Attach any orders placed as a guest before redirecting, so the dashboard is
+  // right on arrival. Migration 0011 also does this in a database trigger; this
+  // covers a session that begins without the address newly changing.
+  await syncOrdersForCurrentUser();
+
   redirect("/account");
 }
 
@@ -76,7 +83,12 @@ export async function signUp(
     /* non-fatal */
   }
 
-  if (data.session) redirect("/account");
+  // A signup that returns a session means the address is already usable (email
+  // confirmation off, or auto-confirmed), so their history should be waiting.
+  if (data.session) {
+    await syncOrdersForCurrentUser();
+    redirect("/account");
+  }
   return {
     message:
       "Account created! We've emailed you a confirmation link — click it to activate your account, then sign in.",

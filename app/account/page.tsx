@@ -10,6 +10,7 @@ import { formatMoney } from "@/lib/format";
 import { signOut } from "@/app/login/actions";
 import OrderTracker from "@/components/storefront/OrderTracker";
 import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
+import { COMPANY } from "@/lib/company";
 
 export const metadata = { title: "Rider Dashboard" };
 
@@ -66,9 +67,25 @@ export default async function AccountPage() {
 
         <h2 className="font-headline-md text-headline-md text-white uppercase mb-6">Order History</h2>
         {orders.length === 0 ? (
-          <div className="border border-dashed border-white/10 rounded-lg py-20 text-center">
+          <div className="border border-dashed border-white/10 rounded-lg py-16 px-6 text-center">
             <p className="text-on-surface-variant uppercase tracking-widest font-label-bold">No orders yet</p>
-            <Link href="/shop" className="inline-block mt-4 text-secondary font-label-bold uppercase tracking-widest hover:underline">Start your build →</Link>
+            {/* The one case the automatic matching cannot cover: they checked
+                out with a different address than they registered with. Say so
+                plainly, and name the address we are matching on, rather than
+                leaving them to conclude their order vanished. */}
+            <p className="text-outline text-sm mt-4 max-w-md mx-auto leading-relaxed">
+              Orders you placed as a guest with{" "}
+              <span className="text-on-surface-variant">{profile.email}</span> appear
+              here automatically. Bought using a different email address? Email{" "}
+              <a
+                href={`mailto:${COMPANY.supportEmail}`}
+                className="text-secondary hover:underline"
+              >
+                {COMPANY.supportEmail}
+              </a>{" "}
+              with your order number and we&apos;ll connect it.
+            </p>
+            <Link href="/shop" className="inline-block mt-6 text-secondary font-label-bold uppercase tracking-widest hover:underline">Start your build →</Link>
           </div>
         ) : (
           <div className="space-y-4">

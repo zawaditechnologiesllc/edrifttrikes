@@ -157,7 +157,7 @@ npm run dev                    # http://localhost:3000
 
 ### 1. Supabase
 1. Create a project, copy the URL + anon key + service-role key into `.env.local`.
-2. Run **every file in `supabase/migrations/` in order (0001 → 0010)**, then
+2. Run **every file in `supabase/migrations/` in order (0001 → 0011)**, then
    **`supabase/seed.sql`**, in the Supabase SQL editor (or `supabase db push`).
    This creates all tables, RLS policies, the `product-images` storage bucket,
    the order-tracking timeline, and seeds the catalog. Each migration is safe to

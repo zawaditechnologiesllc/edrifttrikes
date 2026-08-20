@@ -22,6 +22,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Order, OrderEvent } from "@/lib/types";
 import { sendFulfillmentEmail } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
+import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
+import { verifiedUserEmail } from "@/lib/account";
 import {
   STAGE_COPY,
   addDays,
@@ -482,6 +484,43 @@ export async function claimGuestOrders(
     console.log(`[orders] linked ${claimed} guest order(s) to account ${userId}`);
   }
   return claimed;
+}
+
+/**
+ * Link the signed-in user's guest orders to their account, right now.
+ *
+ * Called at every point a session begins or is proven — sign-in, sign-up, and
+ * the auth callback that handles email confirmation, magic links and accepted
+ * invites — so a customer's history is theirs before they reach any page,
+ * rather than whenever they next happen to open the dashboard.
+ *
+ * Migration 0011 does the same thing in a database trigger, which is the real
+ * guarantee. This is the belt to that trigger's braces: it keeps the behaviour
+ * correct on a database where the trigger could not be installed, and costs one
+ * indexed read when there is nothing to claim.
+ *
+ * Never throws — it sits on the sign-in path, where failing would lock someone
+ * out of their account over a bookkeeping detail.
+ */
+export async function syncOrdersForCurrentUser(): Promise<number> {
+  try {
+    if (!adminConfigured()) return 0;
+
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return 0;
+
+    const email = verifiedUserEmail(user);
+    if (!email) return 0;
+
+    return await claimGuestOrders(createAdminClient(), user.id, email);
+  } catch (e) {
+    console.error("[orders] order sync failed:", String((e as Error)?.message || e));
+    return 0;
+  }
 }
 
 /** Timeline for the customer-facing tracker, oldest first. */
