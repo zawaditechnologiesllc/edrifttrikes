@@ -45,6 +45,10 @@ The system is split into two deployables:
   on arrival and the store never collects it. Rate lives in
   [`lib/totals.ts`](./lib/totals.ts) (`DEFAULT_DUTY_RATE_BPS`).
 - Email-only accounts (no Google/Apple): register, login, logout, order history.
+- Guest checkout: orders placed without an account appear on the rider
+  dashboard once that person registers with the same **confirmed** email
+  (see [`docs/FULFILLMENT.md`](./docs/FULFILLMENT.md) — the confirmation
+  requirement is the security boundary).
 - Tech Lab content (articles) and newsletter signup.
 - Contact form with Turnstile bot protection and a 2-minute cooldown between
   messages, enforced server-side (by email **and** a salted IP hash) with a live
@@ -153,7 +157,7 @@ npm run dev                    # http://localhost:3000
 
 ### 1. Supabase
 1. Create a project, copy the URL + anon key + service-role key into `.env.local`.
-2. Run **every file in `supabase/migrations/` in order (0001 → 0009)**, then
+2. Run **every file in `supabase/migrations/` in order (0001 → 0010)**, then
    **`supabase/seed.sql`**, in the Supabase SQL editor (or `supabase db push`).
    This creates all tables, RLS policies, the `product-images` storage bucket,
    the order-tracking timeline, and seeds the catalog. Each migration is safe to
