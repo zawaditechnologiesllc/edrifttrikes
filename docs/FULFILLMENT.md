@@ -252,6 +252,47 @@ The order number is 8 random hex characters (~4.3 billion), so enumeration is
 impractical. The redaction means that even a lucky guess yields no name,
 address or contact details — only what was bought and where it has got to.
 
+## Confirming an order by hand
+
+Setting the payment status to **paid**, or moving the delivery stage to
+**Confirmed**, sends the customer the full receipt and hands the order to the
+scheduler, which takes it the rest of the way on its own.
+
+Two things make that reliable, and both were previously broken:
+
+**An admin's click always emails.** The stage-claim rule (`UNIQUE (order_id,
+stage)`) exists to stop webhook retries and overlapping cron runs
+double-emailing. It was also swallowing deliberate admin actions: re-confirming
+an order whose `confirmed` event already existed sent nothing at all. Automated
+paths still claim-once; the admin path sends whenever "email the customer" is
+ticked.
+
+**The schedule gets an anchor.** Every later stage counts from `paid_at`. Moving
+an order forward by hand without one left it frozen — the change stuck, but
+nothing ever advanced it again. `setOrderStage` now back-dates `paid_at` to when
+that stage would have fallen due, so the remaining stages land on the correct
+days rather than all at once.
+
+The scheduler only advances orders whose status is `paid`. If a stage is set on
+an order that isn't, the admin panel says so rather than leaving it silently
+stranded.
+
+## What each email actually says
+
+Every stage email is about **that customer's specific order**, not a generic
+status ping:
+
+- The **payment-confirmed** email carries the complete receipt.
+- **Shipped, arriving and ready-for-collection** carry an itemised "In this
+  shipment" block — enough that the message is unmistakably about their
+  purchase, without repeating the whole document four times.
+- **Free shipping is stated outright** ("Shipping FREE" plus "Free shipping
+  applied to this order — you paid nothing for delivery"). A bare zero reads
+  like a missing value, and it is a benefit worth naming.
+- The estimated delivery date appears exactly once — most stage messages
+  interpolate it themselves, so the standalone line only renders where the copy
+  doesn't already carry it.
+
 ## Admin controls
 
 `/admin/orders/<id>` gives you, in one save:

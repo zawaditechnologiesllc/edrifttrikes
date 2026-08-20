@@ -24,10 +24,12 @@ import { sendFulfillmentEmail } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import {
   STAGE_COPY,
+  addDays,
   dueStage,
   estimatedDeliveryAt,
   isSchedulable,
   stageMessage,
+  stageOffsetDays,
   stagesBetween,
   type FulfillmentStage,
 } from "@/lib/fulfillment";
@@ -109,7 +111,18 @@ export type PaidResult = {
 export async function markOrderPaid(
   admin: Admin,
   by: { id?: string; orderNumber?: string; paypalOrderId?: string },
-  opts: { paidAt?: Date; sendEmail?: boolean; paidVia?: PaidVia } = {}
+  opts: {
+    paidAt?: Date;
+    sendEmail?: boolean;
+    paidVia?: PaidVia;
+    /**
+     * Send the confirmation even if the `confirmed` stage was already recorded.
+     * For the ADMIN path only: a human clicking "mark paid" with notifications
+     * on is a deliberate instruction, and the claim-once rule — which exists to
+     * stop webhook retries double-emailing — must not swallow it.
+     */
+    force?: boolean;
+  } = {}
 ): Promise<PaidResult> {
   const order = await loadOrder(admin, by);
   if (!order) return { ok: false, transitioned: false, reason: "order_not_found" };
@@ -175,7 +188,7 @@ export async function markOrderPaid(
 
   const fresh = (await loadOrder(admin, { id: order.id })) ?? order;
 
-  if (claimed && opts.sendEmail !== false) {
+  if ((claimed || opts.force) && opts.sendEmail !== false) {
     // A guest buyer has nowhere to track this yet. Resolve that BEFORE the
     // email goes out so the one message they're most likely to keep carries
     // the link that sets them up — rather than sending a second email later,
@@ -191,7 +204,7 @@ export async function markOrderPaid(
     }).catch((e) => console.error("[orders] confirmed email failed:", e));
   }
 
-  return { ok: true, transitioned: claimed, order: fresh };
+  return { ok: true, transitioned: claimed || Boolean(opts.force), order: fresh };
 }
 
 export type AdvanceResult = {
@@ -274,32 +287,88 @@ export async function setOrderStage(
   orderId: string,
   stage: FulfillmentStage,
   opts: { sendEmail?: boolean } = {}
-): Promise<{ ok: boolean; emailed: boolean; error?: string }> {
+): Promise<{ ok: boolean; emailed: boolean; error?: string; warning?: string }> {
   const order = await loadOrder(admin, { id: orderId });
   if (!order) return { ok: false, emailed: false, error: "Order not found." };
 
-  const { error } = await admin
-    .from("orders")
-    .update({
-      fulfillment_stage: stage,
-      stage_updated_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
+  const now = new Date();
+  const update: Record<string, unknown> = {
+    fulfillment_stage: stage,
+    stage_updated_at: now.toISOString(),
+  };
+
+  // ANCHOR THE SCHEDULE so automation carries on from here.
+  //
+  // advanceOrder counts every later stage from paid_at. Moving an order forward
+  // by hand without one left it frozen — the admin's change stuck, but nothing
+  // ever advanced it again. Back-date the anchor to when this stage would have
+  // fallen due, so the remaining stages land on the correct days rather than
+  // all at once.
+  const offset = stageOffsetDays(stage);
+  if (offset !== null && !order.paid_at) {
+    const anchor = addDays(now, -offset);
+    update.paid_at = anchor.toISOString();
+    update.estimated_delivery_at = estimatedDeliveryAt(anchor).toISOString();
+  } else if (offset !== null && !order.estimated_delivery_at && order.paid_at) {
+    update.estimated_delivery_at = estimatedDeliveryAt(order.paid_at).toISOString();
+  }
+
+  const { error } = await admin.from("orders").update(update).eq("id", orderId);
   if (error) return { ok: false, emailed: false, error: error.message };
 
-  if (opts.sendEmail === false) return { ok: true, emailed: false };
-
-  const claimed = await claimStage(admin, orderId, stage, {
-    email: true,
+  // Record the stage on the timeline. A stage the order has already passed
+  // through is a no-op here — but that must NOT decide whether the email goes.
+  await claimStage(admin, orderId, stage, {
+    email: opts.sendEmail !== false,
     detail: stageMessage(stage, order.estimated_delivery_at),
   });
-  if (claimed) {
-    const fresh = (await loadOrder(admin, { id: orderId })) ?? order;
-    await sendFulfillmentEmail(fresh, stage).catch((e) =>
-      console.error(`[orders] admin ${stage} email failed:`, e)
-    );
+
+  if (opts.sendEmail === false) return { ok: true, emailed: false, ...stageWarning(order, stage) };
+
+  // An admin ticking "email the customer" is a deliberate instruction, so it
+  // sends whether or not the stage was already on the timeline. The
+  // claim-once rule exists to stop webhook retries and overlapping cron runs
+  // double-emailing — it was never meant to swallow a human's click, which is
+  // exactly what it did: re-confirming an order sent nothing at all.
+  const fresh = (await loadOrder(admin, { id: orderId })) ?? order;
+
+  // Guest buyers get the account link in the same email, same as the automatic
+  // path, so a manually confirmed order isn't a second-class one.
+  const link = fresh.user_id
+    ? { linked: true as const, inviteLink: undefined }
+    : await ensureCustomerAccountLink(admin, fresh, publicSiteUrl() || "");
+
+  let emailed = true;
+  try {
+    await sendFulfillmentEmail(fresh, stage, {
+      inviteLink: link.linked ? undefined : link.inviteLink,
+    });
+  } catch (e) {
+    emailed = false;
+    console.error(`[orders] admin ${stage} email failed:`, e);
   }
-  return { ok: true, emailed: claimed };
+
+  return { ok: true, emailed, ...stageWarning(fresh, stage) };
+}
+
+/**
+ * Tell the admin when a manual stage change will NOT keep advancing on its own.
+ *
+ * The scheduler only touches orders whose status is `paid`. Silently leaving a
+ * stage stranded is the failure this surfaces.
+ */
+function stageWarning(
+  order: Pick<Order, "status">,
+  stage: FulfillmentStage
+): { warning?: string } {
+  const offset = stageOffsetDays(stage);
+  if (offset === null) return {};
+  if (order.status === "paid") return {};
+  return {
+    warning:
+      `The order is marked "${order.status}", so the scheduler will not advance it further. ` +
+      `Set the payment status to "paid" for the remaining updates to send automatically.`,
+  };
 }
 
 export type AccountLinkResult = {

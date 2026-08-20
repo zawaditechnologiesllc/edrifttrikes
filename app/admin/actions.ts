@@ -337,7 +337,18 @@ export async function updateOrderStatus(
   if (current.status !== status) {
     if (status === "paid") {
       // Route through the shared transition so the customer journey starts.
-      const paid = await markOrderPaid(admin, { id }, { paidVia: "manual" });
+      // notify is read below for the stage control; the same intent applies
+      // here — an admin marking an order paid expects the customer to hear.
+      const notifyOnPaid = formData.getAll("notify");
+      const paid = await markOrderPaid(
+        admin,
+        { id },
+        {
+          paidVia: "manual",
+          sendEmail: notifyOnPaid.length === 0 || notifyOnPaid.includes("on"),
+          force: true,
+        }
+      );
       if (!paid.ok) {
         return { error: `Could not mark paid: ${paid.reason ?? "unknown error"}` };
       }
@@ -397,6 +408,7 @@ export async function updateOrderStatus(
     notes.push(
       moved.emailed ? `stage → ${stage} (customer emailed)` : `stage → ${stage}`
     );
+    if (moved.warning) notes.push(moved.warning);
   }
 
   revalidatePath("/admin/orders");
