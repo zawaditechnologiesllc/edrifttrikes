@@ -5,7 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
-import { markOrderPaid, setOrderStage, claimGuestOrders } from "@/lib/orders";
+import { markOrderPaid, setOrderStage, ensureCustomerAccountLink } from "@/lib/orders";
 import { sendAccountInviteEmail } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
@@ -563,47 +563,33 @@ export async function inviteOrderCustomer(
   const email = String(order.email || "").trim().toLowerCase();
   if (!email) return { error: "This order has no email address to invite." };
 
-  // --- Does an account already exist? --------------------------------------
-  const { data: existing } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
+  // Same path the payment flow uses, so the button and the automatic link can
+  // never behave differently.
+  const result = await ensureCustomerAccountLink(
+    admin,
+    { id: order.id as string, email, user_id: null },
+    publicSiteUrl() || ""
+  );
 
-  if (existing?.id) {
-    const linked = await claimGuestOrders(admin, existing.id as string, email);
-    revalidatePath("/admin/orders");
-    revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+
+  if (result.linked) {
     return {
       ok: true,
-      message:
-        linked > 0
-          ? `${email} already has an account — linked ${linked} order${linked === 1 ? "" : "s"} to it. It's on their dashboard now.`
-          : `${email} already has an account, but the order could not be linked. Check the Supabase logs.`,
+      message: `${email} already has an account — the order is linked and on their dashboard now.`,
     };
   }
 
-  // --- No account: invite them ---------------------------------------------
-  const site = publicSiteUrl() || "";
-  let actionLink = "";
-  try {
-    const { data, error } = await admin.auth.admin.generateLink({
-      type: "invite",
-      email,
-      options: { redirectTo: `${site}/auth/callback?next=/account` },
-    });
-    if (error) throw new Error(error.message);
-    actionLink = data?.properties?.action_link ?? "";
-    if (!actionLink) throw new Error("Supabase returned no invite link.");
-  } catch (e) {
-    return { error: `Could not create the invite: ${String((e as Error)?.message || e)}` };
+  if (!result.inviteLink) {
+    return { error: `Could not create the invite: ${result.reason ?? "unknown error"}` };
   }
 
   try {
     await sendAccountInviteEmail({
       to: email,
       orderNumber: String(order.order_number),
-      actionLink,
+      actionLink: result.inviteLink,
     });
   } catch (e) {
     // The link is valid even though the email failed, so hand it to the admin
@@ -613,7 +599,7 @@ export async function inviteOrderCustomer(
       message: `Invite created for ${email}, but the email could not be sent (${String(
         (e as Error)?.message || e
       )}). Send them this link yourself:`,
-      actionLink,
+      actionLink: result.inviteLink,
     };
   }
 

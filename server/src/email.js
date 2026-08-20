@@ -133,7 +133,7 @@ export async function orderConfirmationEmail(order) {
  * and body so the wording stays identical across both paths — this file must
  * never re-write the copy.
  */
-export async function fulfillmentEmail({ order, stage, title, body }) {
+export async function fulfillmentEmail({ order, stage, title, body, inviteLink }) {
   if (!order?.email) throw new Error("fulfillmentEmail: order.email required");
   const heading = title || "Order update";
   const tracking = order.tracking_number
@@ -148,6 +148,16 @@ export async function fulfillmentEmail({ order, stage, title, body }) {
            <p style="margin:8px 0 0;color:#e4e1e6;line-height:1.6">Please wait for the courier to email or call you to arrange collection or confirm door delivery.</p>
          </div>`
       : "";
+  // Guest buyers get the account link instead of a dashboard link they can't
+  // use yet. Mirrors lib/email.ts — keep the two in step.
+  const cta = inviteLink
+    ? `<div style="margin-top:28px;border:1px solid #1e5bff;border-radius:8px;padding:20px;background:rgba(30,91,255,0.08)">
+         <p style="margin:0;color:#fff;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:12px">Track this order</p>
+         <p style="margin:8px 0 0;color:#c3c5d9;line-height:1.6">You checked out as a guest. Set up an account with this email address and this order — plus every update from here to delivery — appears on your dashboard.</p>
+         <a href="${esc(inviteLink)}" style="display:inline-block;margin-top:16px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Create your account</a>
+       </div>`
+    : `<a href="${SITE}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`;
+
   return send(
     order.email,
     `${heading} · ${order.order_number}`,
@@ -158,7 +168,7 @@ export async function fulfillmentEmail({ order, stage, title, body }) {
       )}</strong></p>
        <p style="color:#c3c5d9;line-height:1.6">${esc(body || "")}</p>
        ${tracking}${callout}
-       <a href="${SITE}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`
+       ${cta}`
     )
   );
 }

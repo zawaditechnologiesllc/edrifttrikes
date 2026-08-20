@@ -6,6 +6,7 @@ import {
   type FulfillmentStage,
 } from "@/lib/fulfillment";
 import { computeDuty, DEFAULT_DUTY_RATE_BPS } from "@/lib/totals";
+import { COMPANY } from "@/lib/company";
 
 /**
  * Email delivery. Primary path: send DIRECTLY via the Resend HTTP API from the
@@ -69,6 +70,91 @@ function shell(title: string, body: string): string {
         E-Drift Motors · Engineered for adrenaline
       </div>
     </div></body></html>`;
+}
+
+/**
+ * The buyer's shipping address, as lines, in the order a courier reads them.
+ *
+ * Reads only the known checkout fields — an order's shipping_address is JSON,
+ * and dumping arbitrary keys into an email would leak whatever a future field
+ * happens to be called.
+ */
+function addressLines(order: Order): string[] {
+  const a = (order.shipping_address ?? {}) as Record<string, string>;
+  const name = [a.first_name, a.last_name].filter(Boolean).join(" ");
+  const locality = [a.city, a.state, a.zip].filter(Boolean).join(", ");
+  return [name, a.address, a.address2, locality, a.country, a.phone]
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean);
+}
+
+function addressBlock(order: Order): string {
+  const lines = addressLines(order);
+  if (lines.length === 0) return "";
+  return `
+    <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px">
+      <p style="margin:0 0 8px;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">Delivering to</p>
+      <p style="margin:0;color:#e4e1e6;line-height:1.7">${lines
+        .map((l) => esc(l))
+        .join("<br />")}</p>
+    </div>`;
+}
+
+/** "12 March 2026" — long form, because a receipt is read months later. */
+function longDate(value: string | null | undefined): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+}
+
+/**
+ * A COMPLETE RECEIPT: order number, dates, every item, the money, the delivery
+ * address, and who to contact.
+ *
+ * This is the document a customer keeps. It has to answer, months later and
+ * without them logging in: what did I buy, what did I pay, where is it going,
+ * and who do I chase. Anything missing here becomes a support email.
+ */
+function receiptBlock(order: Order): string {
+  const placed = longDate(order.created_at);
+  const paid = longDate(order.paid_at);
+  const eta = longDate(order.estimated_delivery_at);
+
+  const meta = [
+    ["Order number", esc(order.order_number)],
+    placed ? ["Placed", esc(placed)] : null,
+    paid ? ["Payment received", esc(paid)] : null,
+    eta ? ["Estimated delivery", esc(eta)] : null,
+    order.tracking_number
+      ? [
+          "Tracking",
+          `${esc(order.tracking_number)}${order.courier ? ` (${esc(order.courier)})` : ""}`,
+        ]
+      : null,
+  ].filter(Boolean) as [string, string][];
+
+  const metaRows = meta
+    .map(
+      ([label, value]) =>
+        `<tr><td style="padding:4px 0;color:#8d90a2">${label}</td>
+         <td style="padding:4px 0;text-align:right;color:#e4e1e6">${value}</td></tr>`
+    )
+    .join("");
+
+  return `
+    <div style="margin-top:24px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:20px">
+      <p style="margin:0 0 12px;color:#c4f731;font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:700">Your receipt</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">${metaRows}</table>
+      ${orderTable(order)}
+      ${addressBlock(order)}
+      <p style="margin:20px 0 0;color:#8d90a2;font-size:12px;line-height:1.6">
+        Questions about this order? Reply to this email or write to
+        <a href="mailto:${esc(COMPANY.supportEmail)}" style="color:#c4f731">${esc(
+          COMPANY.supportEmail
+        )}</a> quoting ${esc(order.order_number)}.
+      </p>
+    </div>`;
 }
 
 function orderTable(order: Order): string {
@@ -220,7 +306,7 @@ export async function sendOrderConfirmationEmail(order: Order) {
     const body = `
       <p style="color:#c3c5d9;line-height:1.6">Thanks for your order — <strong style="color:#c4f731">${esc(order.order_number)}</strong> is in.</p>
       <p style="color:#c3c5d9;line-height:1.6">We'll send a second email confirming your payment and the start of your shipment as soon as it clears. From there you can follow every step — shipped, arriving, ready for collection — on your rider dashboard.</p>
-      ${orderTable(order)}
+      ${receiptBlock(order)}
       <a href="${site}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`;
     const result = await resendSend(
       order.email,
@@ -263,14 +349,29 @@ export async function sendOrderConfirmationEmail(order: Order) {
  */
 export async function sendFulfillmentEmail(
   order: Order,
-  stage: FulfillmentStage
+  stage: FulfillmentStage,
+  opts: {
+    /**
+     * Supabase invite link, when the buyer checked out as a guest and has no
+     * account. Included in the payment-confirmed email so the one message that
+     * matters most also gets them set up to track it.
+     */
+    inviteLink?: string;
+  } = {}
 ) {
   const copy = STAGE_COPY[stage];
   const body = stageMessage(stage, order.estimated_delivery_at);
   const site = publicSiteUrl() || "";
 
   if (!directEmail()) {
-    return call("/email/fulfillment", { order, stage, title: copy.title, body });
+    return call("/email/fulfillment", {
+      order,
+      stage,
+      title: copy.title,
+      body,
+      inviteLink: opts.inviteLink,
+      receipt: stage === "confirmed",
+    });
   }
 
   const tracking = order.tracking_number
@@ -289,6 +390,24 @@ export async function sendFulfillmentEmail(
          </div>`
       : "";
 
+  // The payment-confirmed email is the one a customer keeps, so it carries the
+  // complete receipt. Later stages are short status updates and don't repeat it.
+  const receipt = stage === "confirmed" ? receiptBlock(order) : "";
+
+  // A guest buyer has no dashboard to send them to yet. Rather than link them
+  // somewhere that will look empty, offer the account that makes tracking work
+  // — the link confirms their address, which is what attaches this order to it.
+  const cta = opts.inviteLink
+    ? `<div style="margin-top:28px;border:1px solid #1e5bff;border-radius:8px;padding:20px;background:rgba(30,91,255,0.08)">
+         <p style="margin:0;color:#fff;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:12px">Track this order</p>
+         <p style="margin:8px 0 0;color:#c3c5d9;line-height:1.6">You checked out as a guest. Set up an account with this email address and this order — plus every update from here to delivery — appears on your dashboard.</p>
+         <a href="${esc(
+           opts.inviteLink
+         )}" style="display:inline-block;margin-top:16px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Create your account</a>
+         <p style="margin:12px 0 0;color:#8d90a2;font-size:11px;line-height:1.6">This link signs you in and is for you alone — please don't forward it. You'll keep getting these updates by email either way.</p>
+       </div>`
+    : `<a href="${site}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`;
+
   return resendSend(
     order.email,
     `${copy.title} · ${order.order_number}`,
@@ -298,8 +417,8 @@ export async function sendFulfillmentEmail(
         order.order_number
       )}</strong></p>
        <p style="color:#c3c5d9;line-height:1.6">${esc(body)}</p>
-       ${tracking}${callout}
-       <a href="${site}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`
+       ${tracking}${callout}${receipt}
+       ${cta}`
     )
   );
 }
