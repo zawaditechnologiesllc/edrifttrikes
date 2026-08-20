@@ -28,6 +28,12 @@ export const COMPANY = {
   disputeWindowDays: 7,
   // How long, in days, returns are accepted after delivery.
   returnWindowDays: 30,
+  /**
+   * Working days we tell a customer to allow for a refund to reach their bank.
+   * Refunds are issued by hand, so this is a real commitment, not a gateway
+   * estimate — the refund email quotes it, and so does the returns policy.
+   */
+  refundProcessingDays: 7,
   lastUpdated: "July 21, 2026",
 } as const;
 

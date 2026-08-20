@@ -5,7 +5,8 @@ import PublicEnvScript from "@/components/PublicEnvScript";
 import SiteSettingsProvider from "@/components/storefront/SiteSettingsProvider";
 import { CartProvider } from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
-import { getSiteSettings } from "@/lib/db";
+import { getAnnouncements, getSiteSettings } from "@/lib/db";
+import { liveAnnouncements } from "@/lib/announcements";
 
 export const metadata: Metadata = {
   title: {
@@ -45,7 +46,10 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const settings = await getSiteSettings();
+  const [settings, announcements] = await Promise.all([
+    getSiteSettings(),
+    getAnnouncements(),
+  ]);
   return (
     <html lang="en" className="dark">
       <head>
@@ -62,7 +66,10 @@ export default async function RootLayout({
       </head>
       <body className="bg-background text-on-surface font-body-md antialiased overflow-x-hidden">
         <PublicEnvScript />
-        <SiteSettingsProvider settings={settings}>
+        <SiteSettingsProvider
+          settings={settings}
+          announcements={liveAnnouncements(announcements)}
+        >
           <CartProvider>
             {children}
             <CartDrawer />

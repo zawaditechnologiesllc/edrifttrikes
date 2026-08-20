@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/components/cart/CartProvider";
+import AnnouncementTicker from "@/components/storefront/AnnouncementTicker";
 import {
   SearchIcon,
   HeartIcon,
@@ -54,6 +55,12 @@ export default function SiteHeader({ light = false }: { light?: boolean }) {
 
   return (
     <>
+      {/* Above the nav rather than inside it: the stripe scrolls away with the
+          page while the nav stays stuck, which is what an announcement should
+          do — noticed once, then out of the way. Lives here rather than in the
+          root layout so it follows the storefront header and never appears
+          over the admin panel. */}
+      <AnnouncementTicker />
       <nav className={`w-full top-0 sticky z-50 border-b ${bg}`}>
         <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-3 md:py-4 max-w-max-width mx-auto gap-4">
           <Link href="/" aria-label="E-Drift Trikes home" className="flex items-center gap-2.5 shrink-0">

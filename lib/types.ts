@@ -1,4 +1,5 @@
 import type { FulfillmentStage } from "@/lib/fulfillment";
+import type { Announcement } from "@/lib/announcements";
 
 export type Category = {
   id: string;
@@ -167,4 +168,14 @@ export type ContactMessage = {
   reply_body?: string | null;
   replied_by?: string | null;
   created_at: string;
+};
+
+/**
+ * What /api/settings returns and SiteSettingsProvider distributes: the public
+ * values a client component needs, in one request rather than two.
+ */
+export type PublicSiteData = {
+  settings: SiteSettings;
+  /** Already filtered to the live set — see liveAnnouncements(). */
+  announcements: Announcement[];
 };

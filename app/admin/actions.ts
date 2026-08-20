@@ -4,13 +4,19 @@ import { redirect } from "next/navigation";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
-import { CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
-import { markOrderPaid, setOrderStage, ensureCustomerAccountLink } from "@/lib/orders";
-import { sendAccountInviteEmail } from "@/lib/email";
+import { ANNOUNCEMENTS_TAG, CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
+import {
+  markOrderPaid,
+  setOrderStage,
+  ensureCustomerAccountLink,
+  loadOrder,
+} from "@/lib/orders";
+import { sendAccountInviteEmail, sendRefundEmail, resendFailureHint } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
 import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 import { parseColors } from "@/lib/colors";
+import { normalizeHref, normalizeMessage } from "@/lib/announcements";
 
 async function requireAdmin() {
   if (!adminConfigured()) redirect("/login");
@@ -288,6 +294,20 @@ export async function deleteProduct(formData: FormData) {
   revalidatePath("/shop");
 }
 
+/**
+ * Whether this save should email the customer.
+ *
+ * The form pairs the checkbox with a hidden "off" input, because an unchecked
+ * checkbox submits NOTHING at all — so the presence of any value is what
+ * distinguishes "the admin opted out" from "this form has no such control"
+ * (the compact status dropdown in the orders table doesn't). Absent the control
+ * entirely, the customer hears: an admin changing an order's state expects that.
+ */
+function wantsNotify(formData: FormData): boolean {
+  const values = formData.getAll("notify");
+  return values.length === 0 || values.includes("on");
+}
+
 export type OrderUpdateState = { ok?: boolean; error?: string; message?: string };
 
 /** The order_status enum in the database — anything else is rejected. */
@@ -341,17 +361,10 @@ export async function updateOrderStatus(
   if (current.status !== status) {
     if (status === "paid") {
       // Route through the shared transition so the customer journey starts.
-      // notify is read below for the stage control; the same intent applies
-      // here — an admin marking an order paid expects the customer to hear.
-      const notifyOnPaid = formData.getAll("notify");
       const paid = await markOrderPaid(
         admin,
         { id },
-        {
-          paidVia: "manual",
-          sendEmail: notifyOnPaid.length === 0 || notifyOnPaid.includes("on"),
-          force: true,
-        }
+        { paidVia: "manual", sendEmail: wantsNotify(formData), force: true }
       );
       if (!paid.ok) {
         return { error: `Could not mark paid: ${paid.reason ?? "unknown error"}` };
@@ -374,6 +387,32 @@ export async function updateOrderStatus(
           .from("orders")
           .update({ fulfillment_stage: "cancelled", stage_updated_at: new Date().toISOString() })
           .eq("id", id);
+
+        // A refund is money leaving the customer's order without them doing
+        // anything, so they hear about it. Marking an order refunded used to
+        // send nothing at all — the customer's first sign was a credit
+        // appearing (or not appearing) on their statement days later.
+        if (status === "refunded" && wantsNotify(formData)) {
+          const order = await loadOrder(admin, { id });
+          if (order?.email) {
+            try {
+              await sendRefundEmail(order);
+              notes.push(`refund notice emailed to ${order.email}`);
+            } catch (e) {
+              // The status change is already committed and correct; a failed
+              // email must not roll it back or look like the refund failed.
+              const message = e instanceof Error ? e.message : String(e);
+              console.error("[admin] refund email failed", e);
+              notes.push(
+                `status saved, BUT the refund email did not send: ${message}. ${
+                  resendFailureHint(message) ?? "Tell the customer directly."
+                }`
+              );
+            }
+          } else {
+            notes.push("status saved — no email on this order, so nothing was sent");
+          }
+        }
       } else if (status === "fulfilled") {
         await admin
           .from("orders")
@@ -402,12 +441,10 @@ export async function updateOrderStatus(
       return { error: `"${stage}" is not a valid delivery stage.` };
     }
     // Unchecking "email the customer" lets an admin correct a mistaken stage
-    // silently. The form pairs the checkbox with a hidden "off" input, because
-    // an unchecked checkbox submits nothing at all — so presence of the values
-    // is what distinguishes "opted out" from "this form has no such control".
-    const notifyValues = formData.getAll("notify");
-    const notify = notifyValues.length === 0 || notifyValues.includes("on");
-    const moved = await setOrderStage(admin, id, stage, { sendEmail: notify });
+    // silently.
+    const moved = await setOrderStage(admin, id, stage, {
+      sendEmail: wantsNotify(formData),
+    });
     if (!moved.ok) return { error: `Could not update stage: ${moved.error}` };
     notes.push(
       moved.emailed ? `stage → ${stage} (customer emailed)` : `stage → ${stage}`
@@ -665,4 +702,103 @@ export async function inviteOrderCustomer(
     ok: true,
     message: `Invite sent to ${email}. Once they set up their account, this order and all its updates appear on their dashboard.`,
   };
+}
+// ---------------------------------------------------------------------------
+// Announcements — the scrolling stripe at the top of the storefront
+// ---------------------------------------------------------------------------
+
+export type AnnouncementState = { ok?: boolean; error?: string };
+
+/**
+ * A datetime-local input gives "2026-08-20T17:30" with NO timezone, which the
+ * browser means in the ADMIN'S local time. Interpreting that as UTC would fire
+ * a sale banner hours early or late, so it is parsed in the local zone (which
+ * `new Date()` does for that format) and stored as a proper instant.
+ */
+function localDateTimeToIso(value: FormDataEntryValue | null): string | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** Create or update one announcement. */
+export async function saveAnnouncement(
+  _prev: AnnouncementState,
+  formData: FormData
+): Promise<AnnouncementState> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const message = normalizeMessage(formData.get("message") as string);
+  if (!message) return { error: "Write the message that should scroll across the stripe." };
+
+  // An unusable link is worth saying out loud rather than silently dropping:
+  // an admin who typed one expects it to work.
+  const rawHref = String(formData.get("href") || "").trim();
+  const href = normalizeHref(rawHref);
+  if (rawHref && !href) {
+    return {
+      error:
+        "That link can't be used. Enter a path on this site (like /shop) or a full https:// address.",
+    };
+  }
+
+  const starts_at = localDateTimeToIso(formData.get("starts_at"));
+  const ends_at = localDateTimeToIso(formData.get("ends_at"));
+  if (starts_at && ends_at && ends_at <= starts_at) {
+    return { error: "The end time has to be after the start time." };
+  }
+
+  const row = {
+    message,
+    href,
+    active: formData.get("active") === "on",
+    starts_at,
+    ends_at,
+    position: Math.max(0, Math.min(999, Number(formData.get("position") || 0) || 0)),
+    updated_at: new Date().toISOString(),
+  };
+
+  const id = String(formData.get("id") || "").trim();
+  const { error } = id
+    ? await admin.from("announcements").update(row).eq("id", id)
+    : await admin.from("announcements").insert(row);
+
+  if (error) {
+    return {
+      error: `Could not save: ${error.message}. If this is a fresh database, run supabase/migrations/0014_announcements.sql first.`,
+    };
+  }
+
+  revalidateAnnouncements();
+  return { ok: true };
+}
+
+export async function deleteAnnouncement(formData: FormData) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  await admin.from("announcements").delete().eq("id", String(formData.get("id")));
+  revalidateAnnouncements();
+}
+
+/** Flip one announcement on or off without opening the editor. */
+export async function toggleAnnouncement(formData: FormData) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  await admin
+    .from("announcements")
+    .update({ active: formData.get("active") === "on", updated_at: new Date().toISOString() })
+    .eq("id", String(formData.get("id")));
+  revalidateAnnouncements();
+}
+
+/**
+ * The stripe renders on EVERY storefront page, so a change has to reach the
+ * cached page shells as well as the announcements read itself.
+ */
+function revalidateAnnouncements() {
+  revalidateTag(ANNOUNCEMENTS_TAG);
+  revalidatePath("/admin/announcements");
+  revalidatePath("/", "layout");
 }
