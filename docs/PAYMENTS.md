@@ -135,3 +135,45 @@ Stripe Payment Element.
 - [ ] Redeploy Cloudflare **and** Render after changing variables.
 - [ ] `/api/health` shows the providers you expect as `true`; `/admin/status` says **"Checkout live."**
 - [ ] One end-to-end test order per provider (sandbox first), confirm redirect → paid → receipt.
+
+
+## Company content on the Stripe page
+
+Stripe Checkout is **hosted by Stripe** — you cannot inject HTML, CSS or scripts
+into it. What you can put there:
+
+| What | Where it's set |
+| --- | --- |
+| Logo, icon, brand colour, accent colour, font | Stripe Dashboard → Settings → Branding. Not settable from code. |
+| Text by the pay button | `custom_text.submit` — [`lib/stripe-branding.ts`](../lib/stripe-branding.ts) |
+| Text after the confirmation button | `custom_text.after_submit` — same file |
+| Charge description (follows into Stripe's receipt) | `payment_intent_data.description` |
+| Button wording | `submit_type: "pay"` |
+
+Each `custom_text` slot allows up to 1200 characters. **An over-length or
+malformed value fails the whole session create**, which means no card checkout
+at all — so `clampCustomText()` trims defensively and a test asserts the limit.
+
+The copy is derived from `COMPANY`, `ESTIMATED_DELIVERY_DAYS` and
+`DEFAULT_DUTY_RATE_BPS` rather than written inline, so the delivery window and
+duty rate quoted on Stripe's page cannot drift from the ones in our own checkout
+and in the emails the buyer receives minutes later. Tests assert that agreement.
+
+### The page after payment is entirely ours
+
+`success_url` sends the buyer to `/order-confirmation` on our own domain, with
+the full receipt, the delivery tracker and the duty notice. There is no Stripe
+restriction there — that is the right place for substantial company content.
+
+### Not enabled, available if wanted
+
+- **Terms-of-service acceptance** (`consent_collection.terms_of_service` plus
+  `custom_text.terms_of_service_acceptance`) forces a tick-box linking your
+  terms. It requires a terms URL configured in the Stripe Dashboard first —
+  **without it the API call fails and card checkout breaks**, which is why it is
+  off by default.
+- **Custom fields** (`custom_fields`) can collect up to three extra answers.
+- **Statement descriptor suffix** controls what appears on the buyer's card
+  statement and is one of the best defences against "I don't recognise this
+  charge" chargebacks. It needs the account-level descriptor set in the
+  Dashboard and has strict character rules.

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
+import { stripeCompanyContent } from "@/lib/stripe-branding";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
@@ -293,6 +294,11 @@ export async function POST(request: Request) {
       success_url: `${siteUrl}/order-confirmation?order=${order.order_number}`,
       cancel_url: `${siteUrl}/checkout`,
       metadata: { order_id: order.id, order_number: order.order_number },
+      // Our own copy on Stripe's hosted page — who is charging, the delivery
+      // window, and the import duty they owe separately. Derived from the same
+      // constants as our checkout and emails so the three cannot disagree.
+      // See lib/stripe-branding.ts. Logo and colours are Dashboard settings.
+      ...stripeCompanyContent(order.order_number),
     });
     await admin.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
     return NextResponse.json({ url: session.url });
