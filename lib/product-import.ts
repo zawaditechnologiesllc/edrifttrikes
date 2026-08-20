@@ -7,6 +7,12 @@
  * `Description:` belongs to it until the next recognized `Key:` line. Images
  * can't come from a text file; they're picked in the form as usual.
  *
+ * `Colors:` gives the buyer something to choose on the product page. Write them
+ * on one line, one per line, or both — a blank line ends the list:
+ *   Colors: Midnight Black #101010, Voltage Blue #1e5bff
+ *   Hazard Lime
+ * The hex is optional and only paints the swatch — see lib/colors.ts.
+ *
  * Client-safe: pure string parsing, no server imports (the form runs it in the
  * browser via FileReader).
  */
@@ -68,6 +74,14 @@ const KEY_MAP: Record<string, string> = {
   "shipping fee": "shipping_fee",
   "shipping cost": "shipping_fee",
   "free shipping": "free_shipping",
+  "colors": "colors",
+  "color": "colors",
+  "colours": "colours_alias",
+  "colour": "colours_alias",
+  "available colors": "colors",
+  "available colours": "colours_alias",
+  "color options": "colors",
+  "colour options": "colours_alias",
 };
 
 const TRUTHY = new Set(["yes", "y", "true", "1", "on", "✓", "x"]);
@@ -109,8 +123,13 @@ export function parseProductText(text: string): ParsedProduct {
   const checks: Record<string, boolean> = {};
   const unknownKeys: string[] = [];
   let category: string | undefined;
+  // Two fields may span lines: the description, and the colour list — an admin
+  // writing a product sheet naturally puts one colour per line, and silently
+  // dropping those was losing colours without any warning.
   let inDescription = false;
+  let inColors = false;
   const descriptionLines: string[] = [];
+  const colorLines: string[] = [];
 
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trimEnd();
@@ -123,14 +142,24 @@ export function parseProductText(text: string): ParsedProduct {
       // Keep blank lines inside the description — they mark paragraph breaks,
       // which the product page renders (along with -, *, 1. bullet points).
       if (inDescription) descriptionLines.push(line.trim());
-      else if (m && line.trim()) unknownKeys.push(m[1].trim());
+      // A bare line under `Colors:` is another colour. A blank line ends the
+      // list, so a following prose paragraph isn't swallowed as a colour.
+      else if (inColors) {
+        const trimmed = line.trim().replace(/^[-*]\s*/, "");
+        if (trimmed) colorLines.push(trimmed);
+        else inColors = false;
+      } else if (m && line.trim()) unknownKeys.push(m[1].trim());
       continue;
     }
 
     const value = m![2].trim();
     inDescription = field === "description";
+    inColors = field === "colors" || field === "colours_alias";
 
-    switch (field) {
+    // British and American spellings both map here.
+    const target = field === "colours_alias" ? "colors" : field;
+
+    switch (target) {
       case "description":
         if (value) descriptionLines.push(value);
         break;
@@ -159,8 +188,13 @@ export function parseProductText(text: string): ParsedProduct {
       case "slug":
         fields.slug = slugify(value);
         break;
+      case "colors":
+        // Kept as the admin's raw text; the form and the product page parse it
+        // with lib/colors.ts, so there is one parser rather than two.
+        if (value) colorLines.push(value);
+        break;
       default:
-        fields[field] = value;
+        fields[target] = value;
     }
   }
 
@@ -170,6 +204,8 @@ export function parseProductText(text: string): ParsedProduct {
       .replace(/\n{3,}/g, "\n\n")
       .trim();
   }
+  // Joined with commas so lib/colors.ts sees one list however it was laid out.
+  if (colorLines.length) fields.colors = colorLines.join(", ");
   if (!fields.slug && fields.name) fields.slug = slugify(fields.name);
 
   return { fields, checks, category, unknownKeys };
@@ -203,4 +239,5 @@ New: yes
 Featured: yes
 Shipping fee: 50.00
 Free shipping: no
+Colors: Midnight Black #101010, Voltage Blue #1e5bff, Hazard Lime #c4f731
 `;

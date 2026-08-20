@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCart } from "./CartProvider";
+import { useCart, cartLineKey } from "./CartProvider";
 import { formatMoney } from "@/lib/format";
 import { CloseIcon, CartIcon } from "@/components/Icon";
 
@@ -53,7 +53,7 @@ export default function CartDrawer() {
             </div>
           ) : (
             items.map((i) => (
-              <div key={i.productId} className="flex gap-4 items-center">
+              <div key={cartLineKey(i)} className="flex gap-4 items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={i.imageUrl ?? "/assets/placeholder.svg"}
@@ -66,27 +66,30 @@ export default function CartDrawer() {
                   <p className="text-white font-label-bold uppercase tracking-wide truncate">
                     {i.name}
                   </p>
+                  {i.color && (
+                    <p className="text-on-surface-variant text-xs truncate">{i.color}</p>
+                  )}
                   <p className="text-secondary font-body-md">
                     {formatMoney(i.priceCents)}
                   </p>
                   <div className="flex items-center gap-3 mt-2">
                     <div className="flex items-center border border-white/15 rounded">
                       <button
-                        onClick={() => setQty(i.productId, i.qty - 1)}
+                        onClick={() => setQty(cartLineKey(i), i.qty - 1)}
                         className="px-2 text-on-surface-variant hover:text-white"
                       >
                         −
                       </button>
                       <span className="px-2 text-sm text-white">{i.qty}</span>
                       <button
-                        onClick={() => setQty(i.productId, i.qty + 1)}
+                        onClick={() => setQty(cartLineKey(i), i.qty + 1)}
                         className="px-2 text-on-surface-variant hover:text-white"
                       >
                         +
                       </button>
                     </div>
                     <button
-                      onClick={() => remove(i.productId)}
+                      onClick={() => remove(cartLineKey(i))}
                       className="text-xs text-on-surface-variant hover:text-error uppercase tracking-widest font-label-bold"
                     >
                       Remove

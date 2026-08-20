@@ -101,7 +101,7 @@ export default function CheckoutClient({
           email,
           shipping,
           method,
-          items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
+          items: items.map((i) => ({ productId: i.productId, qty: i.qty, color: i.color ?? null })),
         }),
       });
       const data = await res.json();
@@ -149,7 +149,7 @@ export default function CheckoutClient({
   const cardPayload = () => ({
     email,
     shipping,
-    items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
+    items: items.map((i) => ({ productId: i.productId, qty: i.qty, color: i.color ?? null })),
   });
   const onCardPaid = (orderNumber: string) => {
     clear();
@@ -319,7 +319,9 @@ export default function CheckoutClient({
                   <img loading="lazy" decoding="async" src={i.imageUrl ?? "/assets/placeholder.svg"} alt={i.name} className="w-14 h-14 object-cover rounded bg-surface-container-high" />
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-label-bold uppercase truncate">{i.name}</p>
-                    <p className="text-on-surface-variant text-xs">Qty {i.qty}</p>
+                    <p className="text-on-surface-variant text-xs">
+                      {i.color ? `${i.color} · ` : ""}Qty {i.qty}
+                    </p>
                   </div>
                   <span className="text-white text-sm">{formatMoney(i.priceCents * i.qty)}</span>
                 </div>

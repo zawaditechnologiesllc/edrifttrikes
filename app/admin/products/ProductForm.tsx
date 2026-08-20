@@ -7,6 +7,7 @@ import { saveProduct, createUploadUrls } from "../actions";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/image-compress";
 import { parseProductText, PRODUCT_TEMPLATE } from "@/lib/product-import";
+import { formatColors, parseColors, productColors } from "@/lib/colors";
 import type { Category, Product } from "@/lib/types";
 
 // Largest ORIGINAL a photo picker may hand us. Generous on purpose — normal
@@ -50,6 +51,12 @@ export default function ProductForm({
   const [step, setStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [importNote, setImportNote] = useState<string | null>(null);
+  // Controlled so the .txt import can fill it and the swatch preview updates
+  // as it's typed. Seeded from whatever is stored, in the admin's own spelling.
+  const [colorsText, setColorsText] = useState(() =>
+    formatColors(productColors(p?.colors))
+  );
+  const parsedColors = parseColors(colorsText);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -168,6 +175,13 @@ export default function ProductForm({
 
       let applied = 0;
       const setValue = (name: string, value: string) => {
+        // The colours field is CONTROLLED, so writing to the DOM node would be
+        // overwritten on the next render. It has to go through React state.
+        if (name === "colors") {
+          setColorsText(value);
+          applied++;
+          return;
+        }
         const el = form.elements.namedItem(name);
         if (
           el instanceof HTMLInputElement ||
@@ -333,6 +347,40 @@ export default function ProductForm({
             className={input}
           />
         </div>
+        <div className="sm:col-span-2">
+          <label className={lbl}>Colours — buyers pick one at checkout</label>
+          <input
+            name="colors"
+            value={colorsText}
+            onChange={(e) => setColorsText(e.target.value)}
+            placeholder="Midnight Black #101010, Voltage Blue #1e5bff, Hazard Lime"
+            className={input}
+          />
+          <p className="text-[10px] text-outline uppercase tracking-widest mt-2">
+            Comma separated. The hex is optional and only paints the swatch.
+            Filled automatically by the <span className="text-secondary">Colors:</span>{" "}
+            line in a product .txt.
+          </p>
+          {/* Parsed preview, so a typo shows up here rather than on the live
+              product page. Uses the same parser the storefront does. */}
+          {parsedColors.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {parsedColors.map((c) => (
+                <span
+                  key={c.name}
+                  className="inline-flex items-center gap-2 rounded border border-white/10 bg-surface-container-highest px-2 py-1 text-xs text-on-surface-variant"
+                >
+                  <span
+                    className="h-3 w-3 rounded-full border border-white/20"
+                    style={c.hex ? { backgroundColor: c.hex } : undefined}
+                  />
+                  {c.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         <label className="flex items-center gap-3 text-on-surface-variant pb-3">
           <input type="checkbox" name="is_new" defaultChecked={p?.is_new} className="w-5 h-5" />
           <span className="font-label-bold uppercase text-xs tracking-widest">Mark as new</span>

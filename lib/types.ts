@@ -48,6 +48,12 @@ export type Product = {
   free_shipping?: boolean;
   badge: string | null;
   hero_image: string | null;
+  /**
+   * Selectable colours, from the admin product sheet. Read it through
+   * productColors() in lib/colors.ts — the column is jsonb and tolerates
+   * older/hand-edited shapes.
+   */
+  colors?: unknown;
   created_at: string;
   updated_at: string;
   category?: Category | null;
@@ -64,6 +70,8 @@ export type OrderItem = {
   price_cents: number;
   qty: number;
   image_url: string | null;
+  /** Colour chosen at checkout, validated against the product. */
+  color?: string | null;
 };
 
 export type Order = {

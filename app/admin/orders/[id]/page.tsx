@@ -69,9 +69,15 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
         <div className="md:col-span-2 bg-surface-container border border-white/10 rounded-lg p-6">
           <h2 className="font-headline-md text-headline-md text-white uppercase mb-4">Items</h2>
           <div className="divide-y divide-white/5">
-            {(order.items ?? []).map((i: { id: string; name: string; qty: number; price_cents: number }) => (
+            {(order.items ?? []).map((i: { id: string; name: string; qty: number; price_cents: number; color?: string | null }) => (
               <div key={i.id} className="flex justify-between py-3">
-                <span className="text-on-surface-variant">{i.name} × {i.qty}</span>
+                <span className="text-on-surface-variant">
+                  {i.name}
+                  {i.color && (
+                    <span className="text-white"> — {i.color}</span>
+                  )}{" "}
+                  × {i.qty}
+                </span>
                 <span className="text-white">{formatMoney(i.price_cents * i.qty, order.currency)}</span>
               </div>
             ))}

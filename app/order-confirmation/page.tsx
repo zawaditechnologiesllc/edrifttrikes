@@ -47,7 +47,7 @@ export default async function OrderConfirmation({
             <div className="space-y-3">
               {(order.items ?? []).map((i) => (
                 <div key={i.id} className="flex justify-between text-on-surface-variant">
-                  <span>{i.name} × {i.qty}</span>
+                  <span>{i.name}{i.color ? ` — ${i.color}` : ""} × {i.qty}</span>
                   <span className="text-white">{formatMoney(i.price_cents * i.qty, order.currency)}</span>
                 </div>
               ))}

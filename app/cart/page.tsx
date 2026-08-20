@@ -3,7 +3,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
-import { useCart } from "@/components/cart/CartProvider";
+import { useCart, cartLineKey } from "@/components/cart/CartProvider";
 import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeCartTotals } from "@/lib/totals";
@@ -46,23 +46,26 @@ export default function CartPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 space-y-4">
               {items.map((i) => (
-                <div key={i.productId} className="flex gap-5 items-center bg-surface-container border border-white/10 rounded-lg p-4">
+                <div key={cartLineKey(i)} className="flex gap-5 items-center bg-surface-container border border-white/10 rounded-lg p-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img loading="lazy" decoding="async" src={i.imageUrl ?? "/assets/placeholder.svg"} alt={i.name} className="w-24 h-24 object-cover rounded bg-surface-container-high" />
                   <div className="flex-1 min-w-0">
                     <Link href={`/product/${i.slug}`} className="text-white font-headline-md text-lg uppercase hover:text-secondary">
                       {i.name}
                     </Link>
+                    {i.color && (
+                      <p className="text-on-surface-variant text-sm">{i.color}</p>
+                    )}
                     <p className="text-secondary">{formatMoney(i.priceCents)}</p>
                   </div>
                   <div className="flex items-center border border-white/15 rounded">
-                    <button onClick={() => setQty(i.productId, i.qty - 1)} className="px-3 py-2 text-on-surface-variant hover:text-white">−</button>
+                    <button onClick={() => setQty(cartLineKey(i), i.qty - 1)} className="px-3 py-2 text-on-surface-variant hover:text-white">−</button>
                     <span className="px-3 text-white">{i.qty}</span>
-                    <button onClick={() => setQty(i.productId, i.qty + 1)} className="px-3 py-2 text-on-surface-variant hover:text-white">+</button>
+                    <button onClick={() => setQty(cartLineKey(i), i.qty + 1)} className="px-3 py-2 text-on-surface-variant hover:text-white">+</button>
                   </div>
                   <div className="w-28 text-right">
                     <p className="text-white font-label-bold">{formatMoney(i.priceCents * i.qty)}</p>
-                    <button onClick={() => remove(i.productId)} className="text-xs text-on-surface-variant hover:text-error uppercase tracking-widest font-label-bold mt-1">Remove</button>
+                    <button onClick={() => remove(cartLineKey(i))} className="text-xs text-on-surface-variant hover:text-error uppercase tracking-widest font-label-bold mt-1">Remove</button>
                   </div>
                 </div>
               ))}

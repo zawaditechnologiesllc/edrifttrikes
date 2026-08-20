@@ -8,11 +8,20 @@ export default function AddToCartButton({
   className,
   label = "Add to Cart",
   qty = 1,
+  guard,
 }: {
   item: Omit<CartItem, "qty">;
   className?: string;
   label?: string;
   qty?: number;
+  /**
+   * Runs before the item is added; returning false cancels it.
+   *
+   * Used for a required choice such as colour. The button stays ENABLED so the
+   * click can explain what is missing — a disabled control just sits there
+   * telling the buyer nothing.
+   */
+  guard?: () => boolean;
 }) {
   const { add, setOpen } = useCart();
   const [added, setAdded] = useState(false);
@@ -24,6 +33,7 @@ export default function AddToCartButton({
       disabled={soldOut}
       onClick={() => {
         if (soldOut) return;
+        if (guard && !guard()) return;
         add(item, qty);
         setOpen(true);
         setAdded(true);

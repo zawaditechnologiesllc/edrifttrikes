@@ -163,7 +163,9 @@ function orderTable(order: Order): string {
   const rows = (order.items || [])
     .map(
       (i) =>
-        `<tr><td style="padding:8px 0;color:#e4e1e6">${esc(i.name)} × ${esc(i.qty)}</td>
+        `<tr><td style="padding:8px 0;color:#e4e1e6">${esc(i.name)}${
+          i.color ? ` — ${esc(i.color)}` : ""
+        } × ${esc(i.qty)}</td>
          <td style="padding:8px 0;text-align:right;color:#e4e1e6">${money(i.price_cents * i.qty, currency)}</td></tr>`
     )
     .join("");
@@ -225,7 +227,9 @@ function purchasedItemsBlock(order: Order): string {
     .map(
       (i) =>
         `<tr>
-           <td style="padding:6px 0;color:#e4e1e6">${esc(i.name)} × ${esc(i.qty)}</td>
+           <td style="padding:6px 0;color:#e4e1e6">${esc(i.name)}${
+             i.color ? ` — ${esc(i.color)}` : ""
+           } × ${esc(i.qty)}</td>
            <td style="padding:6px 0;text-align:right;color:#8d90a2">${money(
              i.price_cents * i.qty,
              currency

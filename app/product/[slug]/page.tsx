@@ -6,8 +6,8 @@ import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
 import ProductGallery from "@/components/storefront/ProductGallery";
 import RichText from "@/components/storefront/RichText";
-import AddToCartButton from "@/components/cart/AddToCartButton";
-import BuyNowButton from "@/components/cart/BuyNowButton";
+import ProductBuyPanel from "@/components/storefront/ProductBuyPanel";
+import { productColors } from "@/lib/colors";
 import WishlistButton from "@/components/storefront/WishlistButton";
 import { getProductBySlug, getProducts, getSiteSettings } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
@@ -113,9 +113,11 @@ export default async function ProductPage({
               </div>
             )}
 
-            <div className="flex flex-wrap gap-4 pt-2">
-              {(() => {
-                const cartItem = {
+            <div className="pt-2">
+              <ProductBuyPanel
+                productId={product.id}
+                colors={productColors(product.colors)}
+                item={{
                   productId: product.id,
                   slug: product.slug,
                   name: product.name,
@@ -124,19 +126,8 @@ export default async function ProductPage({
                   stock: product.stock,
                   shippingCents: product.shipping_cents ?? null,
                   freeShipping: Boolean(product.free_shipping),
-                };
-                return (
-                  <>
-                    <BuyNowButton item={cartItem} label="Buy Now" />
-                    <AddToCartButton
-                      item={cartItem}
-                      label="Add to Cart"
-                      className="border border-white text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:bg-white/10 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    />
-                  </>
-                );
-              })()}
-              <WishlistButton productId={product.id} variant="full" />
+                }}
+              />
             </div>
 
             {product.description && (
