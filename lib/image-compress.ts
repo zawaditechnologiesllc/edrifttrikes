@@ -111,3 +111,57 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promi
     else resolve(null);
   });
 }
+
+/**
+ * Normalise a logo to a PNG the PDF product sheets can embed.
+ *
+ * compressImage() above re-encodes to WebP, which is right for photographs and
+ * wrong for this: PDF cannot embed WebP at all, and flattening a logo to JPEG
+ * would fill its transparent background with white — which then shows as a
+ * white box wherever the logo sits on the sheet. PNG keeps the alpha channel,
+ * and lib/pdf.ts turns that channel into the PDF soft mask.
+ *
+ * A logo is also small by nature, so this only ever scales DOWN to `maxDimension`
+ * and never re-encodes lossily.
+ *
+ * Like compressImage, this NEVER throws: anything it can't handle comes back as
+ * the original File, and the server rejects it with a message the admin can act
+ * on rather than the upload failing silently.
+ */
+export async function logoToPng(file: File, maxDimension = 600): Promise<File> {
+  try {
+    if (typeof document === "undefined") return file;
+    if (!file || file.size === 0 || !file.type.startsWith("image/")) return file;
+    // SVG has no intrinsic raster size and can carry script; never re-encode it,
+    // and let the server refuse it.
+    if (file.type === "image/svg+xml") return file;
+
+    const { img, revoke } = await loadImage(file);
+    try {
+      const sw = img.naturalWidth || img.width;
+      const sh = img.naturalHeight || img.height;
+      if (!sw || !sh) return file;
+
+      const scale = Math.min(1, maxDimension / Math.max(sw, sh));
+      const dw = Math.max(1, Math.round(sw * scale));
+      const dh = Math.max(1, Math.round(sh * scale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = dw;
+      canvas.height = dh;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      ctx.drawImage(img, 0, 0, dw, dh);
+
+      const out = await toBlob(canvas, "image/png", 1);
+      if (!out || out.type !== "image/png") return file;
+
+      const base = file.name.replace(/\.[^.]+$/, "") || "logo";
+      return new File([out], `${base}.png`, { type: "image/png", lastModified: Date.now() });
+    } finally {
+      revoke();
+    }
+  } catch {
+    return file;
+  }
+}

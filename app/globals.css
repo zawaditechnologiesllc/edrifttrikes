@@ -187,6 +187,42 @@ input[type="range"]::-webkit-slider-thumb {
             animation: marquee 25s linear infinite;
         }
 
+/*
+ * The announcement stripe (components/storefront/AnnouncementTicker.tsx).
+ *
+ * The track holds two identical copies of the notices and slides left by half
+ * its width, so the wrap is invisible. Duration is set inline per content —
+ * see tickerDurationSeconds() — because it depends on how much there is to
+ * read, not on the design.
+ */
+.ticker-track {
+            animation: marquee 30s linear infinite;
+        }
+
+/* Pause while someone is reading it, whether with a mouse or the keyboard. */
+.group:hover > .ticker-track,
+.ticker-track:focus-within {
+            animation-play-state: paused;
+        }
+
+/*
+ * Reduced motion: never animate. The notices become static wrapping text and
+ * the duplicate copy is removed, so nothing is shown twice. This is the whole
+ * accessibility case for a ticker — perpetual motion at the top of every page
+ * is exactly what that preference exists to switch off.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+            animation: none;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+  .ticker-track > [aria-hidden="true"] {
+            display: none;
+        }
+}
+
 .skew-section {
             clip-path: polygon(0 0, 100% 5%, 100% 100%, 0 95%);
         }

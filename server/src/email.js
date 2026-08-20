@@ -3,6 +3,23 @@ import { Resend } from "resend";
 const apiKey = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM || "E-Drift Trikes <onboarding@resend.dev>";
 const SITE = process.env.SITE_URL || "";
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@edrifttrikes.shop";
+
+/**
+ * Sender for mail nobody should reply to. Resend verifies a DOMAIN, so
+ * no-reply@ on the same domain as EMAIL_FROM can send too — but on the shared
+ * resend.dev sandbox only onboarding@ may, so there the normal sender stands.
+ * Mirrors noReplyFrom() in lib/email.ts — keep the two in step.
+ */
+const NO_REPLY_FROM = (() => {
+  if (process.env.EMAIL_FROM_NOREPLY) return process.env.EMAIL_FROM_NOREPLY;
+  const match = /^\s*(?:(.*?)\s*<\s*([^>]+)\s*>|(\S+@\S+))\s*$/.exec(FROM);
+  const address = (match?.[2] || match?.[3] || "").trim();
+  const label = (match?.[1] || "E-Drift Trikes").replace(/["<>]/g, "").trim();
+  const domain = address.split("@")[1] || "";
+  if (!domain || domain.toLowerCase().endsWith("resend.dev")) return FROM;
+  return `${label} <no-reply@${domain}>`;
+})();
 const resend = apiKey ? new Resend(apiKey) : null;
 
 /**
@@ -41,12 +58,18 @@ function shell(title, body) {
     </div></body></html>`;
 }
 
-async function send(to, subject, html) {
+async function send(to, subject, html, opts = {}) {
   if (!resend) {
     console.warn(`[email] RESEND_API_KEY not set — skipped "${subject}" -> ${to}`);
     return { skipped: true };
   }
-  const result = await resend.emails.send({ from: FROM, to, subject, html });
+  const result = await resend.emails.send({
+    from: opts.from || FROM,
+    to,
+    subject,
+    html,
+    ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+  });
   // The Resend SDK returns { data, error } and does NOT throw on rejection.
   // Without this, an unverified EMAIL_FROM domain (or the resend.dev test
   // domain, which only delivers to your own address) failed silently and the
@@ -171,6 +194,45 @@ export async function fulfillmentEmail({ order, stage, title, body, inviteLink }
        ${cta}`
     )
   );
+}
+
+/**
+ * Refund notice. Fallback path only — when the app has its own RESEND_API_KEY it
+ * renders and sends this itself (lib/email.ts).
+ *
+ * The wording arrives from the app (refundCopy in lib/email.ts) rather than
+ * being written again here: a customer must not read different sentences about
+ * their money depending on which mail path a deployment happens to use.
+ */
+export async function refundEmail({ order, subject, title, paragraphs }) {
+  if (!order?.email) throw new Error("refundEmail: order.email required");
+  const heading = title || "Refund initiated";
+  const body = `
+    <p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(
+      order.order_number
+    )}</strong></p>
+    <div style="margin-top:24px;border:1px solid #c4f731;border-radius:8px;padding:20px;background:rgba(196,247,49,0.08)">
+      <p style="margin:0;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">Refund amount</p>
+      <p style="margin:6px 0 0;color:#c4f731;font-size:26px;font-weight:700">${money(
+        order.total_cents,
+        order.currency
+      )}</p>
+    </div>
+    ${(paragraphs || [])
+      .map((p) => `<p style="color:#c3c5d9;line-height:1.6">${esc(p)}</p>`)
+      .join("")}
+    <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">
+      This message was sent from an unmonitored address. If you have a question
+      about this refund, email
+      <a href="mailto:${esc(SUPPORT_EMAIL)}" style="color:#c4f731">${esc(
+        SUPPORT_EMAIL
+      )}</a> and quote order ${esc(order.order_number)}.
+    </p>`;
+
+  return send(order.email, subject || `Refund initiated · Order ${order.order_number}`, shell(heading, body), {
+    from: NO_REPLY_FROM,
+    replyTo: SUPPORT_EMAIL,
+  });
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { FulfillmentStage } from "@/lib/fulfillment";
+import type { Announcement } from "@/lib/announcements";
 
 export type Category = {
   id: string;
@@ -140,6 +141,8 @@ export type SiteSettings = {
   free_shipping?: boolean;
   /** Sales tax in basis points (800 = 8.00%). Integer math, no float drift. */
   tax_rate_bps?: number;
+  /** Store logo, drawn on the PDF product sheets. Null until one is uploaded. */
+  logo_url?: string | null;
   updated_at?: string;
 };
 
@@ -165,4 +168,14 @@ export type ContactMessage = {
   reply_body?: string | null;
   replied_by?: string | null;
   created_at: string;
+};
+
+/**
+ * What /api/settings returns and SiteSettingsProvider distributes: the public
+ * values a client component needs, in one request rather than two.
+ */
+export type PublicSiteData = {
+  settings: SiteSettings;
+  /** Already filtered to the live set — see liveAnnouncements(). */
+  announcements: Announcement[];
 };

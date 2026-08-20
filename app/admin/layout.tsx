@@ -31,6 +31,7 @@ const NAV = [
   { href: "/admin/orders", label: "Orders", icon: "receipt_long" },
   { href: "/admin/orders/paid", label: "Paid orders", icon: "payments" },
   { href: "/admin/messages", label: "Messages", icon: "mail", badge: true },
+  { href: "/admin/announcements", label: "Announcements", icon: "campaign" },
   { href: "/admin/categories", label: "Categories", icon: "category" },
   { href: "/admin/articles", label: "Tech Lab", icon: "article" },
   { href: "/admin/settings", label: "Settings", icon: "settings" },

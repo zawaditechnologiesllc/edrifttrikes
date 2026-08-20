@@ -7,6 +7,7 @@ import {
   welcomeEmail,
   orderConfirmationEmail,
   fulfillmentEmail,
+  refundEmail,
   supportReplyEmail,
   accountInviteEmail,
   newsletterEmail,
@@ -123,6 +124,11 @@ app.post("/email/order-confirmation", requireInternalKey, async (req, res) => {
 
 app.post("/email/fulfillment", requireInternalKey, async (req, res) => {
   try { await fulfillmentEmail(req.body || {}); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/email/refund", requireInternalKey, async (req, res) => {
+  try { await refundEmail(req.body || {}); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 

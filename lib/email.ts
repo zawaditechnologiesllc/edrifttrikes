@@ -26,6 +26,29 @@ function resendApiKey(): string {
 function emailFrom(): string {
   return serverEnv("EMAIL_FROM") || "E-Drift Trikes <onboarding@resend.dev>";
 }
+
+/**
+ * Sender for transactional mail nobody should reply to — the refund notice, for
+ * one, which is a record of an action already taken.
+ *
+ * Derived from EMAIL_FROM's own domain rather than hard-coded, because Resend
+ * verifies a DOMAIN: if orders@yourdomain can send, so can no-reply@yourdomain,
+ * and inventing an address on a domain you haven't verified would simply bounce.
+ * On the shared `resend.dev` sandbox only `onboarding@` is allowed to send, so
+ * there the normal sender is kept. EMAIL_FROM_NOREPLY overrides all of it.
+ */
+export function noReplyFrom(): string {
+  const override = serverEnv("EMAIL_FROM_NOREPLY");
+  if (override) return override;
+
+  const from = emailFrom();
+  const match = /^\s*(?:(.*?)\s*<\s*([^>]+)\s*>|(\S+@\S+))\s*$/.exec(from);
+  const address = (match?.[2] || match?.[3] || "").trim();
+  const label = (match?.[1] || COMPANY.name).replace(/["<>]/g, "").trim();
+  const domain = address.split("@")[1] || "";
+  if (!domain || domain.toLowerCase().endsWith("resend.dev")) return from;
+  return `${label} <no-reply@${domain}>`;
+}
 function ordersNotify(): string {
   return serverEnv("ORDERS_NOTIFICATION_EMAIL") || "";
 }
@@ -219,10 +242,20 @@ function orderTable(order: Order): string {
  * items makes it unmistakably about THEIR purchase, and saves them opening a
  * receipt to remember what is coming.
  */
-function purchasedItemsBlock(order: Order): string {
+function purchasedItemsBlock(
+  order: Order,
+  opts: {
+    /** Heading above the list. Defaults to the shipping-journey wording. */
+    label?: string;
+    /** Free-shipping callout — meaningless on an order that isn't shipping. */
+    shippingNote?: boolean;
+  } = {}
+): string {
   const items = order.items ?? [];
   if (items.length === 0) return "";
   const currency = order.currency || "usd";
+  const label = opts.label ?? "In this shipment";
+  const shippingNote = opts.shippingNote ?? true;
   const rows = items
     .map(
       (i) =>
@@ -239,10 +272,12 @@ function purchasedItemsBlock(order: Order): string {
     .join("");
   return `
     <div style="margin-top:24px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:16px 20px">
-      <p style="margin:0 0 8px;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">In this shipment</p>
+      <p style="margin:0 0 8px;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">${esc(
+        label
+      )}</p>
       <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
       ${
-        order.shipping_cents === 0
+        shippingNote && order.shipping_cents === 0
           ? `<p style="margin:10px 0 0;color:#c4f731;font-size:12px">Shipped free of charge.</p>`
           : ""
       }
@@ -251,13 +286,29 @@ function purchasedItemsBlock(order: Order): string {
 
 // ---- Resend direct send (Workers-safe: plain HTTPS, no SDK) ----
 
-async function resendSend(to: string, subject: string, html: string): Promise<{ id?: string }> {
+async function resendSend(
+  to: string,
+  subject: string,
+  html: string,
+  opts: {
+    /** Override the sender — used by no-reply mail. Defaults to EMAIL_FROM. */
+    from?: string;
+    /** Where a reply should actually land, when the sender is a no-reply. */
+    replyTo?: string;
+  } = {}
+): Promise<{ id?: string }> {
   const key = resendApiKey();
   if (!key) return {};
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: emailFrom(), to, subject, html }),
+    body: JSON.stringify({
+      from: opts.from || emailFrom(),
+      to,
+      subject,
+      html,
+      ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+    }),
     cache: "no-store",
   });
   const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string; name?: string };
@@ -490,6 +541,89 @@ export async function sendFulfillmentEmail(
 }
 
 /**
+ * The words of the refund notice, in one place.
+ *
+ * Kept separate from the rendering so the direct-Resend path and the Render
+ * fallback say exactly the same thing — a customer must not get different
+ * wording about their money depending on which mail path a deployment uses.
+ */
+export function refundCopy(order: Order): {
+  subject: string;
+  title: string;
+  paragraphs: string[];
+} {
+  const days = COMPANY.refundProcessingDays;
+  return {
+    subject: `Refund initiated · Order ${order.order_number}`,
+    title: "Refund initiated",
+    paragraphs: [
+      `We have initiated a refund of ${money(
+        order.total_cents,
+        order.currency || "usd"
+      )} for order ${order.order_number}.`,
+      `Refunds are processed manually by our team. Your refund is now on its way and should reach the account you paid from within ${days} days.`,
+      `If the amount has not appeared after ${days} days, it may still be clearing — the time a credit takes to show on a statement varies between banks. Please check with your bank or card issuer first, as they can confirm a pending credit that is not yet visible in your balance.`,
+      `We will not take any further payment for this order, and nothing further is required from you.`,
+    ],
+  };
+}
+
+/**
+ * Tell a customer their refund is under way.
+ *
+ * Sent from a NO-REPLY address: this is a record of an action already taken,
+ * not a conversation. `reply_to` still points at support so that a customer who
+ * hits reply anyway reaches a person rather than a void, and the footer names
+ * that address explicitly.
+ */
+export async function sendRefundEmail(order: Order) {
+  const copy = refundCopy(order);
+
+  if (!directEmail()) {
+    return call("/email/refund", {
+      order,
+      subject: copy.subject,
+      title: copy.title,
+      paragraphs: copy.paragraphs,
+    });
+  }
+
+  const body = `
+    <p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(
+      order.order_number
+    )}</strong></p>
+    <div style="margin-top:24px;border:1px solid #c4f731;border-radius:8px;padding:20px;background:rgba(196,247,49,0.08)">
+      <p style="margin:0;color:#8d90a2;font-size:12px;letter-spacing:1px;text-transform:uppercase">Refund amount</p>
+      <p style="margin:6px 0 0;color:#c4f731;font-size:26px;font-weight:700">${money(
+        order.total_cents,
+        order.currency || "usd"
+      )}</p>
+      <p style="margin:8px 0 0;color:#e4e1e6;font-size:13px">Expected within ${
+        COMPANY.refundProcessingDays
+      } days</p>
+    </div>
+    ${copy.paragraphs
+      .map((p) => `<p style="color:#c3c5d9;line-height:1.6">${esc(p)}</p>`)
+      .join("")}
+    ${purchasedItemsBlock(order, {
+      label: "What is being refunded",
+      shippingNote: false,
+    })}
+    <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">
+      This message was sent from an unmonitored address. If you have a question
+      about this refund, email
+      <a href="mailto:${esc(COMPANY.supportEmail)}" style="color:#c4f731">${esc(
+        COMPANY.supportEmail
+      )}</a> and quote order ${esc(order.order_number)}.
+    </p>`;
+
+  return resendSend(order.email, copy.subject, shell(copy.title, body), {
+    from: noReplyFrom(),
+    replyTo: COMPANY.supportEmail,
+  });
+}
+
+/**
  * An admin's reply to a customer's support message, sent from /admin/messages.
  *
  * Quotes the original underneath the reply so the customer has the context —
@@ -675,6 +809,7 @@ export function emailConfig() {
     via,
     resendConfigured: directEmail(),
     from: emailFrom(),
+    noReplyFrom: noReplyFrom(),
     ordersNotify: Boolean(ordersNotify()),
     renderApiUrl: backendBase() || null,
   };

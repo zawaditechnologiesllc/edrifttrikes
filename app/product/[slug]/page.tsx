@@ -130,6 +130,33 @@ export default async function ProductPage({
               />
             </div>
 
+            {/* Generated on request from the live product record, so what a
+                buyer downloads always matches what the page shows. */}
+            <a
+              href={`/product/${product.slug}/information`}
+              className="inline-flex items-center gap-3 border border-white/15 rounded-lg px-4 py-3 text-on-surface-variant hover:border-secondary hover:text-white transition-colors group"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                className="w-5 h-5 text-secondary shrink-0"
+              >
+                <path d="M12 3v12m0 0-4-4m4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
+              </svg>
+              <span>
+                <span className="block font-label-bold text-label-bold uppercase tracking-widest text-xs text-white">
+                  Download product information
+                </span>
+                <span className="block text-xs mt-0.5">
+                  Full specification, colours and delivery details (PDF)
+                </span>
+              </span>
+            </a>
+
             {product.description && (
               <RichText
                 text={product.description}

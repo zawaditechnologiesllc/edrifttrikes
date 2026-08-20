@@ -642,3 +642,117 @@ What it changes downstream:
 
 Requires `supabase/migrations/0012_product_colors.sql`. Until it runs, products
 save without colours and the admin form warns which migration is missing.
+
+## Product information sheets (PDF)
+
+Every product page carries a **Download product information** link. It serves
+`/product/<slug>/information` — a PDF built from the live product record at the
+moment it is requested, so it can never go stale: whatever the admin last saved
+is what the buyer downloads.
+
+The sheet contains everything the store knows about the product: name, badge and
+tagline; price and any compare-at price; category, power, top speed, range,
+skill level and stock; the shipping fee (or FREE, with the fee it replaces shown
+struck through); the delivery estimate from `lib/fulfillment.ts`, so it never
+promises something the fulfilment emails don't; every colour with its swatch;
+the full description, laid out with the same block rules as the product page;
+the complete technical specification; the duty and tax disclosure; and how to
+order and reach us.
+
+### The store logo
+
+Upload it once in **Admin → Settings → Store logo**. It is drawn at the top of
+page one and, at 7% opacity, as the watermark behind every page.
+
+Your browser converts the file to a **PNG scaled to 600px** before uploading.
+That matters: PDF can only embed PNG and JPEG, and PNG is the one that keeps a
+transparent background — a JPEG logo prints as a white box. If the conversion
+can't run (an SVG, say), the server refuses the upload and tells you to export a
+PNG. With no logo uploaded, the watermark falls back to the company name set
+large and light, so the sheet still reads as yours.
+
+Check the result with **Preview product sheet (PDF)** on any product's edit page.
+
+Requires `supabase/migrations/0013_store_logo.sql`. Until it runs, the logo
+upload reports which migration is missing and the sheets use the text watermark.
+
+### How the PDF is generated
+
+`lib/pdf.ts` writes the PDF bytes directly — no dependency, because the
+storefront runs on Cloudflare Workers where bundle size and CPU are budgeted.
+It uses the PDF standard-14 fonts (Helvetica), so nothing is embedded and
+**text is limited to the WinAnsi character set**: curly quotes, dashes, degree
+signs and accented Latin letters are fine, but a non-Latin script cannot be
+rendered without embedding a font. `lib/product-sheet.ts` lays the page out on
+top of it.
+
+Images go in the cheap way where possible. An opaque PNG's own deflate stream is
+already a valid PDF image stream (PDF's `/Predictor 15` is exactly PNG's row
+filtering), so it is embedded untouched — no decompression, no quality loss. A
+PNG with alpha is inflated, split into colour and mask, and re-compressed;
+JPEG is passed straight through as `/DCTDecode`.
+
+Nothing about the logo can break a download: a fetch that fails, times out,
+exceeds 4 MB or turns out not to be an embeddable image simply falls back to the
+text watermark.
+
+## Announcements (the scrolling stripe)
+
+**Admin → Announcements** creates the short notices that scroll across a stripe
+at the very top of every storefront page — a sale, a shipping delay, a restock,
+a holiday cut-off. Create, edit, reorder, switch on/off and delete them there.
+
+Each notice has:
+
+- **Message** — one line, up to 200 characters. Long enough to say something,
+  short enough to read as it scrolls past.
+- **Link** (optional) — a path on this site (`/shop`) or a full `https://`
+  address. Anything else is refused: this value goes into an anchor on every
+  page of the store, so `javascript:` and `data:` URLs never reach it.
+- **Start / End** (optional) — in *your* local time. Leave both empty to run it
+  until you switch it off. Queue a Black Friday banner weeks ahead and let it
+  expire on its own.
+- **Order** — lower numbers scroll first.
+- **Active** — your on/off switch, independent of the schedule. Unticking it
+  wins over any dates.
+
+The admin list labels each row **Showing now**, **Scheduled**, **Finished** or
+**Off**, using the same `announcementState()` the storefront uses to decide what
+to render — so the label can never disagree with what a visitor sees.
+
+Saving publishes immediately (the save revalidates the announcements tag and the
+root layout). A *scheduled* start or end is picked up within the catalog cache
+window instead, since nothing triggers it — see `ANNOUNCEMENTS_TTL` in
+`lib/db.ts` for why that isn't shorter.
+
+The stripe scrolls right-to-left, the way a news ticker does, pauses while
+someone hovers or tabs into it, and does not animate at all for visitors whose
+system asks for reduced motion — they get the notices as static text.
+
+Requires `supabase/migrations/0014_announcements.sql`. Until it runs, the admin
+page says so and the storefront simply has no stripe.
+
+## Refund emails
+
+Setting an order's status to **refunded** in the admin now emails the customer.
+Before, it changed the status and sent nothing — their first sign was a credit
+appearing, or failing to appear, on a statement days later.
+
+The email states the refund amount, itemises what is being refunded, and says
+refunds are processed manually and should reach their bank within
+`COMPANY.refundProcessingDays` days (7). It then tells them what to do if the
+money hasn't shown up: check with their bank first, because a pending credit can
+clear before it becomes visible.
+
+It is sent from **no-reply@** on your sending domain, derived from `EMAIL_FROM`
+— Resend verifies a whole domain, so `no-reply@` on the same domain as your
+normal sender is already authorised. On the `resend.dev` sandbox (where only
+`onboarding@` may send) the normal sender is used instead. Set
+`EMAIL_FROM_NOREPLY` to override.
+
+`reply_to` still points at `COMPANY.supportEmail`, so a customer who replies
+anyway reaches a person rather than a void, and the footer names that address.
+
+Unticking **Email the customer** on the order page suppresses it, the same way
+it suppresses a stage email. If the send fails, the status change still stands
+and the admin is told the customer was *not* notified, with the reason.

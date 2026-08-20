@@ -4,6 +4,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { supabaseConfigured, adminConfigured, createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/company";
 import { maskEmail, orderOwnershipFilter, verifiedUserEmail } from "@/lib/account";
+import type { Announcement } from "@/lib/announcements";
 import type { Article, Category, Order, Product, Profile, SiteSettings } from "@/lib/types";
 
 /**
@@ -26,12 +27,27 @@ import type { Article, Category, Order, Product, Profile, SiteSettings } from "@
 export const CATALOG_TAG = "catalog";
 export const CONTENT_TAG = "content";
 export const SETTINGS_TAG = "settings";
+/** Announcements have their own tag so publishing one doesn't dump the catalog. */
+export const ANNOUNCEMENTS_TAG = "announcements";
 
 // How long cached reads stay fresh before a background refresh. Content changes
 // still propagate immediately on admin save via revalidateTag; these are just
 // the ceiling for picking up out-of-band edits.
 const CATALOG_TTL = 300; // seconds
 const SEARCH_TTL = 60; // seconds — search keys are user-supplied, keep them short-lived
+/**
+ * Deliberately the same as CATALOG_TTL, not shorter.
+ *
+ * The root layout reads announcements, and Next takes the MINIMUM revalidate
+ * across everything a page touches — so a 60s ttl here quietly dropped every
+ * static marketing page from 5-minute to 1-minute revalidation, five times the
+ * origin renders for a stripe that rarely changes.
+ *
+ * Admin edits don't wait for this: saving calls revalidateTag(ANNOUNCEMENTS_TAG)
+ * and revalidatePath("/", "layout"). Only a SCHEDULED start or end waits, and a
+ * marketing banner opening a few minutes late is not worth the traffic.
+ */
+const ANNOUNCEMENTS_TTL = CATALOG_TTL;
 
 export const getCategories = unstable_cache(
   async (): Promise<Category[]> => {
@@ -123,6 +139,30 @@ export const getSiteSettings = unstable_cache(
   },
   ["site-settings"],
   { revalidate: CATALOG_TTL, tags: [SETTINGS_TAG] }
+);
+
+/**
+ * Every announcement, live or not — the time filtering is done by
+ * liveAnnouncements() so the stripe and the admin list share one definition.
+ *
+ * Cached like the catalog. Admin saves revalidate by tag immediately; a
+ * scheduled start or end waits for the ttl — see ANNOUNCEMENTS_TTL.
+ */
+export const getAnnouncements = unstable_cache(
+  async (): Promise<Announcement[]> => {
+    if (!supabaseConfigured()) return [];
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("announcements")
+      .select("*")
+      .order("position", { ascending: true })
+      .order("created_at", { ascending: true });
+    // Migration 0014 not run yet — the storefront simply has no stripe.
+    if (error) return [];
+    return (data as Announcement[]) ?? [];
+  },
+  ["announcements"],
+  { revalidate: ANNOUNCEMENTS_TTL, tags: [ANNOUNCEMENTS_TAG] }
 );
 
 export const getProductBySlug = unstable_cache(
