@@ -349,6 +349,47 @@ export async function sendSupportReply(msg: {
   );
 }
 
+/**
+ * Invite a guest buyer to create an account so they can track the order they
+ * already placed.
+ *
+ * Sent from the admin order page. The link is a Supabase invite/magic link
+ * generated server-side; following it signs them in and confirms the address,
+ * which is what lets the order attach to the new account (see
+ * claimGuestOrders / migration 0010).
+ */
+export async function sendAccountInviteEmail(msg: {
+  to: string;
+  orderNumber: string;
+  actionLink: string;
+}) {
+  const site = publicSiteUrl() || "";
+  const subject = `Track order ${msg.orderNumber} — set up your E-Drift account`;
+
+  if (!directEmail()) {
+    return call("/email/account-invite", { ...msg, subject });
+  }
+
+  return resendSend(
+    msg.to,
+    subject,
+    shell(
+      "Track your order",
+      `<p style="color:#c3c5d9;line-height:1.6">You placed order <strong style="color:#c4f731">${esc(
+        msg.orderNumber
+      )}</strong> with us as a guest.</p>
+       <p style="color:#c3c5d9;line-height:1.6">Set up an account with this email address and that order — plus every delivery update, from shipped through to ready for collection — appears on your rider dashboard automatically.</p>
+       <a href="${esc(
+         msg.actionLink
+       )}" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Create your account</a>
+       <p style="color:#8d90a2;line-height:1.6;font-size:12px;margin-top:24px">This link signs you in and is for you alone — please don't forward it. If you didn't order from us, you can ignore this email. Your order is unaffected either way, and we'll keep emailing its progress to this address.</p>
+       <p style="color:#8d90a2;line-height:1.6;font-size:12px">Or browse the store at <a href="${site}" style="color:#c4f731">${esc(
+         site.replace(/^https?:\/\//, "")
+       )}</a>.</p>`
+    )
+  );
+}
+
 export async function sendNewsletterConfirmation(email: string) {
   if (directEmail()) {
     return resendSend(

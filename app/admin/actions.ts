@@ -5,7 +5,9 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
-import { markOrderPaid, setOrderStage } from "@/lib/orders";
+import { markOrderPaid, setOrderStage, claimGuestOrders } from "@/lib/orders";
+import { sendAccountInviteEmail } from "@/lib/email";
+import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
 import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 
@@ -510,4 +512,114 @@ export async function saveSiteSettings(
   }
   revalidateTag(SETTINGS_TAG);
   return { ok: true };
+}
+
+
+export type InviteState = {
+  ok?: boolean;
+  error?: string;
+  message?: string;
+  /** Shown to the admin only when the email could not be sent. */
+  actionLink?: string;
+};
+
+/**
+ * Connect a guest order to a customer account.
+ *
+ * Two outcomes, decided by whether an account already exists for the order's
+ * email:
+ *
+ *  - ACCOUNT EXISTS → link the order to it immediately. There is nothing to
+ *    invite them to, and emailing a sign-up link to someone who already has an
+ *    account is confusing.
+ *  - NO ACCOUNT → generate a Supabase invite link and email it. Following it
+ *    signs them in and confirms the address, which is precisely what lets the
+ *    order attach itself (claimGuestOrders / migration 0010). We never create
+ *    a password on their behalf.
+ *
+ * The order is NOT modified in the invite case. It stays a guest order until
+ * the customer actually accepts, so an unaccepted invite leaves no trace of a
+ * relationship that doesn't exist yet.
+ */
+export async function inviteOrderCustomer(
+  _prev: InviteState,
+  formData: FormData
+): Promise<InviteState> {
+  await requireAdmin();
+
+  const id = String(formData.get("id") || "").trim();
+  if (!id) return { error: "Missing order id." };
+
+  const admin = createAdminClient();
+  const { data: order, error: readErr } = await admin
+    .from("orders")
+    .select("id, email, user_id, order_number")
+    .eq("id", id)
+    .maybeSingle();
+  if (readErr) return { error: `Could not read the order: ${readErr.message}` };
+  if (!order) return { error: "Order not found." };
+  if (order.user_id) return { ok: true, message: "This order is already linked to an account." };
+
+  const email = String(order.email || "").trim().toLowerCase();
+  if (!email) return { error: "This order has no email address to invite." };
+
+  // --- Does an account already exist? --------------------------------------
+  const { data: existing } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existing?.id) {
+    const linked = await claimGuestOrders(admin, existing.id as string, email);
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${id}`);
+    return {
+      ok: true,
+      message:
+        linked > 0
+          ? `${email} already has an account — linked ${linked} order${linked === 1 ? "" : "s"} to it. It's on their dashboard now.`
+          : `${email} already has an account, but the order could not be linked. Check the Supabase logs.`,
+    };
+  }
+
+  // --- No account: invite them ---------------------------------------------
+  const site = publicSiteUrl() || "";
+  let actionLink = "";
+  try {
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo: `${site}/auth/callback?next=/account` },
+    });
+    if (error) throw new Error(error.message);
+    actionLink = data?.properties?.action_link ?? "";
+    if (!actionLink) throw new Error("Supabase returned no invite link.");
+  } catch (e) {
+    return { error: `Could not create the invite: ${String((e as Error)?.message || e)}` };
+  }
+
+  try {
+    await sendAccountInviteEmail({
+      to: email,
+      orderNumber: String(order.order_number),
+      actionLink,
+    });
+  } catch (e) {
+    // The link is valid even though the email failed, so hand it to the admin
+    // rather than losing it — they can pass it on however they like.
+    return {
+      ok: true,
+      message: `Invite created for ${email}, but the email could not be sent (${String(
+        (e as Error)?.message || e
+      )}). Send them this link yourself:`,
+      actionLink,
+    };
+  }
+
+  revalidatePath(`/admin/orders/${id}`);
+  return {
+    ok: true,
+    message: `Invite sent to ${email}. Once they set up their account, this order and all its updates appear on their dashboard.`,
+  };
 }

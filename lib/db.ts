@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { supabaseConfigured, adminConfigured, createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/company";
-import { orderOwnershipFilter, verifiedUserEmail } from "@/lib/account";
+import { maskEmail, orderOwnershipFilter, verifiedUserEmail } from "@/lib/account";
 import type { Article, Category, Order, Product, Profile, SiteSettings } from "@/lib/types";
 
 /**
@@ -321,6 +321,66 @@ export async function isInWishlist(productId: string): Promise<boolean> {
     .eq("product_id", productId)
     .maybeSingle();
   return Boolean(data);
+}
+
+export type Receipt = {
+  order: Order;
+  /**
+   * True when the viewer has not proved the order is theirs, so personal
+   * details have been stripped. The page shows less, rather than nothing.
+   */
+  redacted: boolean;
+};
+
+/**
+ * Load an order for the confirmation / receipt page.
+ *
+ * THE PROBLEM THIS SOLVES: the page previously used only the cookie-aware
+ * client, so RLS applied — and a guest who had just paid was, by definition,
+ * not signed in. `auth.uid()` was null, the policy matched nothing, and the
+ * buyer landed on a blank receipt seconds after being charged.
+ *
+ * So: try RLS first, which returns the complete order to its rightful owner.
+ * Only if that finds nothing do we fall back to a privileged read keyed on the
+ * order number, and that copy is REDACTED — the email is masked and the
+ * shipping address removed — because an order number alone is a weak claim to
+ * someone's personal data.
+ *
+ * The order number is 8 random hex characters (~4.3 billion), so enumeration
+ * is impractical, but the redaction means that even a lucky guess yields no
+ * name, address or contact details.
+ */
+export async function getReceiptByNumber(
+  orderNumber: string
+): Promise<Receipt | null> {
+  const owned = await getOrderByNumber(orderNumber);
+  if (owned) return { order: owned, redacted: false };
+
+  if (!adminConfigured()) return null;
+
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("orders")
+      .select("*, items:order_items(*), events:order_events(*)")
+      .eq("order_number", orderNumber)
+      .maybeSingle();
+    if (!data) return null;
+
+    const order = sortOrderEvents([data as Order])[0];
+    return {
+      order: {
+        ...order,
+        email: maskEmail(order.email),
+        // Never hand back a delivery address on the strength of an order number.
+        shipping_address: null,
+      },
+      redacted: true,
+    };
+  } catch (e) {
+    console.error("[db] receipt lookup failed:", String((e as Error)?.message || e));
+    return null;
+  }
 }
 
 export async function getOrderByNumber(orderNumber: string): Promise<Order | null> {

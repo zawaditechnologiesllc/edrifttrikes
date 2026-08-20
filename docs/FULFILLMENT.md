@@ -193,6 +193,40 @@ Authentication → Providers → Email → "Confirm email" turned **off**, Supab
 stamps `email_confirmed_at` at signup and the check passes for anybody. Keep
 email confirmation on.
 
+### Connecting a guest order by hand
+
+`/admin/orders/<id>` shows an **Account** panel: who owns the order, or a
+**Connect order to customer** button when nobody does. What that button does
+depends on what it finds:
+
+- **An account already exists for the order's email** → the order is linked to
+  it immediately. No email is sent, because there is nothing to invite them to.
+- **No account** → a Supabase invite link is generated and emailed. Following it
+  signs the customer in and confirms their address, which is exactly what lets
+  the order attach itself.
+
+The order is **not** modified in the invite case. It stays a guest order until
+the customer actually accepts, so an unaccepted invite leaves no trace of a
+relationship that does not exist yet.
+
+If the invite email fails to send, the link is still valid — the admin panel
+shows it so it can be passed on by hand rather than lost.
+
+The orders list marks every row **Linked** or **Guest**, so it is obvious at a
+glance which customers can see their own tracking.
+
+## The guest receipt
+
+`/order-confirmation` is reachable by someone who has just paid and is, by
+definition, not signed in. It tries RLS first, which returns the complete order
+to its rightful owner; only if that finds nothing does it fall back to a
+privileged read keyed on the order number — and **that copy is redacted**: the
+email is masked and the shipping address removed.
+
+The order number is 8 random hex characters (~4.3 billion), so enumeration is
+impractical. The redaction means that even a lucky guess yields no name,
+address or contact details — only what was bought and where it has got to.
+
 ## Admin controls
 
 `/admin/orders/<id>` gives you, in one save:

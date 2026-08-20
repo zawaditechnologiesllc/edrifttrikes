@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
 import { OrderManageForm } from "../OrderStatusForm";
+import ConnectAccountForm from "../ConnectAccountForm";
 import { loadOrderEvents } from "@/lib/orders";
 import {
   STAGE_COPY,
@@ -32,6 +33,16 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
   const addr = (order.shipping_address ?? {}) as Record<string, string>;
   const stage = (order.fulfillment_stage ?? "awaiting_payment") as FulfillmentStage;
   const events = await loadOrderEvents(admin, order.id);
+
+  // Who, if anyone, owns this order. Guest checkouts have no account behind
+  // them until the buyer registers with the same email.
+  const { data: account } = order.user_id
+    ? await admin
+        .from("profiles")
+        .select("id, email, full_name, created_at")
+        .eq("id", order.user_id)
+        .maybeSingle()
+    : { data: null };
 
   return (
     <div className="p-8 max-w-4xl">
@@ -75,7 +86,26 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
         <div className="bg-surface-container border border-white/10 rounded-lg p-6 space-y-4">
           <div>
             <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-1">Customer</h3>
-            <p className="text-white">{order.email}</p>
+            <p className="text-white break-all">{order.email}</p>
+          </div>
+
+          <div className="border-t border-white/10 pt-4">
+            <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-2">Account</h3>
+            {account ? (
+              <>
+                <p className="text-white text-sm">
+                  {(account.full_name as string) || "Registered rider"}
+                </p>
+                <p className="text-on-surface-variant text-xs break-all">
+                  {account.email as string}
+                </p>
+                <p className="text-secondary text-[10px] uppercase tracking-widest font-label-bold mt-2">
+                  Linked — visible on their dashboard
+                </p>
+              </>
+            ) : (
+              <ConnectAccountForm orderId={order.id} email={order.email} />
+            )}
           </div>
           <div>
             <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-1">Ship to</h3>
