@@ -114,21 +114,31 @@ function orderTable(order) {
     </table>`;
 }
 
-export async function orderConfirmationEmail(order) {
+/**
+ * The cart-recovery email an UNPAID order gets.
+ *
+ * Fallback path only — the app sends this itself when it has its own Resend
+ * key (lib/email.ts). It replaced the old order-confirmation email here for
+ * the same reason it did there: an order is created before any money moves, so
+ * confirming it at that point confirms something that may never be paid for.
+ * The confirmation now goes out from the fulfilment email when the order is
+ * actually marked paid.
+ */
+export async function abandonedCartEmail({ order, subject, title }) {
   const body = `
-    <p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(order.order_number)}</strong> is confirmed.</p>
-    <!-- Keep in step with lib/delivery.ts, which is the source of truth for the
-         quoted window everywhere else. This service cannot import it. -->
-    <p style="color:#c3c5d9;line-height:1.6">Delivery takes <strong style="color:#fff">12–20 days</strong> on our fastest routes, and up to 7 days longer depending on the shipping route to your country. We'll email your tracking link the moment it ships.</p>
-    ${orderTable(order)}`;
+    <p style="color:#c3c5d9;line-height:1.6">We've saved order <strong style="color:#c4f731">${esc(order.order_number)}</strong> for you, but we haven't received payment for it yet — so nothing has been charged and nothing has shipped.</p>
+    <p style="color:#c3c5d9;line-height:1.6">If you were interrupted at the payment step, everything below is still reserved. Pick up where you left off and we'll get straight to work on your build.</p>
+    <a href="${process.env.SITE_URL || ""}/cart" style="display:inline-block;margin:8px 0;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Complete your order</a>
+    ${orderTable(order)}
+    <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">Changed your mind? No action is needed — an unpaid order simply expires and you will not be charged.</p>`;
   const result = await send(
     order.email,
-    `Order ${order.order_number} confirmed`,
-    shell("Order confirmed", body)
+    subject || `Your order ${order.order_number} is waiting`,
+    shell(title || "Finish your order", body)
   );
 
-  // New-order alert to the store owner — best-effort, never blocks the
-  // buyer's receipt.
+  // New-order alert to the store owner. It fires on an UNPAID order because
+  // that is precisely what the admin needs to see — they mark it paid.
   const notify = process.env.ORDERS_NOTIFICATION_EMAIL;
   if (notify) {
     const addr = order.shipping_address
@@ -139,10 +149,11 @@ export async function orderConfirmationEmail(order) {
       : "";
     await send(
       notify,
-      `New order ${order.order_number} — ${money(order.total_cents, order.currency)}`,
+      `New order ${order.order_number} — ${money(order.total_cents, order.currency)} (unpaid)`,
       shell(
-        "New order",
+        "New order — awaiting payment",
         `<p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(order.order_number)}</strong> from ${esc(order.email)} (status: ${esc(order.status)}).</p>
+         <p style="color:#c3c5d9;line-height:1.6">Mark it paid in the admin panel once payment is confirmed — that is what starts the delivery schedule and sends the customer their confirmation.</p>
          ${addr}${orderTable(order)}`
       )
     ).catch((e) => console.error("[email] order alert failed", e));

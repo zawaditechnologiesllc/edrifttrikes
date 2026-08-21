@@ -10,7 +10,6 @@ import {
 } from "../lib/stripe-branding";
 import { COMPANY } from "../lib/company";
 import { formatDeliveryWindow } from "../lib/delivery";
-import { DEFAULT_DUTY_RATE_BPS } from "../lib/totals";
 
 /**
  * Company content on the Stripe-hosted Checkout page.
@@ -18,7 +17,7 @@ import { DEFAULT_DUTY_RATE_BPS } from "../lib/totals";
  * The failure that matters here is silent and total: an over-length or
  * malformed custom_text makes the whole session create fail, which means no
  * card checkout at all. The other is subtler — quoting a delivery window or
- * duty rate on Stripe's page that disagrees with the email we send minutes
+ * window on Stripe's page that disagrees with the email we send minutes
  * later.
  */
 
@@ -56,17 +55,13 @@ describe("custom_text messages", () => {
     assert.ok(m.includes(COMPANY.supportEmail), "support address missing");
   });
 
-  test("quotes the SAME delivery window and duty rate as our own checkout", () => {
+  test("quotes the SAME delivery window as our own checkout", () => {
     // If these drift, Stripe's page contradicts the email the buyer gets
     // minutes later.
     const m = submitMessage();
     assert.ok(
       m.includes(formatDeliveryWindow()),
       "delivery estimate does not match lib/delivery.ts"
-    );
-    assert.ok(
-      m.includes(String(DEFAULT_DUTY_RATE_BPS / 100)),
-      "duty rate does not match lib/totals.ts"
     );
   });
 
@@ -87,10 +82,13 @@ describe("custom_text messages", () => {
     assert.ok(!m.includes("Wakanda"));
   });
 
-  test("is explicit that duty is not collected by us", () => {
-    const m = submitMessage().toLowerCase();
-    assert.match(m, /not included/);
-    assert.match(m, /never collect/);
+  test("says NOTHING about duty, customs or import charges", () => {
+    // The payment page is the last thing read before committing. A line about
+    // customs there reads as an unquantified surcharge and costs the sale —
+    // which is why it was removed from the whole store.
+    for (const message of [submitMessage(), submitMessage("GB"), afterSubmitMessage()]) {
+      assert.doesNotMatch(message, /duty|customs|import charge|tariff/i, message);
+    }
   });
 
   test("the post-payment message says what happens next", () => {

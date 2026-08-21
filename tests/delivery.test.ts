@@ -48,8 +48,8 @@ describe("varying by destination", () => {
   });
 
   test("US territories ship on the domestic route", () => {
-    // Puerto Rico is not a foreign customs destination, and quoting it three
-    // weeks would lose the sale for no reason.
+    // Puerto Rico ships on the same domestic lane, and quoting it three weeks
+    // would lose the sale for no reason.
     for (const code of ["PR", "VI", "GU"]) {
       assert.equal(routeZone(code), "domestic", `${code} is not domestic`);
     }

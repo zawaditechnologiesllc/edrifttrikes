@@ -1,7 +1,6 @@
 import { COMPANY } from "@/lib/company";
 import { normalizeCountry } from "@/lib/countries";
 import { formatDeliveryWindow } from "@/lib/delivery";
-import { DEFAULT_DUTY_RATE_BPS } from "@/lib/totals";
 
 /**
  * Company content for the Stripe-hosted Checkout page.
@@ -17,13 +16,12 @@ import { DEFAULT_DUTY_RATE_BPS } from "@/lib/totals";
  *
  * The page the buyer lands on AFTER paying is `success_url` — our own
  * /order-confirmation — which is entirely ours and already carries the full
- * receipt, tracking timeline and duty notice.
+ * receipt and tracking timeline.
  *
  * WHY THIS FILE EXISTS RATHER THAN INLINE STRINGS: the wording is derived from
  * the same constants as our own checkout, our emails and the customer tracker.
- * A delivery estimate or duty rate quoted on Stripe's page that disagrees with
- * the email we send minutes later is how a store ends up arguing with its own
- * customers.
+ * A delivery estimate quoted on Stripe's page that disagrees with the email we
+ * send minutes later is how a store ends up arguing with its own customers.
  */
 
 /** Stripe rejects any custom_text message longer than this. */
@@ -47,8 +45,6 @@ export function clampCustomText(
   return (lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut).trim();
 }
 
-const dutyPct = DEFAULT_DUTY_RATE_BPS / 100;
-
 /**
  * How the destination is named on Stripe's page.
  *
@@ -64,13 +60,12 @@ function destination(country?: string | null): string {
 
 /**
  * Text shown alongside the pay button — the last thing a buyer reads before
- * committing, so it carries the two facts most likely to cause a dispute
- * later: who is charging them, and the customs duty they will owe separately.
+ * committing, so it says who is charging them, when it arrives, and where to
+ * ask before they commit.
  */
 export function submitMessage(country?: string | null): string {
   return clampCustomText(
     `You're paying ${COMPANY.name}. Delivery to ${destination(country)} is tracked end to end and takes ${formatDeliveryWindow(country)}. ` +
-      `An estimated ${dutyPct}% import duty is payable by you to your local customs authority on arrival — it is not included in this total and we never collect it. ` +
       `Questions before you pay? ${COMPANY.supportEmail}`
   );
 }
@@ -81,8 +76,8 @@ export function submitMessage(country?: string | null): string {
  */
 export function afterSubmitMessage(): string {
   return clampCustomText(
-    `Thank you. ${COMPANY.name} will email your confirmation straight away, then again when your order ships. ` +
-      `You can follow every step — shipped, arriving, ready for collection — on your rider dashboard. ` +
+    `Thank you. ${COMPANY.name} will email you as soon as your payment is confirmed, then again when your order ships. ` +
+      `You can follow every step — confirmed, shipped, arriving, ready for collection — on your rider dashboard. ` +
       `Need help with this order? Email ${COMPANY.supportEmail} and quote your order number.`
   );
 }

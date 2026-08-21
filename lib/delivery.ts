@@ -42,7 +42,7 @@ export const ROUTE_ZONES = {
   domestic: 0,
   /** A land border or a short sea route away. */
   near: 3,
-  /** Established lanes with predictable customs clearance. */
+  /** Established lanes with predictable transit times. */
   established: 5,
   /** Everywhere else: longer haul, less predictable clearance. */
   extended: MAX_ROUTE_EXTRA_DAYS,

@@ -241,3 +241,4 @@ Shipping fee: 50.00
 Free shipping: no
 Colors: Midnight Black #101010, Voltage Blue #1e5bff, Hazard Lime #c4f731
 `;
+

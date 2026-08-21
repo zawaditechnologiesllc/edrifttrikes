@@ -15,6 +15,8 @@
  * against it — all from the same definition.
  */
 
+import { parseProductText } from "@/lib/product-import";
+
 export type ProductColor = {
   /** What the buyer picks and what is stored on the order line. */
   name: string;
@@ -157,4 +159,110 @@ export function matchColor(
 /** True when the buyer must choose before this product can be added to a cart. */
 export function requiresColorChoice(colors: ProductColor[]): boolean {
   return colors.length > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Colours already sitting in a product's description
+// ---------------------------------------------------------------------------
+
+/**
+ * Keys an admin writes when listing colours in a product sheet. Kept in step
+ * with KEY_MAP in lib/product-import.ts.
+ */
+// `m` matters: the heading is almost never the first line of a description.
+// No `g` flag — .test() would then carry lastIndex between calls and start
+// missing every other match.
+const COLOR_KEY = /^\s*(colou?rs?|available\s+colou?rs?|colou?r\s+options)\s*[:=]/im;
+
+/**
+ * A colour name a person would actually write.
+ *
+ * Only used on the DESCRIPTION path, never on an explicit upload. The import
+ * parser treats every bare line after `Colors:` as another colour, which is
+ * right for a sheet an admin wrote deliberately — but a stored description can
+ * run straight from a colour list into prose with no blank line between them,
+ * and "Weighs 42kg and ships in a crate." must not become a colour a buyer can
+ * pick.
+ */
+function plausibleColorName(name: string): boolean {
+  const trimmed = name.trim();
+  if (trimmed.length < 2 || trimmed.length > 28) return false;
+  if (trimmed.split(/\s+/).length > 4) return false;
+  if (/[.!?;]$/.test(trimmed)) return false;
+  return /\p{L}/u.test(trimmed);
+}
+
+/**
+ * Colours mentioned inside a product's description text.
+ *
+ * This is what makes the colour picker appear on products that were uploaded
+ * BEFORE colours had a column of their own. Back then a `Colors:` line inside
+ * the description body was simply kept as description text, so the information
+ * is already in the database — it just was never read.
+ *
+ * Reuses parseProductText rather than re-implementing the syntax, so the
+ * multi-line lists, bullets and British spellings all behave exactly as they do
+ * in an upload. Only the plausibility filter is extra; see above.
+ *
+ * lib/product-import.ts has no imports of its own, so depending on it here
+ * keeps this module usable in the browser, on the server and in the Worker.
+ */
+export function colorsFromDescription(
+  description: string | null | undefined
+): ProductColor[] {
+  const text = String(description ?? "");
+  if (!text.trim() || !COLOR_KEY.test(text)) return [];
+  return parseColors(parseProductText(text).fields.colors).filter((c) =>
+    plausibleColorName(c.name)
+  );
+}
+
+/**
+ * The colours a buyer may choose for a product.
+ *
+ * Prefers the stored `colors` column, and falls back to whatever the admin
+ * already wrote in the description. Every surface that offers or validates a
+ * colour must call THIS, not productColors — the product page offering a choice
+ * the checkout then rejects is worse than offering none at all.
+ */
+export function productColorOptions(product: {
+  colors?: unknown;
+  description?: string | null;
+}): ProductColor[] {
+  const stored = productColors(product?.colors);
+  if (stored.length > 0) return stored;
+  return colorsFromDescription(product?.description);
+}
+
+/**
+ * The description with its colour lines removed, for display.
+ *
+ * The colours are rendered as swatches now, so leaving "Colors: Black, Red" in
+ * the prose says the same thing twice — and says it worse.
+ */
+export function descriptionBody(description: string | null | undefined): string {
+  const text = String(description ?? "");
+  if (!text.trim()) return "";
+
+  const out: string[] = [];
+  let skipping = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (COLOR_KEY.test(line)) {
+      skipping = true;
+      continue;
+    }
+    if (skipping) {
+      const bare = line.trim().replace(/^[-*]\s*/, "");
+      // A blank line ends the colour list, exactly as it does on import.
+      if (!bare) {
+        skipping = false;
+        continue;
+      }
+      // Still inside the list only while the lines still look like colours.
+      if (plausibleColorName(bare)) continue;
+      skipping = false;
+    }
+    out.push(line);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }

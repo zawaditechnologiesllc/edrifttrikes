@@ -7,7 +7,7 @@ import ProductCard from "@/components/storefront/ProductCard";
 import ProductGallery from "@/components/storefront/ProductGallery";
 import RichText from "@/components/storefront/RichText";
 import ProductBuyPanel from "@/components/storefront/ProductBuyPanel";
-import { productColors } from "@/lib/colors";
+import { descriptionBody, productColorOptions } from "@/lib/colors";
 import WishlistButton from "@/components/storefront/WishlistButton";
 import { getProductBySlug, getProducts, getSiteSettings } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
@@ -126,7 +126,7 @@ export default async function ProductPage({
             <div className="pt-2">
               <ProductBuyPanel
                 productId={product.id}
-                colors={productColors(product.colors)}
+                colors={productColorOptions(product)}
                 item={{
                   productId: product.id,
                   slug: product.slug,
@@ -167,9 +167,9 @@ export default async function ProductPage({
               </span>
             </a>
 
-            {product.description && (
+            {descriptionBody(product.description) && (
               <RichText
-                text={product.description}
+                text={descriptionBody(product.description)}
                 className="text-on-surface-variant pt-2"
               />
             )}

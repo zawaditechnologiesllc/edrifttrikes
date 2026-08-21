@@ -154,15 +154,15 @@ Each `custom_text` slot allows up to 1200 characters. **An over-length or
 malformed value fails the whole session create**, which means no card checkout
 at all — so `clampCustomText()` trims defensively and a test asserts the limit.
 
-The copy is derived from `COMPANY`, `ESTIMATED_DELIVERY_DAYS` and
-`DEFAULT_DUTY_RATE_BPS` rather than written inline, so the delivery window and
-duty rate quoted on Stripe's page cannot drift from the ones in our own checkout
-and in the emails the buyer receives minutes later. Tests assert that agreement.
+The copy is derived from `COMPANY` and `lib/delivery.ts` rather than written
+inline, so the delivery window quoted on Stripe's page cannot drift from the one
+in our own checkout and in the emails the buyer receives minutes later. Tests
+assert that agreement.
 
 ### The page after payment is entirely ours
 
 `success_url` sends the buyer to `/order-confirmation` on our own domain, with
-the full receipt, the delivery tracker and the duty notice. There is no Stripe
+the full receipt and the delivery tracker. There is no Stripe
 restriction there — that is the right place for substantial company content.
 
 ### Not enabled, available if wanted

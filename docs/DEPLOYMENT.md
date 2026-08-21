@@ -657,8 +657,8 @@ skill level and stock; the shipping fee (or FREE, with the fee it replaces shown
 struck through); the delivery estimate from `lib/fulfillment.ts`, so it never
 promises something the fulfilment emails don't; every colour with its swatch;
 the full description, laid out with the same block rules as the product page;
-the complete technical specification; the duty and tax disclosure; and how to
-order and reach us.
+the complete technical specification; what the buyer pays; and how to order
+and reach us.
 
 ### The store logo
 

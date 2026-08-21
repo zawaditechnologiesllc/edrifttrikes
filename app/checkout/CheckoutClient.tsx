@@ -9,7 +9,6 @@ import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeCartTotals } from "@/lib/totals";
 import PayPalCardFields from "@/components/cart/PayPalCardFields";
-import { DutyRow } from "@/components/storefront/DutyNotice";
 import CheckoutField from "./CheckoutField";
 import { CHECKOUT_FIELDS, validateCheckout } from "@/lib/validation";
 import { deliveryEstimateSentence } from "@/lib/delivery";
@@ -205,8 +204,8 @@ export default function CheckoutClient({
   // actually receives. Quoting a different window here than the one the system
   // then emails them is how a store ends up arguing with its own customers.
   const STEPS = [
-    ["1", "Place your order", "Pay securely by card or PayPal. Receipt emailed straight away."],
-    ["2", "Payment confirmed", "We confirm and start preparing your build."],
+    ["1", "Place your order", "Pay securely by card or PayPal. We email you what you ordered right away."],
+    ["2", "Payment confirmed", "Once your payment clears we email your full receipt and start your build."],
     ["3", "Shipped", "Leaves the garage in about 3 days. Tracking is emailed."],
     // The window narrows to the buyer's own country the moment they choose
     // one, so the promise on this page is the promise in their email.
@@ -358,7 +357,6 @@ export default function CheckoutClient({
               <div className="flex justify-between text-on-surface-variant"><span>Shipping</span><span className="text-white">{totals.shipping === 0 ? "FREE" : formatMoney(totals.shipping)}</span></div>
               <div className="flex justify-between text-on-surface-variant"><span>Tax</span><span className="text-white">{formatMoney(totals.tax)}</span></div>
               <div className="flex justify-between font-label-bold uppercase tracking-widest pt-2"><span className="text-white">Total</span><span className="text-secondary text-xl">{formatMoney(totals.total)}</span></div>
-              <DutyRow duty={totals.duty} />
             </div>
 
             {both && (

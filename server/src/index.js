@@ -5,7 +5,7 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import {
   welcomeEmail,
-  orderConfirmationEmail,
+  abandonedCartEmail,
   fulfillmentEmail,
   refundEmail,
   supportReplyEmail,
@@ -117,8 +117,8 @@ app.post("/email/welcome", requireInternalKey, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post("/email/order-confirmation", requireInternalKey, async (req, res) => {
-  try { await orderConfirmationEmail(req.body.order || req.body); res.json({ ok: true }); }
+app.post("/email/abandoned-cart", requireInternalKey, async (req, res) => {
+  try { await abandonedCartEmail(req.body || {}); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 

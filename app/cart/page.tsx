@@ -7,7 +7,6 @@ import { useCart, cartLineKey } from "@/components/cart/CartProvider";
 import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeCartTotals } from "@/lib/totals";
-import { DutyRow } from "@/components/storefront/DutyNotice";
 import { Icon } from "@/components/Icon";
 
 export default function CartPage() {
@@ -79,7 +78,6 @@ export default function CartPage() {
               <div className="flex justify-between border-t border-white/10 pt-4 font-label-bold uppercase tracking-widest">
                 <span className="text-white">Total</span><span className="text-secondary text-xl">{formatMoney(totals.total)}</span>
               </div>
-              <DutyRow duty={totals.duty} />
               <Link href="/checkout" className="block text-center bg-primary-container text-white py-4 rounded-lg font-label-bold uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all">
                 Secure Checkout
               </Link>
