@@ -1,6 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { parseProductText } from "../lib/product-import";
+import * as colors from "../lib/colors";
 import {
   MAX_COLORS,
   colorKey,
@@ -212,5 +213,118 @@ describe("colours from the admin .txt sheet", () => {
       parseColors(p.fields.colors).length >= 2,
       "the template should show a working colour list"
     );
+  });
+});
+
+describe("colours already sitting in a product's description", () => {
+  /**
+   * Products uploaded before colours had a column of their own kept their
+   * `Colors:` line as ordinary description text. The information was in the
+   * database all along — it was just never read. This is what makes the picker
+   * appear on those products with no re-upload and no migration.
+   */
+  const { colorsFromDescription, descriptionBody, productColorOptions } = colors;
+
+  test("reads a colour line written among the prose", () => {
+    const names = colorsFromDescription(
+      "A rear-wheel-drive drift trike.\n\nColors: Midnight Black #101010, Voltage Blue\n\nShips in a crate."
+    ).map((c) => c.name);
+    assert.deepEqual(names, ["Midnight Black", "Voltage Blue"]);
+  });
+
+  test("finds the heading wherever it sits, not just on the first line", () => {
+    // The regex needs the multiline flag: a description almost never opens
+    // with its colour list.
+    assert.equal(colorsFromDescription("Built in-house.\n\nColours:\n- Gunmetal\n").length, 1);
+  });
+
+  test("handles one colour per line, bulleted or not, either spelling", () => {
+    const names = colorsFromDescription(
+      "Built in-house.\n\nAvailable colours:\n- Midnight Black\n- Voltage Blue\n* Hazard Lime\n\nShips flat."
+    ).map((c) => c.name);
+    assert.deepEqual(names, ["Midnight Black", "Voltage Blue", "Hazard Lime"]);
+  });
+
+  test("STOPS at prose when the list runs straight into a sentence", () => {
+    // A deliberate upload can trust every line after `Colors:`; a stored
+    // description cannot — there may be no blank line before the prose resumes,
+    // and "Weighs 42kg and ships in a crate." must never become a buyable
+    // colour.
+    const names = colorsFromDescription(
+      "Colors: Black, Red\nWeighs 42kg and ships in a crate to your door."
+    ).map((c) => c.name);
+    assert.deepEqual(names, ["Black", "Red"]);
+  });
+
+  test("is not fooled by the word colour used in ordinary prose", () => {
+    assert.deepEqual(
+      colorsFromDescription("The frame colour is applied by powder coating after welding."),
+      []
+    );
+    assert.deepEqual(colorsFromDescription("A 3000W hub motor and a 60V pack."), []);
+    assert.deepEqual(colorsFromDescription(null), []);
+    assert.deepEqual(colorsFromDescription(""), []);
+  });
+
+  test("the stored column always wins over the description", () => {
+    // Once an admin has set colours explicitly, a stale line in the prose must
+    // not override them.
+    assert.deepEqual(
+      productColorOptions({
+        colors: [{ name: "Stored Blue", hex: "#0000ff" }],
+        description: "Colors: Ignored Black",
+      }).map((c) => c.name),
+      ["Stored Blue"]
+    );
+  });
+
+  test("a product with no stored colours falls back to its description", () => {
+    assert.deepEqual(
+      productColorOptions({
+        colors: [],
+        description: "Colors: Midnight Black, Voltage Blue",
+      }).map((c) => c.name),
+      ["Midnight Black", "Voltage Blue"]
+    );
+  });
+
+  test("a product with neither offers no choice, rather than a broken one", () => {
+    assert.deepEqual(productColorOptions({}), []);
+    assert.deepEqual(productColorOptions({ colors: null, description: null }), []);
+  });
+});
+
+describe("the description shown to buyers", () => {
+  const { descriptionBody } = colors;
+
+  test("drops the colour lines, because the swatches already say it", () => {
+    assert.equal(
+      descriptionBody("A drift trike.\n\nColors: Black, Red\n\nShips in a crate."),
+      "A drift trike.\n\nShips in a crate."
+    );
+  });
+
+  test("drops a multi-line colour list too", () => {
+    assert.equal(
+      descriptionBody("Built in-house.\n\nAvailable colours:\n- Black\n- Red\n\nShips flat."),
+      "Built in-house.\n\nShips flat."
+    );
+  });
+
+  test("resumes at the prose when the list runs into it", () => {
+    assert.equal(
+      descriptionBody("Colors: Black, Red\nWeighs 42kg and ships in a crate to your door."),
+      "Weighs 42kg and ships in a crate to your door."
+    );
+  });
+
+  test("leaves a description with no colour line completely alone", () => {
+    const text = "A rear-wheel-drive drift trike.\n\nThe frame colour is powder coated.";
+    assert.equal(descriptionBody(text), text);
+  });
+
+  test("is empty when the description was only a colour list", () => {
+    assert.equal(descriptionBody("Colour options: Gunmetal, Arctic White"), "");
+    assert.equal(descriptionBody(null), "");
   });
 });

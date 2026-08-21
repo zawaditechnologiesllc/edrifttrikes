@@ -6,7 +6,6 @@ import {
   stageMessage,
   type FulfillmentStage,
 } from "@/lib/fulfillment";
-import { computeDuty, DEFAULT_DUTY_RATE_BPS } from "@/lib/totals";
 import { COMPANY } from "@/lib/company";
 
 /**
@@ -201,27 +200,6 @@ function orderTable(order: Order): string {
   const freeShippingNote = freeShipping
     ? `<p style="margin:12px 0 0;color:#c4f731;font-size:12px;line-height:1.6">Free shipping applied to this order — you paid nothing for delivery.</p>`
     : "";
-  // Import duty is disclosed, never charged — so it sits BELOW the total, in
-  // muted type, with the wording that makes clear who collects it.
-  const duty = computeDuty(order.subtotal_cents);
-  const dutyPct = DEFAULT_DUTY_RATE_BPS / 100;
-  const dutyBlock =
-    duty > 0
-      ? `<div style="margin-top:16px;border-top:1px dashed rgba(255,255,255,0.15);padding-top:12px">
-           <table style="width:100%;border-collapse:collapse">
-             <tr>
-               <td style="color:#8d90a2">Import duty (${dutyPct}%) — not charged by us</td>
-               <td style="text-align:right;color:#8d90a2">${money(duty, currency)}</td>
-             </tr>
-           </table>
-           <p style="margin:8px 0 0;color:#8d90a2;font-size:12px;line-height:1.6">
-             Estimated customs duty on the value of your goods, payable by you to
-             your local government when the shipment arrives. It is not included
-             in the total above and we never collect it. Your country's customs
-             authority sets the exact amount.
-           </p>
-         </div>`
-      : "";
 
   return `
     <table style="width:100%;border-collapse:collapse;margin-top:24px">${rows}
@@ -230,8 +208,7 @@ function orderTable(order: Order): string {
       <tr><td style="padding:4px 0;color:#8d90a2">Tax</td><td style="padding:4px 0;text-align:right;color:#e4e1e6">${money(order.tax_cents, currency)}</td></tr>
       <tr><td style="padding:12px 0;font-weight:700;color:#fff">Total</td><td style="padding:12px 0;text-align:right;font-weight:700;color:#c4f731">${money(order.total_cents, currency)}</td></tr>
     </table>
-    ${freeShippingNote}
-    ${dutyBlock}`;
+    ${freeShippingNote}`;
 }
 
 /**
@@ -401,42 +378,77 @@ export async function sendWelcomeEmail(email: string, name?: string) {
   return call("/email/welcome", { email, name });
 }
 
-export async function sendOrderConfirmationEmail(order: Order) {
-  if (directEmail()) {
-    const site = publicSiteUrl() || "";
-    const body = `
-      <p style="color:#c3c5d9;line-height:1.6">Thanks for your order — <strong style="color:#c4f731">${esc(order.order_number)}</strong> is in.</p>
-      <p style="color:#c3c5d9;line-height:1.6">We'll send a second email confirming your payment and the start of your shipment as soon as it clears. From there you can follow every step — shipped, arriving, ready for collection — on your rider dashboard.</p>
-      ${receiptBlock(order)}
-      <a href="${site}/account" style="display:inline-block;margin-top:24px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Track your order</a>`;
-    const result = await resendSend(
-      order.email,
-      `Order ${order.order_number} received`,
-      shell("Order confirmed", body)
-    );
+/**
+ * The email an unpaid order gets — the cart-recovery note.
+ *
+ * WHY THIS AND NOT A CONFIRMATION. An order is created the moment the buyer
+ * submits the checkout form, before any money has moved, and it stays `pending`
+ * until payment is confirmed. Sending a confirmation at that point tells a
+ * buyer their order is placed when nothing has been paid for — and if they then
+ * never complete, the store has confirmed an order that does not exist.
+ *
+ * So this goes out instead, to the address on the order. It is a receipt of
+ * what they chose and a link back to finish, which is what a buyer who lost the
+ * payment tab actually needs. The real confirmation is sent only once the order
+ * is marked paid — see markOrderPaid in lib/orders.ts.
+ *
+ * Sent from the no-reply address for the same reason the refund email is: it is
+ * an automated message, and replies to it belong with support.
+ */
+export async function sendAbandonedCartEmail(order: Order) {
+  const site = publicSiteUrl() || "";
+  const subject = `Your order ${order.order_number} is waiting`;
+  const title = "Finish your order";
 
-    // Best-effort new-order alert to the owner — never blocks the buyer receipt.
-    const notify = ordersNotify();
-    if (notify) {
-      const addr = order.shipping_address
-        ? `<p style="color:#c3c5d9;line-height:1.6">Ship to: ${Object.values(order.shipping_address)
-            .filter(Boolean)
-            .map((v) => esc(v))
-            .join(", ")}</p>`
-        : "";
-      await resendSend(
-        notify,
-        `New order ${order.order_number} — ${money(order.total_cents, order.currency || "usd")}`,
-        shell(
-          "New order",
-          `<p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(order.order_number)}</strong> from ${esc(order.email)} (status: ${esc(order.status)}).</p>
-           ${addr}${orderTable(order)}`
-        )
-      ).catch((e) => console.error("[email] order alert failed", e));
-    }
-    return result;
+  if (!directEmail()) {
+    return call("/email/abandoned-cart", { order, subject, title });
   }
-  return call("/email/order-confirmation", { order });
+
+  const body = `
+    <p style="color:#c3c5d9;line-height:1.6">We've saved order <strong style="color:#c4f731">${esc(
+      order.order_number
+    )}</strong> for you, but we haven't received payment for it yet — so nothing has been charged and nothing has shipped.</p>
+    <p style="color:#c3c5d9;line-height:1.6">If you were interrupted at the payment step, everything below is still reserved. Pick up where you left off and we'll get straight to work on your build.</p>
+    <a href="${site}/cart" style="display:inline-block;margin-top:8px;margin-bottom:8px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Complete your order</a>
+    ${receiptBlock(order)}
+    <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">
+      Changed your mind? No action is needed — an unpaid order simply expires and
+      you will not be charged. Questions about it? Email
+      <a href="mailto:${esc(COMPANY.supportEmail)}" style="color:#c4f731">${esc(
+        COMPANY.supportEmail
+      )}</a> and quote order ${esc(order.order_number)}.
+    </p>`;
+
+  const result = await resendSend(order.email, subject, shell(title, body), {
+    from: noReplyFrom(),
+    replyTo: COMPANY.supportEmail,
+  });
+
+  // Best-effort new-order alert to the owner. It fires here rather than on
+  // payment because an unpaid order is exactly what an admin needs to see —
+  // they are the one who marks it paid.
+  const notify = ordersNotify();
+  if (notify) {
+    const addr = order.shipping_address
+      ? `<p style="color:#c3c5d9;line-height:1.6">Ship to: ${Object.values(order.shipping_address)
+          .filter(Boolean)
+          .map((v) => esc(v))
+          .join(", ")}</p>`
+      : "";
+    await resendSend(
+      notify,
+      `New order ${order.order_number} — ${money(order.total_cents, order.currency || "usd")} (unpaid)`,
+      shell(
+        "New order — awaiting payment",
+        `<p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(
+          order.order_number
+        )}</strong> from ${esc(order.email)} (status: ${esc(order.status)}).</p>
+         <p style="color:#c3c5d9;line-height:1.6">Mark it paid in the admin panel once payment is confirmed — that is what starts the delivery schedule and sends the customer their confirmation.</p>
+         ${addr}${orderTable(order)}`
+      )
+    ).catch((e) => console.error("[email] order alert failed", e));
+  }
+  return result;
 }
 
 /**

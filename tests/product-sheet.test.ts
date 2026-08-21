@@ -4,7 +4,8 @@ import { buildProductSheet, productSheetFilename } from "../lib/product-sheet";
 import { parseColors } from "../lib/colors";
 import { parseRichText } from "../lib/rich-text";
 import { COMPANY, DEFAULT_SITE_SETTINGS } from "../lib/company";
-import { ESTIMATED_DELIVERY_DAYS } from "../lib/fulfillment";
+import { formatDeliveryWindow } from "../lib/delivery";
+import { toWinAnsi } from "../lib/pdf";
 import type { Product, SiteSettings } from "../lib/types";
 
 /**
@@ -169,10 +170,16 @@ describe("what the sheet says", () => {
     assert.ok(text.includes("A 60V fast charger"), "a bullet was dropped");
   });
 
-  test("quotes the delivery estimate the fulfilment emails actually commit to", async () => {
-    // A second, different number here would be a promise the emails don't keep.
+  test("quotes the same delivery window as the rest of the store", async () => {
+    // A second, different number here would be a promise the checkout page and
+    // the confirmation email don't keep.
     const text = await build().then(sheetText);
-    assert.ok(text.includes(`About ${ESTIMATED_DELIVERY_DAYS} days from payment`));
+    // Folded through toWinAnsi first: the en dash in "12–20" is stored as a
+    // single WinAnsi byte in the PDF, so the UTF-8 spelling would never match.
+    assert.ok(
+      text.includes(toWinAnsi(`${formatDeliveryWindow()} from payment`)),
+      "the sheet quotes a window the rest of the site doesn't"
+    );
   });
 
   test("says how to reach us", async () => {
@@ -200,7 +207,7 @@ describe("what the sheet says", () => {
   });
 });
 
-describe("shipping, duty and tax", () => {
+describe("shipping and what the buyer pays", () => {
   test("states the shipping fee that actually applies", async () => {
     const text = await build().then(sheetText);
     assert.ok(text.includes("$50"), "the shipping fee is missing");
@@ -223,17 +230,18 @@ describe("shipping, duty and tax", () => {
     assert.ok(text.includes("$125"), "the per-product shipping fee was ignored");
   });
 
-  test("discloses the duty as an estimate the BUYER pays their own government", async () => {
-    // The store never collects it and it is not in the order total. Saying
-    // otherwise on a printed sheet would be a misstatement about money.
+  test("promises that the checkout total is the whole bill", async () => {
     const text = await build().then(sheetText);
-    assert.ok(text.includes("13.5%"), "the duty rate is missing");
-    assert.ok(text.includes("NOT charged by us"), "the sheet implies we collect the duty");
-    assert.ok(
-      text.includes("not part of your order total"),
-      "the sheet does not say the duty sits outside the total"
-    );
-    assert.ok(text.includes("customs authority"));
+    assert.ok(text.includes("the total you are charged"));
+  });
+
+  test("says NOTHING about duty, customs or import charges", async () => {
+    // The sheet used to carry a 13.5% import-duty estimate. It was removed from
+    // the entire store because it read as an unquantified surcharge and cost
+    // sales — and a PDF is the copy most likely to outlive the change, because
+    // buyers keep it and forward it.
+    const text = await build().then(sheetText);
+    assert.doesNotMatch(text, /duty|customs|import charge|tariff|13\.5/i);
   });
 });
 

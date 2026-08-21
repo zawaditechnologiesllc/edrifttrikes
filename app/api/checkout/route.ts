@@ -6,8 +6,8 @@ import { stripeCompanyContent } from "@/lib/stripe-branding";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
-import { sendOrderConfirmationEmail } from "@/lib/email";
-import { matchColor, productColors } from "@/lib/colors";
+import { sendAbandonedCartEmail } from "@/lib/email";
+import { matchColor, productColorOptions } from "@/lib/colors";
 import { publicSiteUrl } from "@/lib/env";
 import type { Order } from "@/lib/types";
 
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       if (!p || p.status !== "active") return null;
       const qty = Math.max(1, Math.min(i.qty, p.stock > 0 ? p.stock : i.qty));
 
-      const offered = productColors(p.colors);
+      const offered = productColorOptions(p);
       let color: string | null = null;
       if (offered.length > 0) {
         color = matchColor(offered, i.color);
@@ -241,14 +241,15 @@ export async function POST(request: Request) {
     }
   }
 
-  // Order confirmation goes out IMMEDIATELY, the moment the buyer places the
-  // order — before they are handed to Stripe/PayPal, not after payment clears.
-  // A buyer who closes the tab mid-payment still has a receipt with their order
-  // number. The separate "payment cleared / preparing shipment" email is sent
-  // by markOrderPaid() once the provider confirms (lib/orders.ts).
+  // NOT a confirmation. The order exists but nothing has been paid for yet, and
+  // it stays that way until an admin (or a payment webhook) marks it paid.
+  // Confirming an order at this point would be confirming one the buyer may
+  // never complete. They get the cart-recovery email instead — what they chose,
+  // and a link back to finish — and the real confirmation follows from
+  // markOrderPaid() in lib/orders.ts when the money is actually in.
   //
-  // Never let a mail failure kill a paid-for order: log and carry on.
-  await sendOrderConfirmationEmail({
+  // Never let a mail failure kill an order: log and carry on.
+  await sendAbandonedCartEmail({
     ...(order as Order),
     items: lineItems.map((i) => ({
       id: i.product_id,
@@ -340,11 +341,11 @@ export async function POST(request: Request) {
       success_url: `${siteUrl}/order-confirmation?order=${order.order_number}`,
       cancel_url: `${siteUrl}/checkout`,
       metadata: { order_id: order.id, order_number: order.order_number },
-      // Our own copy on Stripe's hosted page — who is charging, the delivery
-      // window, and the import duty they owe separately. Derived from the same
-      // constants as our checkout and emails so the three cannot disagree.
+      // Our own copy on Stripe's hosted page — who is charging and the delivery
+      // window, derived from the same constants as our checkout and emails so
+      // the three cannot disagree.
       // See lib/stripe-branding.ts. Logo and colours are Dashboard settings.
-      ...stripeCompanyContent(order.order_number),
+      ...stripeCompanyContent(order.order_number, shipping.country),
     });
     await admin.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
     return NextResponse.json({ url: session.url });

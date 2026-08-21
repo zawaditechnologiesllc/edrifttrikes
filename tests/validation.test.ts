@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   CHECKOUT_FIELDS,
+  checkoutFieldsFor,
   REQUIRED_FIELDS,
   normalizeShipping,
   validateCheckout,
@@ -51,14 +52,17 @@ describe("validateEmail", () => {
 
 describe("required fields", () => {
   test("everything except address2 and phone is required", () => {
+    // Country leads: the address lookup is scoped to it and the last two
+    // labels are named by it, so nothing below it can be filled in well until
+    // it is answered.
     assert.deepEqual(REQUIRED_FIELDS, [
+      "country",
       "first_name",
       "last_name",
       "address",
       "city",
       "state",
       "zip",
-      "country",
     ]);
   });
 
@@ -209,13 +213,20 @@ describe("validateCheckout", () => {
   });
 
   test("reports the first error in FORM order, so focus lands topmost", () => {
-    // zip sits above country on the form; a payload broken in both must point
-    // at zip, not at whichever key iterated first.
+    // Country sits at the top of the form now; a payload broken in both country
+    // and zip must point at country, not at whichever key iterated first.
     const result = validateCheckout({
       email: "rider@example.com",
       shipping: { ...VALID, zip: "", country: "Wakanda" },
     });
-    assert.equal(result.firstErrorField, "zip");
+    assert.equal(result.firstErrorField, "country");
+
+    // And a payload broken lower down still points at the topmost break.
+    const lower = validateCheckout({
+      email: "rider@example.com",
+      shipping: { ...VALID, city: "", zip: "" },
+    });
+    assert.equal(lower.firstErrorField, "city");
 
     // Email outranks every address field.
     const withBadEmail = validateCheckout({
@@ -256,5 +267,85 @@ describe("normalizeShipping", () => {
     const out = normalizeShipping({ ...VALID, phone: "   ", address2: "" });
     assert.equal("phone" in out, false);
     assert.equal("address2" in out, false);
+  });
+});
+
+describe("the form starts with the country", () => {
+  test("country is the first field on the form", () => {
+    // Everything below it depends on the answer: the address lookup is scoped
+    // to it, and the last two labels are named by it.
+    assert.equal(CHECKOUT_FIELDS[0].name, "country");
+    assert.equal(CHECKOUT_FIELDS[0].span, "full");
+  });
+
+  test("the street address still comes before the parts it fills in", () => {
+    const order = CHECKOUT_FIELDS.map((f) => f.name);
+    for (const filled of ["city", "state", "zip"] as const) {
+      assert.ok(
+        order.indexOf("address") < order.indexOf(filled),
+        `${filled} is asked for before the address that fills it`
+      );
+    }
+  });
+});
+
+describe("the address fields are named the way the buyer's country names them", () => {
+  const labelOf = (country: string, name: string) =>
+    checkoutFieldsFor(country).find((f) => f.name === name)!.label;
+
+  test("a US buyer is asked for a State and a ZIP code", () => {
+    assert.equal(labelOf("US", "state"), "State");
+    assert.equal(labelOf("US", "zip"), "ZIP code");
+  });
+
+  test("a British buyer is asked for a County and a Postcode, not a ZIP", () => {
+    // Asking someone in London for a "ZIP code" is a small thing that says the
+    // shop was not built with them in mind.
+    assert.equal(labelOf("GB", "state"), "County");
+    assert.equal(labelOf("GB", "zip"), "Postcode");
+  });
+
+  test("Canada, Australia and Ireland each get their own terms", () => {
+    assert.equal(labelOf("CA", "zip"), "Postal code");
+    assert.equal(labelOf("AU", "state"), "State / Territory");
+    assert.equal(labelOf("IE", "zip"), "Eircode");
+  });
+
+  test("a country we have no terms for keeps the neutral wording", () => {
+    // Inventing a term for a country we don't actually know is worse than the
+    // generic label.
+    assert.equal(labelOf("BR", "state"), "State / Province / Region");
+    assert.equal(labelOf("BR", "zip"), "Postal / ZIP code");
+  });
+
+  test("is case-insensitive, like everything else that takes a country", () => {
+    assert.equal(labelOf("gb", "zip"), "Postcode");
+  });
+
+  test("before a country is chosen, the address field says to choose one", () => {
+    const address = checkoutFieldsFor("").find((f) => f.name === "address")!;
+    assert.match(address.hint, /country/i);
+    // And stops saying it once they have.
+    assert.doesNotMatch(
+      checkoutFieldsFor("US").find((f) => f.name === "address")!.hint,
+      /choose your country/i
+    );
+  });
+
+  test("relabelling NEVER changes what validation accepts", () => {
+    // The label is display only. If a country override could alter `required`
+    // or `maxLength`, the browser and the server would stop agreeing about
+    // what a valid address is.
+    for (const country of ["", "US", "GB", "CA", "AU", "NZ", "IE", "IN", "BR"]) {
+      const localized = checkoutFieldsFor(country);
+      assert.equal(localized.length, CHECKOUT_FIELDS.length);
+      localized.forEach((spec, i) => {
+        const base = CHECKOUT_FIELDS[i];
+        assert.equal(spec.name, base.name, `field order changed for ${country}`);
+        assert.equal(spec.required, base.required, `${spec.name} required changed`);
+        assert.equal(spec.maxLength, base.maxLength, `${spec.name} maxLength changed`);
+        assert.equal(spec.autoComplete, base.autoComplete, `${spec.name} autoComplete changed`);
+      });
+    }
   });
 });

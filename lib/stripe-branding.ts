@@ -1,6 +1,6 @@
 import { COMPANY } from "@/lib/company";
-import { ESTIMATED_DELIVERY_DAYS } from "@/lib/fulfillment";
-import { DEFAULT_DUTY_RATE_BPS } from "@/lib/totals";
+import { normalizeCountry } from "@/lib/countries";
+import { formatDeliveryWindow } from "@/lib/delivery";
 
 /**
  * Company content for the Stripe-hosted Checkout page.
@@ -16,13 +16,12 @@ import { DEFAULT_DUTY_RATE_BPS } from "@/lib/totals";
  *
  * The page the buyer lands on AFTER paying is `success_url` — our own
  * /order-confirmation — which is entirely ours and already carries the full
- * receipt, tracking timeline and duty notice.
+ * receipt and tracking timeline.
  *
  * WHY THIS FILE EXISTS RATHER THAN INLINE STRINGS: the wording is derived from
  * the same constants as our own checkout, our emails and the customer tracker.
- * A delivery estimate or duty rate quoted on Stripe's page that disagrees with
- * the email we send minutes later is how a store ends up arguing with its own
- * customers.
+ * A delivery estimate quoted on Stripe's page that disagrees with the email we
+ * send minutes later is how a store ends up arguing with its own customers.
  */
 
 /** Stripe rejects any custom_text message longer than this. */
@@ -46,17 +45,27 @@ export function clampCustomText(
   return (lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut).trim();
 }
 
-const dutyPct = DEFAULT_DUTY_RATE_BPS / 100;
+/**
+ * How the destination is named on Stripe's page.
+ *
+ * The buyer has already typed their address, so naming the country makes the
+ * quoted window read as theirs rather than as generic marketing copy. An
+ * unrecognised country falls back to neutral wording rather than echoing
+ * whatever string arrived.
+ */
+function destination(country?: string | null): string {
+  const name = country ? normalizeCountry(country) : null;
+  return name ?? "your address";
+}
 
 /**
  * Text shown alongside the pay button — the last thing a buyer reads before
- * committing, so it carries the two facts most likely to cause a dispute
- * later: who is charging them, and the customs duty they will owe separately.
+ * committing, so it says who is charging them, when it arrives, and where to
+ * ask before they commit.
  */
-export function submitMessage(): string {
+export function submitMessage(country?: string | null): string {
   return clampCustomText(
-    `You're paying ${COMPANY.name}. Delivery is tracked end to end and takes around ${ESTIMATED_DELIVERY_DAYS} days. ` +
-      `An estimated ${dutyPct}% import duty is payable by you to your local customs authority on arrival — it is not included in this total and we never collect it. ` +
+    `You're paying ${COMPANY.name}. Delivery to ${destination(country)} is tracked end to end and takes ${formatDeliveryWindow(country)}. ` +
       `Questions before you pay? ${COMPANY.supportEmail}`
   );
 }
@@ -67,8 +76,8 @@ export function submitMessage(): string {
  */
 export function afterSubmitMessage(): string {
   return clampCustomText(
-    `Thank you. ${COMPANY.name} will email your confirmation straight away, then again when your order ships. ` +
-      `You can follow every step — shipped, arriving, ready for collection — on your rider dashboard. ` +
+    `Thank you. ${COMPANY.name} will email you as soon as your payment is confirmed, then again when your order ships. ` +
+      `You can follow every step — confirmed, shipped, arriving, ready for collection — on your rider dashboard. ` +
       `Need help with this order? Email ${COMPANY.supportEmail} and quote your order number.`
   );
 }
@@ -84,12 +93,12 @@ export function paymentDescription(orderNumber: string): string {
  * Kept as one object so every caller gets the same treatment and nothing drifts
  * between the redirect flow and any future embedded one.
  */
-export function stripeCompanyContent(orderNumber: string) {
+export function stripeCompanyContent(orderNumber: string, country?: string | null) {
   return {
     // "Pay" rather than the default "Subscribe"/"Donate" wording.
     submit_type: "pay" as const,
     custom_text: {
-      submit: { message: submitMessage() },
+      submit: { message: submitMessage(country) },
       after_submit: { message: afterSubmitMessage() },
     },
     payment_intent_data: {

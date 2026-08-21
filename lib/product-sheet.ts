@@ -7,8 +7,8 @@
  * range, skill level and availability; the shipping fee (or FREE) and the
  * delivery estimate the fulfilment emails actually commit to; every colour it
  * comes in, with its swatch; the full description, laid out with the same block
- * rules as the product page; the complete technical specification; the duty and
- * tax disclosure; and how to order and reach us.
+ * rules as the product page; the complete technical specification; what the
+ * buyer pays; and how to order and reach us.
  *
  * BRANDING: the logo the admin uploads in /admin/settings is drawn at the top
  * of page one and, faintly, as a watermark behind every page. With no logo
@@ -21,15 +21,11 @@
 
 import { PdfDocument, A4, type PdfImage } from "@/lib/pdf";
 import { COMPANY } from "@/lib/company";
-import { productColors } from "@/lib/colors";
+import { descriptionBody, productColorOptions } from "@/lib/colors";
 import { parseRichText } from "@/lib/rich-text";
 import { formatMoney } from "@/lib/format";
-import { ESTIMATED_DELIVERY_DAYS } from "@/lib/fulfillment";
-import {
-  DEFAULT_DUTY_RATE_BPS,
-  DEFAULT_SHIPPING_CENTS,
-  productShippingCents,
-} from "@/lib/totals";
+import { MAX_ROUTE_EXTRA_DAYS, formatDeliveryWindow } from "@/lib/delivery";
+import { DEFAULT_SHIPPING_CENTS, productShippingCents } from "@/lib/totals";
 import type { Product, SiteSettings } from "@/lib/types";
 
 // A sheet is a printed document, so it is laid out light regardless of the
@@ -219,7 +215,7 @@ export async function buildProductSheet(
   ]);
   facts.push([
     "Estimated delivery",
-    `About ${ESTIMATED_DELIVERY_DAYS} days from payment`,
+    `${formatDeliveryWindow()} from payment — add up to ${MAX_ROUTE_EXTRA_DAYS} days for distant routes`,
   ]);
   facts.push(["Product code", product.slug]);
 
@@ -229,7 +225,7 @@ export async function buildProductSheet(
   }
 
   // --- Colours ------------------------------------------------------------
-  const colors = productColors(product.colors);
+  const colors = productColorOptions(product);
   if (colors.length > 0) {
     y = section(doc, "AVAILABLE COLOURS", need);
     for (const color of colors) {
@@ -266,9 +262,10 @@ export async function buildProductSheet(
   }
 
   // --- Description --------------------------------------------------------
-  if (product.description && product.description.trim()) {
+  const body = descriptionBody(product.description);
+  if (body) {
     y = section(doc, "ABOUT THIS BUILD", need);
-    for (const block of parseRichText(product.description)) {
+    for (const block of parseRichText(body)) {
       if (block.type === "p") {
         for (const paragraphLine of block.lines) {
           for (const line of doc.wrap(paragraphLine, CONTENT_WIDTH, "regular", 10)) {
@@ -302,15 +299,13 @@ export async function buildProductSheet(
     }
   }
 
-  // --- Duty and tax -------------------------------------------------------
-  y = section(doc, "DUTY, TAX AND WHAT YOU PAY", need);
-  const dutyPercent = (DEFAULT_DUTY_RATE_BPS / 100).toFixed(2).replace(/\.?0+$/, "");
+  // --- What you pay -------------------------------------------------------
+  y = section(doc, "WHAT YOU PAY", need);
   for (const note of [
     `The price above is the price of the trike. Shipping is ${
       shipsFree ? "free on this product" : `${formatMoney(shipFee)} per unit`
     }, and sales tax is added at checkout.`,
-    `An import duty of about ${dutyPercent}% of the goods value is shown at checkout as an estimate. It is NOT charged by us and is not part of your order total — your own customs authority bills it directly when the shipment arrives, and you pay them.`,
-    "Duty varies by country and by how a product is classified, and some destinations charge nothing at all. Treat the figure as indicative and check with your local customs office if you need an exact amount.",
+    "Nothing else is added to your order. The total shown at checkout is the total you are charged.",
   ]) {
     for (const line of doc.wrap(note, CONTENT_WIDTH, "regular", 9.5)) {
       need(14);

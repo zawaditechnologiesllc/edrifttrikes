@@ -524,6 +524,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY   # if using Stripe
 PAYPAL_CLIENT_ID                     # if using PayPal
 PAYPAL_SECRET                        # if using PayPal
 PAYPAL_ENV                           # sandbox | live
+GOOGLE_MAPS_API_KEY                  # optional — upgrades address autocomplete
 ```
 
 **Render (`/server`):**
@@ -656,8 +657,8 @@ skill level and stock; the shipping fee (or FREE, with the fee it replaces shown
 struck through); the delivery estimate from `lib/fulfillment.ts`, so it never
 promises something the fulfilment emails don't; every colour with its swatch;
 the full description, laid out with the same block rules as the product page;
-the complete technical specification; the duty and tax disclosure; and how to
-order and reach us.
+the complete technical specification; what the buyer pays; and how to order
+and reach us.
 
 ### The store logo
 
@@ -756,3 +757,87 @@ anyway reaches a person rather than a void, and the footer names that address.
 Unticking **Email the customer** on the order page suppresses it, the same way
 it suppresses a stage email. If the send fails, the status change still stands
 and the admin is told the customer was *not* notified, with the reason.
+
+## Delivery windows
+
+Every delivery estimate on the site comes from one file: `lib/delivery.ts`. The
+product page, the cart, checkout, Stripe's payment page, the PDF product sheet,
+the policy and FAQ pages, and the date on every order all read it, so they
+cannot disagree.
+
+**The model.** A base window of **12–20 days**, plus a transit allowance of up
+to **7 days** for how far the parcel travels:
+
+| Destination | Adds | Quoted |
+| --- | --- | --- |
+| US and its territories | 0 | 12–20 days |
+| Canada, Mexico | 3 | 15–23 days |
+| Western/central Europe, UK, Australia, NZ, Japan, Korea, Singapore, HK, Taiwan, UAE, Qatar, Israel | 5 | 17–25 days |
+| Everywhere else, and anything unrecognised | 7 | 19–27 days |
+
+Where no destination is known — a product page, a cart before the address is
+filled in — the base window is shown alongside wording that says longer routes
+add up to 7 days. Once the buyer picks a country, every surface narrows to
+*their* window, including Stripe's payment page.
+
+These allowances are the store's own routing assumptions, not carrier data.
+They are all in one table in `lib/delivery.ts` so they can be re-tuned against
+real delivery times.
+
+**The date on the order** (`orders.estimated_delivery_at`, shown in the tracker
+and in every stage email) is the far end of that buyer's own window. A buyer in
+the US is given day 20; a buyer in Brazil day 27.
+
+**This is NOT the tracking schedule.** `lib/fulfillment.ts` still runs its stage
+emails on the same 0 / 3 / 25 / 28-day cadence, and `SCHEDULE_SPAN_DAYS` is 28.
+That number is the cadence the automation fires on, and it is deliberately the
+outer bound: the longest quoted window (27 days) still lands inside it. A test
+pins that invariant — if a route allowance is ever raised past it, the suite
+fails rather than letting the store promise a delivery after the point it stops
+updating the customer.
+
+## Address autocomplete at checkout
+
+Typing a street address at checkout offers matching addresses; picking one fills
+in the city, state, postal code and country.
+
+**The key never reaches the browser.** Lookups go through
+`/api/address/suggest` and `/api/address/resolve`, so the credential stays on
+the Worker. A `NEXT_PUBLIC_*` key would be baked into the bundle at build time
+and lifted by anyone who looked.
+
+**Two providers, chosen by what is configured:**
+
+- **Google Places** — used when `GOOGLE_MAPS_API_KEY` is set. Worldwide, true
+  type-ahead, and what most checkouts buyers are used to actually run on. Needs
+  a Google Cloud project with billing and the *Places API (New)* enabled.
+  Predictions are cheap; the billed details lookup happens only when a buyer
+  actually clicks an address.
+- **US Census Bureau geocoder** — the keyless fallback, so the feature works
+  with no account at all. Public domain, no key, US addresses only. Buyers
+  elsewhere type the address as they always have.
+
+**The form starts with the country.** It is the first field, full width,
+because everything below it depends on the answer: the address lookup is scoped
+to that country (more accurate and cheaper), and the last two fields are
+relabelled to whatever that country calls them — State/ZIP code for a US buyer,
+County/Postcode for a British one, Province/Postal code for a Canadian.
+`checkoutFieldsFor()` in `lib/validation.ts` holds the terms for the main
+markets and falls back to neutral wording elsewhere; inventing a term for a
+country we don't know is worse than the generic label. Relabelling is display
+only — a test asserts no country override can change `required`, `maxLength`,
+`autoComplete` or the field order, so the browser and the server never stop
+agreeing about what a valid address is.
+
+**It is an enhancement, never a dependency.** Every keystroke goes straight into
+the form. If no provider is configured, the provider is down, the request times
+out, or the buyer's address simply isn't in the database, the dropdown never
+appears and the form works exactly as it did before. Nothing tells the buyer
+anything is wrong, because nothing is.
+
+⚠️ The Census fallback's network path could not be exercised from the
+development sandbox (the host is blocked by its egress policy). The response
+parsing is unit-tested against the geocoder's documented response shape; the
+first real request will be from production. If it returns nothing there, check
+the Worker can reach `geocoding.geo.census.gov` — or just set
+`GOOGLE_MAPS_API_KEY`, which is the better provider anyway.

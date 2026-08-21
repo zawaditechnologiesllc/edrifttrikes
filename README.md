@@ -39,25 +39,14 @@ The system is split into two deployables:
   emails and packing view.
 - Client cart (drawer + full cart page) with live totals.
 - Checkout that recomputes prices server-side, creates an order, and either
-  redirects to **Stripe Checkout** (when configured) or places the order and
-  emails confirmation directly.
-- Guided address form: per-field hints, browser autofill, a country select, and
-  inline validation enforced identically on the client and the server
+  redirects to **Stripe Checkout** (when configured) or places the order
+  directly. An order starts unpaid: the buyer gets a cart-recovery email with
+  their full receipt, and the confirmation follows only once the order is
+  marked paid.
+- Guided address form: per-field hints, address autocomplete that fills city,
+  state, postal code and country, a country select, and inline validation
+  enforced identically on the client and the server
   ([`lib/validation.ts`](./lib/validation.ts)).
-- **Import duty disclosure** — cart, checkout, receipt and the confirmation
-  email show an estimated 13.5% customs duty on the goods value. It is
-  **excluded from the order total**: the buyer pays it to their own government
-  on arrival and the store never collects it. Rate lives in
-  [`lib/totals.ts`](./lib/totals.ts) (`DEFAULT_DUTY_RATE_BPS`).
-- Email-only accounts (no Google/Apple): register, login, logout, order history.
-- Guest checkout: orders placed without an account appear on the rider
-  dashboard once that person registers with the same **confirmed** email
-  (see [`docs/FULFILLMENT.md`](./docs/FULFILLMENT.md) — the confirmation
-  requirement is the security boundary).
-- Tech Lab content (articles) and newsletter signup.
-- Contact form with Turnstile bot protection and a 2-minute cooldown between
-  messages, enforced server-side (by email **and** a salted IP hash) with a live
-  countdown in the UI.
 
 > **Turnstile on Cloudflare:** set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` as a
 > *runtime* Worker variable and it still reaches the browser — statically

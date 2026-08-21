@@ -26,12 +26,21 @@ not hardcode a day count or a message anywhere else.
 keeps. It has to answer, months later and without them logging in: what did I
 buy, what did I pay, where is it going, and who do I chase. So it carries the
 order number, the date placed, the date paid, the estimated delivery, every
-line item, subtotal / shipping / tax / total, the import-duty disclosure, the
+line item, subtotal / shipping / tax / total, the
 full delivery address, and the support address to quote the order number to.
 
-The same receipt block appears on the order-received email sent at checkout.
+**An unpaid order gets a cart-recovery email, not a confirmation.** An order
+row is created the moment the checkout form is submitted — before any money has
+moved, and before an admin has accepted it. Confirming an order at that point
+confirms one the buyer may never pay for. So checkout sends
+`sendAbandonedCartEmail` instead: the same receipt block, headed "we haven't
+received payment for it yet — nothing has been charged and nothing has
+shipped", with a link back to the cart. It comes from `no-reply@` with replies
+routed to support, and it is the same message that alerts the store owner that
+an order is sitting unpaid and waiting for them to mark it.
+
 Later stage emails (shipped, arriving, ready for collection) are short status
-updates and deliberately do not repeat it.
+updates and deliberately do not repeat the receipt.
 
 **Guest buyers get an account invite in that same email.** When payment clears
 on an order with no account behind it, `markOrderPaid` resolves the account
@@ -351,3 +360,40 @@ curl -X POST https://<render-url>/orders/advance -H "x-internal-key: $INTERNAL_A
 ```
 
 The response reports what moved. Use a test order and your own email address.
+
+## Who marks an order paid
+
+**An admin does.** `paid` is the switch that starts everything: it sets
+`paid_at`, computes the delivery date from the buyer's own window
+(`lib/delivery.ts`), moves the order to `confirmed`, and sends the receipt.
+Until then the order sits `pending` and the buyer has only the cart-recovery
+email.
+
+From that moment the cron takes over and no further admin action is needed. It
+advances the order through `shipped` (day 3), `arriving` (day 25) and
+`ready_for_collection` (day 28), emailing at each step. Every one of those
+writes `fulfillment_stage` on the order row, which is the single column both the
+admin order list and the rider dashboard render from — so a stage the cron sets
+overnight is visible in both places on the next page load, with no separate
+sync.
+
+Payment webhooks (Stripe, PayPal) also mark an order paid when a provider
+confirms a capture, through the same `markOrderPaid` path. That is deliberate:
+an order that has been genuinely paid for must not sit `pending` because nobody
+was at a desk. If you want payment to be admin-only, disable the webhooks in the
+provider dashboards rather than in code — the code path is the one that keeps
+paid orders and captured money in agreement.
+
+## No duty, customs or import charges anywhere
+
+The store used to disclose an estimated 13.5% import duty in the cart, at
+checkout, on Stripe's payment page, on the receipt, in the confirmation email
+and in the PDF product sheet. It read as an unquantified surcharge and cost
+sales, so it was removed completely — `computeDuty` and `DEFAULT_DUTY_RATE_BPS`
+no longer exist.
+
+Tests assert the absence, not just the presence of what replaced it:
+`computeCartTotals` must return exactly `subtotal`, `shipping`, `tax` and
+`total`; and the Stripe copy, the PDF sheet and the cart-recovery email are each
+checked against `/duty|customs|import charge|tariff/i`. A stray extra key in the
+totals would otherwise surface as a line on every surface at once.

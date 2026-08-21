@@ -35,11 +35,26 @@ import {
   stagesBetween,
   type FulfillmentStage,
 } from "@/lib/fulfillment";
+import { deliveryDaysFor } from "@/lib/delivery";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Admin = SupabaseClient<any, any, any>;
 
 const ORDER_SELECT = "*, items:order_items(*)";
+
+/**
+ * How many days after payment THIS order is due, from where it is going.
+ *
+ * The date stored on the order has to be the one the buyer was quoted at
+ * checkout — a confirmation email promising a different day than the checkout
+ * page did is the store contradicting itself in writing. An order with no
+ * usable country falls back to the base window.
+ */
+function orderDeliveryDays(order: Pick<Order, "shipping_address">): number {
+  const address = (order.shipping_address ?? {}) as Record<string, unknown>;
+  const country = typeof address.country === "string" ? address.country : null;
+  return deliveryDaysFor(country);
+}
 
 /**
  * Claim a stage for an order.
@@ -141,7 +156,7 @@ export async function markOrderPaid(
 
   const alreadyPaid = order.status === "paid" || order.status === "fulfilled";
   const paidAt = opts.paidAt ?? (order.paid_at ? new Date(order.paid_at) : new Date());
-  const eta = estimatedDeliveryAt(paidAt);
+  const eta = estimatedDeliveryAt(paidAt, orderDeliveryDays(order));
 
   // Conditional update: only a row still in a pre-paid state flips. A second
   // webhook matches nothing and can't reset paid_at (which would restart the
@@ -239,7 +254,9 @@ export async function advanceOrder(
   const hops = stagesBetween(current, target);
   if (hops.length === 0) return null;
 
-  const eta = order.estimated_delivery_at ?? estimatedDeliveryAt(order.paid_at).toISOString();
+  const eta =
+    order.estimated_delivery_at ??
+    estimatedDeliveryAt(order.paid_at, orderDeliveryDays(order)).toISOString();
 
   // Backfill the stages that were skipped, silently.
   for (const stage of hops.slice(0, -1)) {
@@ -310,9 +327,15 @@ export async function setOrderStage(
   if (offset !== null && !order.paid_at) {
     const anchor = addDays(now, -offset);
     update.paid_at = anchor.toISOString();
-    update.estimated_delivery_at = estimatedDeliveryAt(anchor).toISOString();
+    update.estimated_delivery_at = estimatedDeliveryAt(
+      anchor,
+      orderDeliveryDays(order)
+    ).toISOString();
   } else if (offset !== null && !order.estimated_delivery_at && order.paid_at) {
-    update.estimated_delivery_at = estimatedDeliveryAt(order.paid_at).toISOString();
+    update.estimated_delivery_at = estimatedDeliveryAt(
+      order.paid_at,
+      orderDeliveryDays(order)
+    ).toISOString();
   }
 
   const { error } = await admin.from("orders").update(update).eq("id", orderId);

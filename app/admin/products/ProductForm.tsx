@@ -7,7 +7,7 @@ import { saveProduct, createUploadUrls } from "../actions";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/image-compress";
 import { parseProductText, PRODUCT_TEMPLATE } from "@/lib/product-import";
-import { formatColors, parseColors, productColors } from "@/lib/colors";
+import { formatColors, parseColors, productColorOptions } from "@/lib/colors";
 import type { Category, Product } from "@/lib/types";
 
 // Largest ORIGINAL a photo picker may hand us. Generous on purpose — normal
@@ -54,7 +54,7 @@ export default function ProductForm({
   // Controlled so the .txt import can fill it and the swatch preview updates
   // as it's typed. Seeded from whatever is stored, in the admin's own spelling.
   const [colorsText, setColorsText] = useState(() =>
-    formatColors(productColors(p?.colors))
+    formatColors(productColorOptions(p ?? {}))
   );
   const parsedColors = parseColors(colorsText);
 

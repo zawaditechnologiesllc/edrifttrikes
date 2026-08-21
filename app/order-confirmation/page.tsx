@@ -6,8 +6,6 @@ import { formatMoney } from "@/lib/format";
 import ClearCartOnMount from "./ClearCartOnMount";
 import { Icon } from "@/components/Icon";
 import OrderTracker from "@/components/storefront/OrderTracker";
-import { DutyRow } from "@/components/storefront/DutyNotice";
-import { computeDuty } from "@/lib/totals";
 
 export const metadata = { title: "Order Confirmed" };
 
@@ -60,10 +58,6 @@ export default async function OrderConfirmation({
               {/* Recomputed from the stored subtotal rather than persisted: the
                   store never collects this, so there is nothing to reconcile —
                   and it keeps the receipt in step with the published rate. */}
-              <DutyRow
-                duty={computeDuty(order.subtotal_cents)}
-                currency={order.currency}
-              />
             </div>
           </div>
         )}

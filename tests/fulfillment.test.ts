@@ -2,7 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   ALL_STAGES,
-  ESTIMATED_DELIVERY_DAYS,
+  SCHEDULE_SPAN_DAYS,
   FULFILLMENT_SCHEDULE,
   SCHEDULED_STAGES,
   STAGE_COPY,
@@ -141,14 +141,14 @@ describe("isSchedulable", () => {
 describe("delivery estimate", () => {
   test("is quoted from the payment date", () => {
     const eta = estimatedDeliveryAt(PAID);
-    assert.equal(eta.toISOString(), at(ESTIMATED_DELIVERY_DAYS).toISOString());
+    assert.equal(eta.toISOString(), at(SCHEDULE_SPAN_DAYS).toISOString());
   });
 
   test("the quoted date is not before the final stage is reached", () => {
     // Promising delivery before "ready for collection" fires would have us
     // contradicting ourselves in two emails.
     const finalDay = FULFILLMENT_SCHEDULE[FULFILLMENT_SCHEDULE.length - 1].afterDays;
-    assert.ok(ESTIMATED_DELIVERY_DAYS >= finalDay);
+    assert.ok(SCHEDULE_SPAN_DAYS >= finalDay);
   });
 
   test("stage copy interpolates the real date, never a literal {date}", () => {
