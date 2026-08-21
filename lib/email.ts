@@ -7,6 +7,7 @@ import {
   type FulfillmentStage,
 } from "@/lib/fulfillment";
 import { COMPANY } from "@/lib/company";
+import { isFinalReminder, reminderCopy, type ReminderStep } from "@/lib/abandoned";
 
 /**
  * Email delivery. Primary path: send DIRECTLY via the Resend HTTP API from the
@@ -409,7 +410,7 @@ export async function sendAbandonedCartEmail(order: Order) {
       order.order_number
     )}</strong> for you, but we haven't received payment for it yet — so nothing has been charged and nothing has shipped.</p>
     <p style="color:#c3c5d9;line-height:1.6">If you were interrupted at the payment step, everything below is still reserved. Pick up where you left off and we'll get straight to work on your build.</p>
-    <a href="${site}/cart" style="display:inline-block;margin-top:8px;margin-bottom:8px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Complete your order</a>
+    <a href="${recoveryLink(order)}" style="display:inline-block;margin-top:8px;margin-bottom:8px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Complete your order</a>
     ${receiptBlock(order)}
     <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">
       Changed your mind? No action is needed — an unpaid order simply expires and
@@ -449,6 +450,71 @@ export async function sendAbandonedCartEmail(order: Order) {
     ).catch((e) => console.error("[email] order alert failed", e));
   }
   return result;
+}
+
+/**
+ * The link back, carrying what they were buying.
+ *
+ * `?recover=<order id>` makes the cart page restore this order's exact items,
+ * colours and quantities (see components/cart/CartRecovery.tsx). A bare link to
+ * /cart would land them on an empty page and ask them to find the trike again,
+ * which is the work that made them give up the first time.
+ *
+ * The order ID is a random UUID and is the capability — see the note on
+ * /api/cart/recover about what it does and does not expose.
+ */
+function recoveryLink(order: Order): string {
+  const site = publicSiteUrl() || "";
+  return `${site}/cart?recover=${encodeURIComponent(order.id)}`;
+}
+
+/**
+ * One of the follow-ups to an unpaid order — day 3, 7 or 12.
+ *
+ * The copy comes from lib/abandoned.ts so the schedule and what it says live
+ * together, and so the escalation can be read in one place rather than
+ * reconstructed from three template literals.
+ *
+ * Sent from no-reply with replies routed to support, like the first one. Every
+ * reminder carries the full receipt: by day 12 the buyer has forgotten what
+ * they picked, and "your order" means nothing without it.
+ */
+export async function sendAbandonedReminderEmail(order: Order, step: ReminderStep) {
+  const copy = reminderCopy(step, order.order_number);
+
+  if (!directEmail()) {
+    return call("/email/abandoned-cart", {
+      order,
+      subject: copy.subject,
+      title: copy.title,
+      paragraphs: copy.paragraphs,
+      href: recoveryLink(order),
+      cta: copy.cta,
+    });
+  }
+
+  const body = `
+    ${copy.paragraphs
+      .map((line: string) => `<p style="color:#c3c5d9;line-height:1.6">${esc(line)}</p>`)
+      .join("")}
+    <a href="${recoveryLink(order)}" style="display:inline-block;margin-top:8px;margin-bottom:8px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">${esc(copy.cta)}</a>
+    ${receiptBlock(order)}
+    <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">
+      ${
+        isFinalReminder(step)
+          ? "You will not hear from us about this order again."
+          : "Not going ahead? No action is needed — an unpaid order simply expires and you will not be charged."
+      }
+      Questions? Email
+      <a href="mailto:${esc(COMPANY.supportEmail)}" style="color:#c4f731">${esc(
+        COMPANY.supportEmail
+      )}</a> and quote order ${esc(order.order_number)}.
+    </p>`;
+
+  return resendSend(order.email, copy.subject, shell(copy.title, body), {
+    from: noReplyFrom(),
+    replyTo: COMPANY.supportEmail,
+  });
 }
 
 /**

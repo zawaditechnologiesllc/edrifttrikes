@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { CATALOG_TAG } from "@/lib/db";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { isInternalRequest } from "@/lib/internal-auth";
-import { advanceOrder } from "@/lib/orders";
+import { advanceOrder, sweepAbandonedOrders, syncProductColors } from "@/lib/orders";
 import { SCHEDULED_STAGES } from "@/lib/fulfillment";
 import type { Order } from "@/lib/types";
 
@@ -17,6 +19,12 @@ export const dynamic = "force-dynamic";
  *   day 28  ready_for_collection (final)
  *
  * The timings live in lib/fulfillment.ts. This route is only the engine.
+ *
+ * IT ALSO CHASES UNPAID ORDERS — day 3, 7 and 12 after checkout, stopping the
+ * moment the buyer pays for anything. That schedule lives in lib/abandoned.ts.
+ * The two passes share a run because they want the same cadence and the same
+ * batching, and because an hourly job that does one of them is an hourly job
+ * that could do both.
  *
  * WHO CALLS IT: the Render service runs node-cron hourly and pings this
  * endpoint (server/src/index.js), with a GitHub Actions schedule as a backup in
@@ -108,6 +116,30 @@ async function runScheduler(request: Request) {
     }
   }
 
+  // Chase the orders that were never paid for. Runs after the delivery pass so
+  // a slow provider here can never delay a customer's shipping update, and is
+  // wrapped because a failure in the newer, less critical job must not take the
+  // scheduler down with it.
+  let abandoned = { scanned: 0, emailed: 0, skipped: {} as Record<string, number> };
+  try {
+    abandoned = await sweepAbandonedOrders(admin, { now, limit: BATCH_LIMIT });
+  } catch (e) {
+    console.error("[cron/orders] abandoned sweep failed:", e);
+  }
+
+  // Fill in colours on products that were uploaded before colours had a column,
+  // reading them out of the description text the admin already wrote. Cheap,
+  // bounded, and idempotent — once a product has colours it is never revisited.
+  let colors = { scanned: 0, updated: 0 };
+  try {
+    colors = await syncProductColors(admin, { limit: 25 });
+    // Product pages are cached under the catalog tag; without this the new
+    // colours would not appear until the TTL happened to expire.
+    if (colors.updated > 0) revalidateTag(CATALOG_TAG);
+  } catch (e) {
+    console.error("[cron/orders] colour sync failed:", e);
+  }
+
   return NextResponse.json({
     ok: true,
     scanned: batch.length,
@@ -116,6 +148,8 @@ async function runScheduler(request: Request) {
     remaining: hasMore,
     ms: Date.now() - started,
     changes: advanced,
+    abandoned,
+    colors,
   });
 }
 

@@ -20,7 +20,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Order, OrderEvent } from "@/lib/types";
-import { sendFulfillmentEmail } from "@/lib/email";
+import { sendAbandonedReminderEmail, sendFulfillmentEmail } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { verifiedUserEmail } from "@/lib/account";
@@ -36,6 +36,14 @@ import {
   type FulfillmentStage,
 } from "@/lib/fulfillment";
 import { deliveryDaysFor } from "@/lib/delivery";
+import { colorsFromDescription, productColors } from "@/lib/colors";
+import {
+  ABANDONED_SCHEDULE,
+  ABANDONED_WINDOW_DAYS,
+  reminderStage,
+  shouldRemind,
+  stepsUpTo,
+} from "@/lib/abandoned";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Admin = SupabaseClient<any, any, any>;
@@ -557,4 +565,225 @@ export async function loadOrderEvents(
     .eq("order_id", orderId)
     .order("created_at", { ascending: true });
   return (data as OrderEvent[]) ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Chasing orders that were never paid for
+// ---------------------------------------------------------------------------
+
+/**
+ * Has the person behind this email bought anything?
+ *
+ * The condition the whole follow-up sequence turns on. It looks at EVERY order
+ * for the address, not just this one, because a buyer who abandoned one order
+ * and then placed a fresh one has bought — and chasing them about the first is
+ * the kind of thing that makes a shop look like it is not paying attention.
+ *
+ * Matched on the email rather than the account, because most abandoned orders
+ * are from guests who have no account at all.
+ */
+async function hasBoughtSince(admin: Admin, email: string): Promise<boolean> {
+  const address = String(email ?? "").trim().toLowerCase();
+  if (!address) return false;
+  const { data, error } = await admin
+    .from("orders")
+    .select("id")
+    .eq("email", address)
+    .in("status", ["paid", "fulfilled"])
+    .limit(1);
+  if (error) {
+    // Fail SAFE: if we cannot tell whether they bought, do not chase them. A
+    // missed reminder costs a maybe; a reminder to a paying customer costs
+    // their confidence in the shop.
+    console.error("[orders] could not check purchase history:", error.message);
+    return true;
+  }
+  return (data ?? []).length > 0;
+}
+
+export type SweepResult = {
+  scanned: number;
+  emailed: number;
+  skipped: Record<string, number>;
+};
+
+/**
+ * Send the follow-up that is due on each unpaid order — day 3, 7 and 12.
+ *
+ * IDEMPOTENT the same way the delivery scheduler is: each reminder inserts a
+ * row into order_events keyed `abandoned_<step>`, and the unique
+ * (order_id, stage) constraint means two overlapping cron runs race on the
+ * insert and exactly one wins. No locking, no "last sent" column to drift.
+ *
+ * A LATE SWEEP CLAIMS THE STEPS IT SKIPPED. If the cron was down for a week,
+ * dueReminder returns the furthest due step and the earlier ones are claimed
+ * silently — so the buyer gets one correct email, and a later run cannot come
+ * back and send them the day-3 note after the day-12 one.
+ *
+ * Only looks back ABANDONED_WINDOW_DAYS, which is what makes switching this on
+ * safe: every pending order older than the window is left alone rather than
+ * mailed out of the blue.
+ */
+export async function sweepAbandonedOrders(
+  admin: Admin,
+  opts: { now?: Date; limit?: number } = {}
+): Promise<SweepResult> {
+  const now = opts.now ?? new Date();
+  const limit = opts.limit ?? 25;
+  const since = new Date(now.getTime() - ABANDONED_WINDOW_DAYS * 86_400_000);
+
+  const skipped: Record<string, number> = {};
+  const note = (reason: string) => {
+    skipped[reason] = (skipped[reason] ?? 0) + 1;
+  };
+
+  const { data, error } = await admin
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("status", "pending")
+    .gte("created_at", since.toISOString())
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    console.error("[orders] abandoned sweep query failed:", error.message);
+    return { scanned: 0, emailed: 0, skipped: { query_failed: 1 } };
+  }
+
+  const orders = (data as Order[]) ?? [];
+  let emailed = 0;
+
+  for (const order of orders) {
+    const due = shouldRemind(
+      { status: order.status, created_at: order.created_at },
+      now
+    );
+    if (!due.send) {
+      note(due.reason);
+      continue;
+    }
+
+    // Only ask the database about purchase history for orders that are
+    // otherwise ready to be chased — it is a query per order.
+    if (await hasBoughtSince(admin, order.email)) {
+      note("already_bought");
+      continue;
+    }
+
+    // Claim every step up to the due one. The earlier claims are what stop a
+    // recovered scheduler from working backwards through the sequence.
+    let sendThis = false;
+    for (const step of stepsUpTo(due.step)) {
+      const won = await claimReminder(admin, order.id, step);
+      if (step === due.step) sendThis = won;
+    }
+    if (!sendThis) {
+      note("already_sent");
+      continue;
+    }
+
+    try {
+      await sendAbandonedReminderEmail(order, due.step);
+      emailed++;
+    } catch (e) {
+      // The claim already stands, so this order will not be retried. That is
+      // the deliberate trade: a missed reminder beats a duplicate one.
+      console.error(
+        `[orders] reminder ${due.step} for ${order.order_number} failed:`,
+        String((e as Error)?.message || e)
+      );
+      note("send_failed");
+    }
+  }
+
+  return { scanned: orders.length, emailed, skipped };
+}
+
+/** claimStage's sibling for reminder steps, which are not fulfilment stages. */
+async function claimReminder(
+  admin: Admin,
+  orderId: string,
+  step: number
+): Promise<boolean> {
+  const { error } = await admin.from("order_events").insert({
+    order_id: orderId,
+    stage: reminderStage(step),
+    // Rendered verbatim in the admin timeline, which does not look these up in
+    // STAGE_COPY — so it has to read as a sentence on its own.
+    title: `Unpaid-order reminder sent (day ${
+      ABANDONED_SCHEDULE.find((s) => s.step === step)?.afterDays ?? "?"
+    })`,
+    detail: null,
+    email_sent: true,
+  });
+  if (error) {
+    if (error.code === "23505") return false; // already claimed
+    console.error(`[orders] could not record reminder ${step}:`, error.message);
+    return false;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Colours on products uploaded before colours had a column
+// ---------------------------------------------------------------------------
+
+/**
+ * Write colours onto products that only have them in their description text.
+ *
+ * productColorOptions() already falls back to the description at read time, so
+ * the picker appears immediately either way. This makes the fallback permanent:
+ * the colours become real data on the row, which means the admin sees and can
+ * edit them in the product form, and nothing downstream has to re-derive them.
+ *
+ * IDEMPOTENT AND SELF-LIMITING. Only products whose `colors` is empty are
+ * considered, so once a product has been filled in it is never looked at again
+ * and an admin who deliberately clears a colour list only gets it back if the
+ * description still names one — which is the same thing they would get from the
+ * read-time fallback anyway.
+ */
+export async function syncProductColors(
+  admin: Admin,
+  opts: { limit?: number } = {}
+): Promise<{ scanned: number; updated: number }> {
+  const limit = opts.limit ?? 25;
+
+  const { data, error } = await admin
+    .from("products")
+    .select("id, colors, description")
+    .not("description", "is", null)
+    .limit(200);
+
+  if (error) {
+    // Most likely migration 0012 has not run, in which case there is no column
+    // to write to and the read-time fallback is doing the work regardless.
+    console.error("[orders] colour sync query failed:", error.message);
+    return { scanned: 0, updated: 0 };
+  }
+
+  const rows = (data ?? []) as { id: string; colors: unknown; description: string | null }[];
+  let scanned = 0;
+  let updated = 0;
+
+  for (const row of rows) {
+    if (updated >= limit) break;
+    // Already has colours — nothing to do, and nothing to overwrite.
+    if (productColors(row.colors).length > 0) continue;
+    scanned++;
+
+    const derived = colorsFromDescription(row.description);
+    if (derived.length === 0) continue;
+
+    const { error: writeError } = await admin
+      .from("products")
+      .update({ colors: derived })
+      .eq("id", row.id);
+    if (writeError) {
+      console.error(`[orders] colour sync failed for ${row.id}:`, writeError.message);
+      continue;
+    }
+    updated++;
+  }
+
+  return { scanned, updated };
 }
