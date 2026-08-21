@@ -25,14 +25,25 @@ export default async function HomePage() {
       <SiteHeader />
 
       {/* Hero */}
-      <header className="relative w-full h-[90vh] flex items-center overflow-hidden bg-black power-slant-divider">
+      {/*
+        SIZED SO THE PRODUCTS PEEK ABOVE THE FOLD. A hero that fills the window
+        is a hero that hides the shop: the visitor has to take it on faith that
+        there is anything below. At ~62% of the viewport the "Featured Rigs"
+        heading and the tops of the cards are visible without scrolling, which
+        is the whole reason they were moved up here.
+
+        min-h keeps the headline from being crushed on a short laptop or a phone
+        in landscape; max-h stops it stretching absurdly tall on a large
+        monitor, where 62% of the screen is already a very big picture.
+      */}
+      <header className="relative w-full h-[62vh] min-h-[440px] max-h-[720px] flex items-center overflow-hidden bg-black power-slant-divider">
         <div className="absolute inset-0 z-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/action-mid-slide.jpg" alt="E-Drift trike mid-slide" className="w-full h-full object-cover opacity-80" />
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-black/40" />
         </div>
         <div className="relative z-10 w-full max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
-          <div className="max-w-4xl space-y-8">
+          <div className="max-w-4xl space-y-5 md:space-y-6">
             <h1 className="font-display-lg text-display-lg-mobile md:text-display-lg text-white leading-none tracking-tight uppercase">
               ENGINEERED FOR <span className="text-secondary">CHAOS</span>
             </h1>
@@ -45,7 +56,7 @@ export default async function HomePage() {
               not — sending them straight to a price is how you lose them,
               so it opens the spec instead, on the same page.
             */}
-            <div className="flex flex-wrap gap-4 pt-4">
+            <div className="flex flex-wrap gap-4 pt-2">
               <Link href="/shop?category=trikes" className="bg-primary-container text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition-all">
                 Shop Trikes
               </Link>
@@ -62,11 +73,15 @@ export default async function HomePage() {
         being sold is the first thing below the fold. The spec section that
         used to be here is still on the page, one scroll further down, for
         the visitor who wants convincing before they look at prices.
+
+        Padding is tighter above than below for the same reason: every pixel of
+        top padding is a pixel further the product cards sit below the fold,
+        which is the one thing this section's position was chosen to avoid.
       */}
       {featured.length > 0 && (
-        <section className="py-24 bg-off-white text-surface-container-lowest">
+        <section className="pt-14 pb-24 bg-off-white text-surface-container-lowest">
           <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
-            <div className="flex items-end justify-between mb-12">
+            <div className="flex items-end justify-between mb-8">
               <div>
                 <span className="font-label-bold text-label-bold text-primary-container uppercase tracking-widest">Latest Drop</span>
                 <h2 className="font-headline-xl text-headline-xl uppercase mt-2">Featured Rigs</h2>

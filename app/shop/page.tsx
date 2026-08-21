@@ -3,6 +3,14 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
 import { getProducts, getCategories } from "@/lib/db";
+import {
+  describeRange,
+  isUnbounded,
+  matchesRange,
+  parsePriceRange,
+  priceBands,
+  rangeKey,
+} from "@/lib/price-filter";
 
 export const metadata = { title: "Shop All Rigs" };
 
@@ -21,11 +29,18 @@ const SORTS = [
 export default async function ShopPage({
   searchParams: searchParamsPromise,
 }: {
-  searchParams: Promise<{ category?: string; power?: string; sort?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    power?: string;
+    sort?: string;
+    price?: string;
+    min?: string;
+    max?: string;
+  }>;
 }) {
   const searchParams = await searchParamsPromise;
   const sort = (searchParams.sort as "newest" | "price-asc" | "price-desc") || "newest";
-  const [products, categories] = await Promise.all([
+  const [matching, categories] = await Promise.all([
     getProducts({
       categorySlug: searchParams.category,
       power: searchParams.power,
@@ -33,6 +48,19 @@ export default async function ShopPage({
     }),
     getCategories(),
   ]);
+
+  // PRICE IS FILTERED HERE, not in the query, and that is deliberate: the bands
+  // are built from the products that match the OTHER filters, so they stay put
+  // while the buyer clicks between them. Filtering in the database would shrink
+  // the set the bands are derived from, and the ladder would rearrange itself
+  // under the cursor. The query already returns this whole set either way, so
+  // it costs nothing extra.
+  const range = parsePriceRange(searchParams);
+  const bands = priceBands(matching.map((p) => p.price_cents));
+  const activeKey = rangeKey(range);
+  const products = isUnbounded(range)
+    ? matching
+    : matching.filter((p) => matchesRange(p.price_cents, range));
 
   const qp = (over: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
@@ -84,6 +112,76 @@ export default async function ShopPage({
               ))}
             </div>
           </div>
+          <div>
+            <h3 className="font-label-bold text-label-bold uppercase tracking-widest mb-4 border-b border-black/10 pb-2">
+              Price
+            </h3>
+            <div className="flex flex-col gap-2">
+              <Link
+                href={qp({ price: undefined, min: undefined, max: undefined })}
+                className={`text-sm font-label-bold uppercase tracking-wide ${isUnbounded(range) ? "text-primary-container" : "text-slate-gray hover:text-black"}`}
+              >
+                Any price
+              </Link>
+              {bands.map((b) => (
+                <Link
+                  key={b.key}
+                  href={qp({ price: b.key, min: undefined, max: undefined })}
+                  className={`text-sm font-label-bold uppercase tracking-wide flex items-baseline justify-between gap-2 ${activeKey === b.key ? "text-primary-container" : "text-slate-gray hover:text-black"}`}
+                >
+                  <span>{b.label}</span>
+                  <span className="text-xs text-slate-gray/70 font-body-md normal-case">
+                    {b.count}
+                  </span>
+                </Link>
+              ))}
+            </div>
+
+            {/* A plain GET form: no JavaScript, and the result is a URL the
+                buyer can bookmark or send to someone. The other filters ride
+                along as hidden fields so setting a price doesn't quietly drop
+                the category they already chose. */}
+            <form action="/shop" method="get" className="mt-4 flex items-center gap-2">
+              {searchParams.category && (
+                <input type="hidden" name="category" value={searchParams.category} />
+              )}
+              {searchParams.power && (
+                <input type="hidden" name="power" value={searchParams.power} />
+              )}
+              {searchParams.sort && (
+                <input type="hidden" name="sort" value={searchParams.sort} />
+              )}
+              <input
+                type="text"
+                inputMode="decimal"
+                name="min"
+                // Echo back exactly what they typed, not a re-derived
+                // number — but blank once a BAND is what's active, or clicking
+                // a band would leave stale numbers sitting in the boxes.
+                defaultValue={searchParams.price ? "" : (searchParams.min ?? "")}
+                placeholder="Min $"
+                aria-label="Minimum price in dollars"
+                className="w-full min-w-0 border border-black/15 rounded px-2 py-1.5 text-sm bg-white text-black placeholder:text-slate-gray/60 focus:border-primary-container focus:ring-0"
+              />
+              <span className="text-slate-gray text-sm">–</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                name="max"
+                defaultValue={searchParams.price ? "" : (searchParams.max ?? "")}
+                placeholder="Max $"
+                aria-label="Maximum price in dollars"
+                className="w-full min-w-0 border border-black/15 rounded px-2 py-1.5 text-sm bg-white text-black placeholder:text-slate-gray/60 focus:border-primary-container focus:ring-0"
+              />
+              <button
+                type="submit"
+                className="shrink-0 bg-surface-container-lowest text-white px-3 py-1.5 rounded text-xs font-label-bold uppercase tracking-widest hover:brightness-125 active:scale-95 transition-all"
+              >
+                Go
+              </button>
+            </form>
+          </div>
+
           <Link href="/support" className="block cut-corner bg-surface-container-lowest text-white p-6">
             <h4 className="font-headline-md text-xl uppercase">Need a hand?</h4>
             <p className="text-on-surface-variant text-sm mt-1">Talk to the crew about the right rig for you.</p>
@@ -96,6 +194,9 @@ export default async function ShopPage({
           <div className="flex items-center justify-between border-b border-black/10 pb-4 mb-8">
             <p className="font-label-bold text-slate-gray uppercase tracking-widest text-sm">
               {products.length} {products.length === 1 ? "rig" : "rigs"}
+              {describeRange(range) && (
+                <span className="text-primary-container"> · {describeRange(range)}</span>
+              )}
             </p>
             <div className="flex gap-4">
               {SORTS.map((s) => (
@@ -110,7 +211,11 @@ export default async function ShopPage({
             <div className="text-center py-24 border border-dashed border-black/15 rounded-lg">
               <p className="font-headline-md text-2xl uppercase text-slate-gray">No rigs found</p>
               <p className="text-slate-gray mt-2">
-                Connect Supabase and run the seed to populate the catalog.
+                {/* Two very different situations. Telling a shopper who just
+                    picked a price band to "run the seed" would be nonsense. */}
+                {matching.length > 0
+                  ? `Nothing in the ${describeRange(range)} range with these filters.`
+                  : "Connect Supabase and run the seed to populate the catalog."}
               </p>
               <Link href="/shop" className="inline-block mt-4 text-primary-container font-label-bold uppercase tracking-widest">Reset filters</Link>
             </div>

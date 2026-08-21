@@ -1,5 +1,3 @@
-import { parseBlockedCountries } from "@/lib/geo";
-
 /**
  * Country list for the checkout address form.
  *
@@ -39,33 +37,11 @@ export type Country = { code: string; name: string };
 let cache: Country[] | null = null;
 
 /**
- * Every country we ship to, display-name sorted, main markets first.
+ * Every country, display-name sorted, with the store's main markets first.
  * Computed once — the list never changes within a process.
- *
- * Blocked countries are removed here rather than filtered at each call site,
- * which means the checkout select cannot offer one AND validateShippingField
- * rejects one automatically: isKnownCountry reads this same list. A VPN cannot
- * get around it, because it is about where the goods are going, not where the
- * browser is.
  */
 export function countries(): Country[] {
   if (cache) return cache;
-  // In the browser, take the list the server injected (PublicEnvScript) so both
-  // sides render the SAME select; BLOCKED_COUNTRIES is not a NEXT_PUBLIC_ var,
-  // so process.env would be empty here and the two would disagree.
-  //
-  // The injection only carries a live value on DYNAMICALLY rendered pages, but
-  // the select exists on exactly one page — /checkout — and that page is
-  // dynamic. `null` (never configured) falls through to the default list.
-  const injected =
-    typeof window !== "undefined" ? window.__EDRIFT_ENV?.BLOCKED_COUNTRIES : undefined;
-  const blocked = parseBlockedCountries(
-    injected !== undefined
-      ? injected
-      : typeof process !== "undefined"
-        ? process.env.BLOCKED_COUNTRIES
-        : undefined
-  );
 
   let display: Intl.DisplayNames | null = null;
   try {
@@ -76,12 +52,10 @@ export function countries(): Country[] {
     display = null;
   }
 
-  const all: Country[] = ISO_CODES.filter((code) => !blocked.includes(code)).map(
-    (code) => ({
-      code,
-      name: (display?.of(code) ?? code) || code,
-    })
-  );
+  const all: Country[] = ISO_CODES.map((code) => ({
+    code,
+    name: (display?.of(code) ?? code) || code,
+  }));
 
   const priority = PRIORITY_CODES.map((c) => all.find((x) => x.code === c)).filter(
     (c): c is Country => Boolean(c)
@@ -139,4 +113,38 @@ export function countryCode(value: string): string | null {
     (c) => c.code.toLowerCase() === v || c.name.toLowerCase() === v
   );
   return hit ? hit.code : null;
+}
+
+/**
+ * A country's display name from its ISO code.
+ *
+ * Falls back to the code itself on a runtime without region data, so the admin
+ * panel never renders an empty cell where a country should be.
+ */
+export function countryName(code: string | null | undefined): string | null {
+  const c = String(code ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return null;
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(c) || c;
+  } catch {
+    return c;
+  }
+}
+
+/**
+ * The flag emoji for an ISO alpha-2 code, or null.
+ *
+ * Built from regional indicator symbols rather than a lookup table: 🇰🇪 is
+ * literally "K" + "E" shifted into a different Unicode block, so every country
+ * works for free and none can go missing. Used in the admin order list, where a
+ * flag is read at a glance and a two-letter code is not.
+ */
+export function flagEmoji(code: string | null | undefined): string | null {
+  const c = String(code ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return null;
+  const BASE = 0x1f1e6; // 🇦
+  return String.fromCodePoint(
+    BASE + (c.charCodeAt(0) - 65),
+    BASE + (c.charCodeAt(1) - 65)
+  );
 }

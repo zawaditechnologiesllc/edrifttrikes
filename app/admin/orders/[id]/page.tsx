@@ -6,6 +6,7 @@ import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
 import { OrderManageForm } from "../OrderStatusForm";
 import ConnectAccountForm from "../ConnectAccountForm";
+import { OriginPanel } from "../OrderOrigin";
 import { loadOrderEvents } from "@/lib/orders";
 import {
   STAGE_COPY,
@@ -162,6 +163,13 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
             </div>
           )}
         </div>
+      </div>
+
+      {/* Below the fold on purpose: the order list already flags anything worth
+          a second look, so this is the page you come to in order to READ it,
+          not something that has to compete with the items and the total. */}
+      <div className="mt-6">
+        <OriginPanel order={order} />
       </div>
     </div>
   );

@@ -32,21 +32,6 @@ export function serverEnv(name: string): string | undefined {
   return fromCloudflare(name);
 }
 
-/**
- * Raw `BLOCKED_COUNTRIES`, preserving an EMPTY value.
- *
- * `serverEnv()` treats an empty string as absent — right for a key, WRONG for
- * this: an empty list is how the owner turns the country block off without a
- * deploy, and it has to stay distinguishable from the variable never having
- * been set (which falls back to the default). Hence `??` on process.env first,
- * not `||`.
- */
-export function blockedCountriesRaw(): string | undefined {
-  const direct = process.env.BLOCKED_COUNTRIES;
-  if (direct !== undefined) return direct;
-  return serverEnv("BLOCKED_COUNTRIES");
-}
-
 /** Supabase project URL for server code (accepts SUPABASE_URL or the public one). */
 export function supabaseUrl(): string | undefined {
   return (

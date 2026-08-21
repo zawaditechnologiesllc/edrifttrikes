@@ -99,6 +99,21 @@ export type Order = {
   estimated_delivery_at?: string | null;
   tracking_number?: string | null;
   courier?: string | null;
+  /**
+   * Where the checkout came from, as the Cloudflare edge saw it, plus the
+   * timezone the browser reported for itself. Advisory only — see lib/risk.ts.
+   * Absent on orders placed before migration 0015.
+   */
+  origin_country?: string | null;
+  origin_region?: string | null;
+  origin_city?: string | null;
+  origin_timezone?: string | null;
+  origin_asn?: number | null;
+  origin_network?: string | null;
+  client_timezone?: string | null;
+  risk_level?: "clear" | "review" | "high" | null;
+  risk_score?: number | null;
+  risk_flags?: string[] | null;
   /** Timeline rows, newest last. Loaded on the account + confirmation pages. */
   events?: OrderEvent[];
   created_at: string;

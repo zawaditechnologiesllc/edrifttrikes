@@ -8,13 +8,10 @@ import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
 import { sendAbandonedCartEmail } from "@/lib/email";
 import { matchColor, productColorOptions } from "@/lib/colors";
-import { blockedCountriesRaw, publicSiteUrl } from "@/lib/env";
-import {
-  BLOCKED_MESSAGE,
-  countryFromHeaders,
-  isBlockedCountry,
-  parseBlockedCountries,
-} from "@/lib/geo";
+import { publicSiteUrl } from "@/lib/env";
+import { originFromRequest } from "@/lib/request-origin";
+import { assessOrigin } from "@/lib/risk";
+import { countryCode } from "@/lib/countries";
 import type { Order } from "@/lib/types";
 
 type IncomingItem = { productId: string; qty: number; color?: string | null };
@@ -60,6 +57,12 @@ export async function POST(request: Request) {
     items?: IncomingItem[];
     shipping?: Record<string, string>;
     method?: string;
+    /**
+     * What the browser volunteered about itself. Never trusted for anything —
+     * only compared against what the edge independently reports, which is what
+     * makes a disagreement interesting.
+     */
+    client?: { timezone?: unknown };
   };
   try {
     payload = await request.json();
@@ -117,19 +120,6 @@ export async function POST(request: Request) {
   // Trimmed, length-bounded, whitelisted keys only, with the country stored in
   // its canonical spelling.
   const shipping = normalizeShipping(stringFields(payload.shipping));
-
-  // Belt and braces on the country block. validateCheckout has already refused
-  // a blocked country — they are not in the list isKnownCountry checks — but a
-  // request that reaches here from a blocked one is worth REFUSING EXPLICITLY
-  // and logging, because that log is the only record the owner has of an
-  // attempt. Read from the request's own headers, not the form: the form can
-  // say anything.
-  const originCountry = countryFromHeaders(request.headers);
-  const blockedCountries = parseBlockedCountries(blockedCountriesRaw());
-  if (isBlockedCountry(originCountry, blockedCountries)) {
-    console.warn(`[checkout] refused an order from ${originCountry}`);
-    return NextResponse.json({ error: BLOCKED_MESSAGE }, { status: 403 });
-  }
 
   const admin = createAdminClient();
 
@@ -218,21 +208,60 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Create the order
-  const { data: order, error: orderErr } = await admin
+  // Where this checkout came from, and whether the story hangs together.
+  //
+  // Free: Cloudflare resolved all of it before the Worker ran, so there is no
+  // lookup and no added latency. ADVISORY ONLY — it is recorded for the owner
+  // to review, and nothing below refuses an order because of it. A corporate
+  // VPN, a traveller and an expat all trip these signals.
+  const origin = originFromRequest(request, {
+    timezone: payload.client?.timezone,
+  });
+  const risk = assessOrigin(origin, countryCode(String(shipping.country ?? "")));
+
+  const orderRow = {
+    user_id: user?.id ?? null,
+    email,
+    status: "pending",
+    subtotal_cents: totals.subtotal,
+    shipping_cents: totals.shipping,
+    tax_cents: totals.tax,
+    total_cents: totals.total,
+    shipping_address: shipping,
+  };
+  const originRow = {
+    origin_country: origin.country,
+    origin_region: origin.region,
+    origin_city: origin.city,
+    origin_timezone: origin.timezone,
+    origin_asn: origin.asn,
+    origin_network: origin.network,
+    client_timezone: origin.clientTimezone,
+    risk_level: risk.level,
+    risk_score: risk.score,
+    risk_flags: risk.flags,
+  };
+
+  // Create the order.
+  //
+  // Two attempts, on purpose: on a database that hasn't run migration 0015 the
+  // origin columns don't exist and the insert fails outright. Losing the
+  // fraud-review data is a shame; losing the ORDER is a lost sale, so the
+  // retry drops the columns and keeps the customer.
+  let { data: order, error: orderErr } = await admin
     .from("orders")
-    .insert({
-      user_id: user?.id ?? null,
-      email,
-      status: "pending",
-      subtotal_cents: totals.subtotal,
-      shipping_cents: totals.shipping,
-      tax_cents: totals.tax,
-      total_cents: totals.total,
-      shipping_address: shipping,
-    })
+    .insert({ ...orderRow, ...originRow })
     .select()
     .single();
+
+  if (orderErr) {
+    console.error("[checkout] order insert with origin failed:", orderErr.message);
+    ({ data: order, error: orderErr } = await admin
+      .from("orders")
+      .insert(orderRow)
+      .select()
+      .single());
+  }
 
   if (orderErr || !order) {
     return NextResponse.json({ error: "Could not create order." }, { status: 500 });
