@@ -55,6 +55,15 @@ export default function AddressAutocomplete({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [busy, setBusy] = useState(false);
+  /**
+   * Which provider answered, and whether it found nothing.
+   *
+   * The keyless US geocoder matches COMPLETE addresses — it is not a
+   * type-ahead. Left silent, a buyer types half an address, sees no list, and
+   * concludes the search is broken. Saying what it wants turns a dead end into
+   * an instruction.
+   */
+  const [noMatch, setNoMatch] = useState<null | "google" | "census">(null);
 
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -75,6 +84,7 @@ export default function AddressAutocomplete({
     if (query.length < 4) {
       setSuggestions([]);
       setOpen(false);
+      setNoMatch(null);
       return;
     }
 
@@ -89,18 +99,23 @@ export default function AddressAutocomplete({
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("lookup failed");
-        const data = (await response.json()) as { suggestions?: AddressSuggestion[] };
+        const data = (await response.json()) as {
+          suggestions?: AddressSuggestion[];
+          provider?: "google" | "census";
+        };
         // A response for a query the buyer has already typed past is stale.
         if (seq !== requestRef.current) return;
         const next = Array.isArray(data.suggestions) ? data.suggestions : [];
         setSuggestions(next);
         setOpen(next.length > 0);
         setActive(-1);
+        setNoMatch(next.length === 0 ? data.provider ?? null : null);
       } catch {
         // Silent by design: the buyer is mid-address and can finish typing it.
         if (seq === requestRef.current) {
           setSuggestions([]);
           setOpen(false);
+          setNoMatch(null);
         }
       } finally {
         if (seq === requestRef.current) setBusy(false);
@@ -240,8 +255,21 @@ export default function AddressAutocomplete({
         </ul>
       )}
 
+      {/* Only once they have typed enough that "no matches" means something. */}
+      {noMatch && !busy && value.trim().length >= 8 && (
+        <p className="text-outline text-xs mt-1.5">
+          {noMatch === "census"
+            ? "No match yet — this lookup needs the full address, including the city and state. You can also just type it in below."
+            : "No match — carry on and type your address in yourself."}
+        </p>
+      )}
+
       <p className="sr-only" role="status">
-        {open ? `${suggestions.length} address suggestions available.` : ""}
+        {open
+          ? `${suggestions.length} address suggestions available.`
+          : noMatch
+            ? "No matching addresses found."
+            : ""}
       </p>
     </div>
   );
