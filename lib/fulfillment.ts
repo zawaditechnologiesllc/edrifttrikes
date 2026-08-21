@@ -97,8 +97,13 @@ export const STAGE_COPY: Record<FulfillmentStage, StageCopy> = {
   shipped: {
     label: "Shipped",
     title: "Your order has shipped",
+    // The buffer sentence is here rather than in the email renderer so the
+    // customer's dashboard tracker carries it too, and so the Render fallback
+    // mail path — which takes this text verbatim — cannot say something
+    // different. The 7 is DELIVERY_BUFFER_DAYS in lib/delivery.ts; a test binds
+    // them so the number and this sentence cannot drift apart.
     message:
-      "Your order has left the garage and is now with our shipping partner. It's on its way to you — estimated delivery: {date}.",
+      "Your order has left the garage and is now with our shipping partner. It's on its way to you — estimated delivery: {date}. That date is deliberately generous: we add a 7-day buffer to every quote so a hold-up at the courier's end doesn't turn into a broken promise at ours. Most orders arrive ahead of it, often by about a week.",
   },
   arriving: {
     label: "Arriving",

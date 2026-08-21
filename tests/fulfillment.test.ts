@@ -15,6 +15,7 @@ import {
   stagesBetween,
   type FulfillmentStage,
 } from "../lib/fulfillment";
+import { DELIVERY_BUFFER_DAYS } from "../lib/delivery";
 
 /**
  * The delivery journey. These tests exist because the scheduler emails real
@@ -179,5 +180,58 @@ describe("stageProgress", () => {
   test("is zero before the journey starts", () => {
     assert.equal(stageProgress("awaiting_payment"), 0);
     assert.equal(stageProgress("cancelled"), 0);
+  });
+});
+
+describe("the shipped email explains the long window", () => {
+  /**
+   * The quoted date is padded on purpose. Without saying so, a buyer reads a
+   * three-week estimate as the store being slow; with it, they read the same
+   * date as the store being careful — and they stop watching the calendar.
+   */
+  const shipped = STAGE_COPY.shipped.message;
+
+  test("names the buffer, and names the same number lib/delivery.ts holds", () => {
+    // The sentence is written out in fulfillment.ts (which stays import-free),
+    // so THIS is what stops the copy and the constant drifting apart.
+    assert.match(shipped, new RegExp(`${DELIVERY_BUFFER_DAYS}-day buffer`));
+    assert.equal(DELIVERY_BUFFER_DAYS, 7);
+  });
+
+  test("says WHY the window is padded, not just that it is", () => {
+    assert.match(shipped, /hold-up at the courier/i);
+  });
+
+  test("sets the expectation that the parcel lands early", () => {
+    assert.match(shipped, /arrive ahead of it/i);
+  });
+
+  test("still carries the date itself", () => {
+    assert.ok(shipped.includes("{date}"));
+    const resolved = stageMessage("shipped", new Date("2026-09-10T00:00:00Z"));
+    assert.ok(!resolved.includes("{date}"));
+    assert.match(resolved, /September/);
+  });
+
+  test("promises nothing it cannot keep", () => {
+    // "Guaranteed" and "will arrive" are refund arguments waiting to happen.
+    for (const claim of ["guarantee", "guaranteed", "will arrive", "no later than"]) {
+      assert.ok(
+        !shipped.toLowerCase().includes(claim),
+        `the shipped copy promises "${claim}"`
+      );
+    }
+  });
+
+  test("the buffer note is on the SHIPPED stage only", () => {
+    // It answers "why is this date so far out", which is a question the buyer
+    // asks when the parcel is in transit — not on the cancellation notice.
+    for (const stage of ALL_STAGES.filter((s) => s !== "shipped")) {
+      assert.doesNotMatch(
+        STAGE_COPY[stage].message,
+        /buffer/i,
+        `${stage} also mentions a buffer`
+      );
+    }
   });
 });

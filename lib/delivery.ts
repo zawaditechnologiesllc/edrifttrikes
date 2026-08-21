@@ -27,6 +27,20 @@ export const DELIVERY_MIN_DAYS = 12;
 /** Slowest, on the shortest route. Distant destinations add to this. */
 export const DELIVERY_BASE_MAX_DAYS = 20;
 
+/**
+ * Slack built into every quote, in days.
+ *
+ * The window a customer is given is not the store's best guess at when the
+ * parcel arrives — it is that guess plus this. A courier that loses a day at a
+ * hub turns a tight promise into a broken one, and a customer watching a date
+ * slip is a customer emailing support. Quoting long and arriving early costs
+ * nothing; quoting short and arriving late costs the relationship.
+ *
+ * This is why the shipped-stage email says what it says (lib/fulfillment.ts).
+ * The two are bound by a test, so the number and the sentence cannot drift.
+ */
+export const DELIVERY_BUFFER_DAYS = 7;
+
 /** The most any destination can add to the base window. */
 export const MAX_ROUTE_EXTRA_DAYS = 7;
 

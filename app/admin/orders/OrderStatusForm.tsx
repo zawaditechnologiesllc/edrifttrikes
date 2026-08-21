@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { updateOrderStatus, type OrderUpdateState } from "../actions";
 import { ALL_STAGES, STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
+import TrackingFields from "./TrackingFields";
 
 const ORDER_STATUSES = ["pending", "paid", "fulfilled", "cancelled", "refunded"];
 
@@ -43,8 +44,6 @@ function Result({ state }: { state: OrderUpdateState }) {
 
 const select =
   "bg-surface-container-highest border border-white/10 text-white rounded px-3 py-2 focus:border-secondary focus:ring-0";
-const input =
-  "w-full bg-surface-container-highest border border-white/10 text-white rounded px-3 py-2 focus:border-secondary focus:ring-0";
 const lbl =
   "block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest";
 
@@ -141,26 +140,7 @@ export function OrderManageForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={lbl}>Tracking number</label>
-          <input
-            name="tracking_number"
-            defaultValue={trackingNumber ?? ""}
-            placeholder="1Z999AA10123456784"
-            className={input}
-          />
-        </div>
-        <div>
-          <label className={lbl}>Courier</label>
-          <input
-            name="courier"
-            defaultValue={courier ?? ""}
-            placeholder="DHL Express"
-            className={input}
-          />
-        </div>
-      </div>
+      <TrackingFields trackingNumber={trackingNumber} courier={courier} />
 
       <label className="flex items-center gap-2 text-sm text-on-surface-variant">
         {/* An unchecked checkbox submits nothing, so this hidden field is what
