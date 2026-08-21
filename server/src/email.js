@@ -179,13 +179,29 @@ export async function abandonedCartEmail({ order, subject, title, paragraphs, hr
  * and body so the wording stays identical across both paths — this file must
  * never re-write the copy.
  */
-export async function fulfillmentEmail({ order, stage, title, body, inviteLink }) {
+export async function fulfillmentEmail({
+  order,
+  stage,
+  title,
+  body,
+  trackingUrl,
+  inviteLink,
+}) {
   if (!order?.email) throw new Error("fulfillmentEmail: order.email required");
   const heading = title || "Order update";
+  // `trackingUrl` arrives already resolved from the app (lib/couriers.ts owns
+  // the courier table). Absent means "no link" — either the courier has no
+  // tracking page we hold, or the number is the store's own reference and would
+  // not resolve on theirs. Never guess one here.
+  const number = order.tracking_number ? esc(order.tracking_number) : "";
+  const numberHtml =
+    trackingUrl && number
+      ? `<a href="${esc(trackingUrl)}" style="color:#c4f731;font-weight:700">${number}</a>`
+      : `<strong style="color:#c4f731">${number}</strong>`;
   const tracking = order.tracking_number
-    ? `<p style="color:#c3c5d9;line-height:1.6;margin-top:16px">Tracking number: <strong style="color:#c4f731">${esc(
-        order.tracking_number
-      )}</strong>${order.courier ? ` (${esc(order.courier)})` : ""}</p>`
+    ? `<p style="color:#c3c5d9;line-height:1.6;margin-top:16px">Tracking number: ${numberHtml}${
+        order.courier ? ` (${esc(order.courier)})` : ""
+      }</p>`
     : "";
   const callout =
     stage === "ready_for_collection"

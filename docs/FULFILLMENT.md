@@ -321,6 +321,13 @@ status ping:
 - The estimated delivery date appears exactly once — most stage messages
   interpolate it themselves, so the standalone line only renders where the copy
   doesn't already carry it.
+- The **shipped** email explains *why* the date is so far out: the quote carries
+  a 7-day buffer (`DELIVERY_BUFFER_DAYS` in `lib/delivery.ts`) so a hold-up at
+  the courier's end doesn't become a broken promise, and most orders land ahead
+  of it. Without that sentence a three-week estimate reads as the store being
+  slow; with it, it reads as the store being careful — and the customer stops
+  watching the calendar. The wording lives in `STAGE_COPY.shipped`, so the
+  dashboard tracker says the same thing, and a test binds it to the constant.
 
 ## Admin controls
 
@@ -330,11 +337,49 @@ status ping:
   would (starts the schedule, emails the customer).
 - **Delivery stage** — jump an order forward ahead of schedule.
 - **Tracking number + courier** — saved before any stage email, so the email
-  carries them.
+  carries them. See *Tracking numbers and couriers* below.
 - **"Email the customer about a stage change"** — untick to correct a mistaken
   stage silently.
 
-Every save reports either what changed or the exact reason it failed.
+Every save reports either what changed or the exact reason it failed — including
+tracking-only saves, which used to report "No changes to save." over a write
+that had in fact succeeded.
+
+## Tracking numbers and couriers
+
+**The courier is a dropdown**, grouped by region, with ~98 carriers in it
+(`lib/couriers.ts`). Anything not on it goes in **Other — type it in**, and an
+order saved before the dropdown existed keeps whatever it had, in that box.
+
+**Generate** puts an internal reference in the tracking field:
+
+```
+EDT-2608-G625N2-C
+ |    |     |    └── check character — catches a single mistyped character
+ |    |     └─────── random, from an alphabet with no I, L, O, U, 0 or 1
+ |    └───────────── year and month, so a stale reference is obvious
+ └────────────────── the store's own prefix
+```
+
+> **A generated reference is ours, not the courier's.** Nothing is registered
+> with anyone — it is a handle for a shipment, and the customer's own tracker
+> follows it. When the courier gives you their number, paste it over the top.
+
+**Whether the customer gets a link is decided for you.** The email links the
+tracking number straight to the courier's tracking page when — and only when —
+both of these hold:
+
+1. the courier is one we hold a tracking URL for (the big carriers; the rest are
+   in the list without one), **and**
+2. the number is not one of ours.
+
+Otherwise the number goes out as plain text. That rule exists because a link
+that lands on "not found" is worse than no link: the customer concludes nothing
+shipped, and emails support. The admin form shows you which of the three cases
+you are in *before* you save.
+
+Adding a courier is a one-line change to `COURIER_GROUPS` — a name, and a
+`trackingUrl` with `{n}` where the number goes, if you have one you trust.
 
 ## Testing the journey without waiting 28 days
 

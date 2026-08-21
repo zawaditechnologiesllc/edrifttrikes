@@ -14,6 +14,7 @@ import {
 import { sendAccountInviteEmail, sendRefundEmail, resendFailureHint } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
+import { looksInternal, trackingUrlFor } from "@/lib/couriers";
 import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 import { parseColors } from "@/lib/colors";
 import { normalizeHref, normalizeMessage } from "@/lib/announcements";
@@ -352,7 +353,7 @@ export async function updateOrderStatus(
   // --- status -------------------------------------------------------------
   const { data: current, error: readErr } = await admin
     .from("orders")
-    .select("id, status, fulfillment_stage, order_number")
+    .select("id, status, fulfillment_stage, order_number, tracking_number, courier")
     .eq("id", id)
     .maybeSingle();
   if (readErr) return { error: `Could not read the order: ${readErr.message}` };
@@ -427,11 +428,39 @@ export async function updateOrderStatus(
   const tracking = String(formData.get("tracking_number") || "").trim().slice(0, 120);
   const courier = String(formData.get("courier") || "").trim().slice(0, 80);
   if (formData.has("tracking_number") || formData.has("courier")) {
-    const { error } = await admin
-      .from("orders")
-      .update({ tracking_number: tracking || null, courier: courier || null })
-      .eq("id", id);
-    if (error) return { error: `Could not save tracking details: ${error.message}` };
+    const next = { tracking_number: tracking || null, courier: courier || null };
+    const changed =
+      next.tracking_number !== (current.tracking_number ?? null) ||
+      next.courier !== (current.courier ?? null);
+    if (changed) {
+      const { error } = await admin.from("orders").update(next).eq("id", id);
+      if (error) return { error: `Could not save tracking details: ${error.message}` };
+
+      // SAY SO. Saving a tracking number on its own used to leave `notes`
+      // empty, so the form reported "No changes to save." over a write that
+      // had just succeeded — indistinguishable from the control being broken.
+      if (next.tracking_number !== (current.tracking_number ?? null)) {
+        notes.push(
+          next.tracking_number
+            ? `tracking → ${next.tracking_number}`
+            : "tracking number cleared"
+        );
+      }
+      if (next.courier !== (current.courier ?? null)) {
+        notes.push(next.courier ? `courier → ${next.courier}` : "courier cleared");
+      }
+      // Whether the customer gets a link or a bare string is the difference
+      // between the number being useful and being homework, so it is worth
+      // one line of feedback.
+      const link = trackingUrlFor(next.courier, next.tracking_number);
+      if (next.tracking_number && !link) {
+        notes.push(
+          looksInternal(next.tracking_number)
+            ? "our own reference, so the customer gets it as plain text"
+            : "no tracking page for that courier, so the customer gets plain text"
+        );
+      }
+    }
   }
 
   // --- delivery stage ------------------------------------------------------

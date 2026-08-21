@@ -6,6 +6,7 @@ import {
   stageMessage,
   type FulfillmentStage,
 } from "@/lib/fulfillment";
+import { trackingUrlFor } from "@/lib/couriers";
 import { COMPANY } from "@/lib/company";
 import { isFinalReminder, reminderCopy, type ReminderStep } from "@/lib/abandoned";
 
@@ -133,6 +134,23 @@ function longDate(value: string | null | undefined): string {
 }
 
 /**
+ * The tracking number, as a link when following it actually leads somewhere.
+ *
+ * A bare string is homework: the customer has to work out whose site to paste
+ * it into. A link that 404s is worse — they conclude the number is wrong, or
+ * that nothing shipped. So the link appears only when the courier is one we
+ * hold a tracking URL for AND the number is one that courier issued;
+ * trackingUrlFor() makes both of those judgements.
+ */
+function trackingLink(order: Order): string {
+  const number = String(order.tracking_number ?? "");
+  const url = trackingUrlFor(order.courier, number);
+  return url
+    ? `<a href="${esc(url)}" style="color:#c4f731;font-weight:700">${esc(number)}</a>`
+    : `<strong style="color:#c4f731">${esc(number)}</strong>`;
+}
+
+/**
  * A COMPLETE RECEIPT: order number, dates, every item, the money, the delivery
  * address, and who to contact.
  *
@@ -153,7 +171,7 @@ function receiptBlock(order: Order): string {
     order.tracking_number
       ? [
           "Tracking",
-          `${esc(order.tracking_number)}${order.courier ? ` (${esc(order.courier)})` : ""}`,
+          `${trackingLink(order)}${order.courier ? ` (${esc(order.courier)})` : ""}`,
         ]
       : null,
   ].filter(Boolean) as [string, string][];
@@ -548,15 +566,19 @@ export async function sendFulfillmentEmail(
       stage,
       title: copy.title,
       body,
+      // Resolved HERE, not there: the courier table lives in lib/couriers.ts
+      // and the Render service has no copy of it. Sending the finished URL is
+      // what keeps the two mail paths saying the same thing.
+      trackingUrl: trackingUrlFor(order.courier, order.tracking_number),
       inviteLink: opts.inviteLink,
       receipt: stage === "confirmed",
     });
   }
 
   const tracking = order.tracking_number
-    ? `<p style="color:#c3c5d9;line-height:1.6;margin-top:16px">Tracking number: <strong style="color:#c4f731">${esc(
-        order.tracking_number
-      )}</strong>${order.courier ? ` (${esc(order.courier)})` : ""}</p>`
+    ? `<p style="color:#c3c5d9;line-height:1.6;margin-top:16px">Tracking number: ${trackingLink(
+        order
+      )}${order.courier ? ` (${esc(order.courier)})` : ""}</p>`
     : "";
 
   // The final stage is an action for the customer, so it gets a callout box
