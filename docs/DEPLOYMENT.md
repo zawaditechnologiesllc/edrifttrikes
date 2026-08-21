@@ -817,6 +817,18 @@ and lifted by anyone who looked.
   with no account at all. Public domain, no key, US addresses only. Buyers
   elsewhere type the address as they always have.
 
+**The form starts with the country.** It is the first field, full width,
+because everything below it depends on the answer: the address lookup is scoped
+to that country (more accurate and cheaper), and the last two fields are
+relabelled to whatever that country calls them — State/ZIP code for a US buyer,
+County/Postcode for a British one, Province/Postal code for a Canadian.
+`checkoutFieldsFor()` in `lib/validation.ts` holds the terms for the main
+markets and falls back to neutral wording elsewhere; inventing a term for a
+country we don't know is worse than the generic label. Relabelling is display
+only — a test asserts no country override can change `required`, `maxLength`,
+`autoComplete` or the field order, so the browser and the server never stop
+agreeing about what a valid address is.
+
 **It is an enhancement, never a dependency.** Every keystroke goes straight into
 the form. If no provider is configured, the provider is down, the request times
 out, or the buyer's address simply isn't in the database, the dropdown never

@@ -10,7 +10,7 @@ import { formatMoney } from "@/lib/format";
 import { computeCartTotals } from "@/lib/totals";
 import PayPalCardFields from "@/components/cart/PayPalCardFields";
 import CheckoutField from "./CheckoutField";
-import { CHECKOUT_FIELDS, validateCheckout } from "@/lib/validation";
+import { CHECKOUT_FIELDS, checkoutFieldsFor, validateCheckout } from "@/lib/validation";
 import { deliveryEstimateSentence } from "@/lib/delivery";
 import type { AddressPrefill } from "@/lib/address-lookup";
 
@@ -298,12 +298,21 @@ export default function CheckoutClient({
               <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary mb-1">02 — Shipping address</h2>
               <p className="text-on-surface-variant text-sm mb-6">
                 Where the rig is delivered. Fields marked{" "}
-                <span className="text-secondary">*</span> are required. Start typing your
-                street address and pick it from the list — we&apos;ll fill in the city,
-                state and postal code for you.
+                <span className="text-secondary">*</span> are required.{" "}
+                {shipping.country ? (
+                  <>
+                    Start typing your street address and pick it from the list — we&apos;ll
+                    fill in the rest for you.
+                  </>
+                ) : (
+                  <>
+                    Choose your country first — we&apos;ll then find your address as you
+                    type and fill in the rest.
+                  </>
+                )}
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-                {CHECKOUT_FIELDS.map((spec) => (
+                {checkoutFieldsFor(shipping.country).map((spec) => (
                   <CheckoutField
                     key={spec.name}
                     spec={spec}

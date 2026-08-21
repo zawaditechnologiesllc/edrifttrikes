@@ -57,6 +57,23 @@ export type FieldSpec = {
  */
 export const CHECKOUT_FIELDS: FieldSpec[] = [
   {
+    // FIRST, deliberately. Everything below it depends on the answer: the
+    // address lookup is scoped to this country, and the last two fields are
+    // relabelled to whatever that country calls them. Asking for it at the
+    // bottom — as this form used to — meant the lookup searched the whole world
+    // and a British buyer was asked for a "ZIP code" they don't have.
+    name: "country",
+    label: "Country",
+    hint: "Start here — it sets your shipping route and helps us find your address.",
+    placeholder: "Select your country",
+    // "country" (not "country-name") because the control's value is the ISO
+    // code — this is the token that tells a browser to autofill the code.
+    autoComplete: "country",
+    required: true,
+    maxLength: 60,
+    span: "full",
+  },
+  {
     name: "first_name",
     label: "First name",
     hint: "As it appears on your ID — couriers may check it on delivery.",
@@ -79,7 +96,7 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
   {
     name: "address",
     label: "Street address",
-    hint: "House or building number and street name.",
+    hint: "Start typing and pick your address from the list — we'll fill in the rest.",
     placeholder: "Building number and street name",
     autoComplete: "street-address",
     required: true,
@@ -127,18 +144,6 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     span: "half",
   },
   {
-    name: "country",
-    label: "Country",
-    hint: "Pick from the list — it sets your shipping route.",
-    placeholder: "Select your country",
-    // "country" (not "country-name") because the control's value is the ISO
-    // code — this is the token that tells a browser to autofill the code.
-    autoComplete: "country",
-    required: true,
-    maxLength: 60,
-    span: "half",
-  },
-  {
     name: "phone",
     label: "Phone number",
     hint: "Strongly recommended — the courier calls or texts this to arrange delivery or collection.",
@@ -151,6 +156,78 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
     span: "full",
   },
 ];
+
+/**
+ * What a country calls the last two parts of its address.
+ *
+ * Only the main markets are listed, with the generic labels as the fallback:
+ * there is no reliable data source for this, and inventing a term for a country
+ * we don't actually know is worse than the neutral wording. Labels only — the
+ * validation rules are the same everywhere.
+ */
+const ADDRESS_TERMS: Record<
+  string,
+  { state?: Partial<FieldSpec>; zip?: Partial<FieldSpec> }
+> = {
+  US: {
+    state: { label: "State", placeholder: "Enter your state", hint: "The two-letter state code is fine." },
+    zip: { label: "ZIP code", placeholder: "Enter your ZIP code", hint: "Five digits, or ZIP+4." },
+  },
+  CA: {
+    state: { label: "Province / Territory", placeholder: "Enter your province or territory", hint: "For example, the two-letter province code." },
+    zip: { label: "Postal code", placeholder: "Enter your postal code", hint: "Six characters, letters and digits." },
+  },
+  GB: {
+    state: { label: "County", placeholder: "Enter your county", hint: "If your address has no county, put the town again." },
+    zip: { label: "Postcode", placeholder: "Enter your postcode", hint: "For example, the full postcode including the space." },
+  },
+  IE: {
+    state: { label: "County", placeholder: "Enter your county", hint: "The county for delivery." },
+    zip: { label: "Eircode", placeholder: "Enter your Eircode", hint: "Seven characters. If you don't know it, enter 00000." },
+  },
+  AU: {
+    state: { label: "State / Territory", placeholder: "Enter your state or territory", hint: "For example, the state abbreviation." },
+    zip: { label: "Postcode", placeholder: "Enter your postcode", hint: "Four digits." },
+  },
+  NZ: {
+    state: { label: "Region", placeholder: "Enter your region", hint: "The region for delivery." },
+    zip: { label: "Postcode", placeholder: "Enter your postcode", hint: "Four digits." },
+  },
+  IN: {
+    state: { label: "State", placeholder: "Enter your state", hint: "The state for delivery." },
+    zip: { label: "PIN code", placeholder: "Enter your PIN code", hint: "Six digits." },
+  },
+};
+
+/**
+ * The form as it should read for a given country.
+ *
+ * The country field itself never changes; the two fields whose NAME varies
+ * around the world do. Asking a buyer in London for a "ZIP code" is a small
+ * thing that tells them the shop was not built with them in mind.
+ *
+ * Display only. Every validation rule is unchanged, so the server and the
+ * browser still agree about what is acceptable regardless of what the label
+ * says.
+ */
+export function checkoutFieldsFor(country?: string | null): FieldSpec[] {
+  const code = String(country ?? "").trim().toUpperCase();
+  const terms = ADDRESS_TERMS[code];
+
+  return CHECKOUT_FIELDS.map((spec) => {
+    // Until a country is chosen the lookup has the whole world to search, so
+    // say what to do about it rather than leaving the buyer to discover that
+    // the list is unhelpful.
+    if (!code && spec.name === "address") {
+      return {
+        ...spec,
+        hint: "Choose your country above first — then start typing and pick your address from the list.",
+      };
+    }
+    const override = terms?.[spec.name as "state" | "zip"];
+    return override ? { ...spec, ...override } : spec;
+  });
+}
 
 export const REQUIRED_FIELDS = CHECKOUT_FIELDS.filter((f) => f.required).map(
   (f) => f.name
