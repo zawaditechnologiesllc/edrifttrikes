@@ -149,6 +149,36 @@ describe("Google place details", () => {
     );
   });
 
+  test("REFUSES a street with no number and no building", () => {
+    // Google can return a route-level match ("Pennsylvania Avenue NW"). Putting
+    // that in the form gives the buyer an address that looks complete and is
+    // not — and a field that filled itself is a field nobody re-reads.
+    assert.equal(
+      parseGooglePlaceDetails({
+        addressComponents: [
+          { longText: "Pennsylvania Avenue Northwest", shortText: "Pennsylvania Ave NW", types: ["route"] },
+          { longText: "Washington", shortText: "Washington", types: ["locality"] },
+          { longText: "United States", shortText: "US", types: ["country"] },
+        ],
+      }),
+      null
+    );
+  });
+
+  test("accepts a named building with no street number", () => {
+    // Plenty of the world numbers nothing and names everything.
+    const out = parseGooglePlaceDetails({
+      addressComponents: [
+        { longText: "Rose Cottage", shortText: "Rose Cottage", types: ["premise"] },
+        { longText: "Mill Lane", shortText: "Mill Lane", types: ["route"] },
+        { longText: "Ambridge", shortText: "Ambridge", types: ["postal_town"] },
+        { longText: "United Kingdom", shortText: "GB", types: ["country"] },
+      ],
+    });
+    assert.ok(out, "a named building is a deliverable address");
+    assert.ok(out.address.includes("Mill Lane") || out.address.includes("Rose Cottage"));
+  });
+
   test("survives a malformed response", () => {
     assert.equal(parseGooglePlaceDetails(null), null);
     assert.equal(parseGooglePlaceDetails({}), null);

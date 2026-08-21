@@ -835,9 +835,45 @@ out, or the buyer's address simply isn't in the database, the dropdown never
 appears and the form works exactly as it did before. Nothing tells the buyer
 anything is wrong, because nothing is.
 
-⚠️ The Census fallback's network path could not be exercised from the
-development sandbox (the host is blocked by its egress policy). The response
-parsing is unit-tested against the geocoder's documented response shape; the
-first real request will be from production. If it returns nothing there, check
-the Worker can reach `geocoding.geo.census.gov` — or just set
-`GOOGLE_MAPS_API_KEY`, which is the better provider anyway.
+### Checking it works: `/api/health/address`
+
+A failed lookup is deliberately invisible to buyers — the dropdown just never
+appears, which looks exactly like "no matches". Right for a checkout, useless
+for diagnosis. So visit **`/api/health/address`** on the live site: it runs a
+real lookup and tells you what happened.
+
+```json
+{ "provider": "google", "configured": true, "ok": true,
+  "suggestions": 5, "sample": "1600 Pennsylvania Avenue NW, Washington, DC, USA" }
+```
+
+`200` means it works. `503` means it does not, and `error` says why in plain
+words — each mapped to the thing that fixes it:
+
+| What you see | What to do |
+| --- | --- |
+| `the Google API key is not valid` | Wrong or mistyped key in the Worker variables |
+| `the Places API (New) is not enabled for that project` | Enable **Places API (New)** in Google Cloud — not the legacy Places API |
+| `the key has an application restriction that blocks server-side calls` | The key is restricted to HTTP referrers. Calls come from the Worker, so use an IP restriction or none |
+| `quota exhausted` | Billing or quota limit hit |
+| `request failed: ...` | The Worker cannot reach the provider at all |
+
+Add `?q=` to test a specific address a buyer says is not being found. The
+endpoint reports booleans and reasons only — it never echoes the key, and
+provider error text is mapped to this fixed set rather than passed through.
+
+### The keyless fallback is not a type-ahead
+
+The US Census geocoder matches **complete** addresses. Typing "1600 Penn" returns
+nothing; "1600 Pennsylvania Ave NW, Washington, DC" returns the match. So without
+`GOOGLE_MAPS_API_KEY` the field behaves as *check my address*, not *suggest as I
+type* — and the form now says so when nothing matches, rather than sitting
+silent. It is also US-only.
+
+**If you want the autocomplete buyers expect, set `GOOGLE_MAPS_API_KEY`.** That
+is the only configuration that gives worldwide type-ahead.
+
+Its network path could not be exercised from the development sandbox (the egress
+policy blocks `geocoding.geo.census.gov`), so its response parsing is
+unit-tested against the geocoder's documented shape and the first real request
+will be from production. `/api/health/address` will tell you either way.

@@ -126,16 +126,25 @@ async function googleSuggest(
   query: string,
   country?: string | null
 ): Promise<AddressSuggestion[]> {
+  const response = await googleRequest(query, country);
+  if (response.error) console.error(`[address] google autocomplete — ${response.error}`);
+  return parseGoogleSuggestions(response.data);
+}
+
+/** The autocomplete call itself, so the health probe runs the SAME request. */
+async function googleRequest(query: string, country?: string | null): Promise<ProviderResult> {
   const body: Record<string, unknown> = {
     input: query,
-    // Street addresses only. Without this the list fills with cities and
-    // businesses, none of which can fill a shipping form.
-    includedPrimaryTypes: ["street_address", "premise", "subpremise", "route"],
+    // The documented "address" collection: every address type, and nothing
+    // else. Listing individual type names instead would put the exact spelling
+    // of four constants between us and a working checkout, and a rejected
+    // request looks identical to no matches from the buyer's side.
+    includedPrimaryTypes: ["address"],
   };
   const region = isoCode(country);
   if (region) body.includedRegionCodes = [region.toLowerCase()];
 
-  const response = await fetchJson("https://places.googleapis.com/v1/places:autocomplete", {
+  return fetchJson("https://places.googleapis.com/v1/places:autocomplete", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -145,8 +154,6 @@ async function googleSuggest(
     },
     body: JSON.stringify(body),
   });
-
-  return parseGoogleSuggestions(response);
 }
 
 /**
@@ -181,8 +188,8 @@ async function googleDetails(placeId: string): Promise<AddressPrefill | null> {
       },
     }
   );
-
-  return parseGooglePlaceDetails(response);
+  if (response.error) console.error(`[address] google place details — ${response.error}`);
+  return parseGooglePlaceDetails(response.data);
 }
 
 /** Form fields out of a Places details response. */
@@ -205,7 +212,18 @@ export function parseGooglePlaceDetails(
     return typeof value === "string" ? value : "";
   };
 
-  const street = [part("street_number"), part("route")].filter(Boolean).join(" ");
+  const streetNumber = part("street_number");
+  const route = part("route");
+  const building = part("premise") || part("subpremise");
+
+  // A route with no number and no named building is a STREET, not a place a
+  // parcel can be delivered to. Filling the form with "Pennsylvania Avenue NW"
+  // gives the buyer an address that looks complete and is not — worse than
+  // leaving them to type it, because they will not look twice at a field that
+  // filled itself.
+  if (route && !streetNumber && !building) return null;
+
+  const street = [streetNumber, route].filter(Boolean).join(" ") || building;
   const prefill: AddressPrefill = {
     address: street,
     // US addresses use `locality`; a lot of the world doesn't have one, so fall
@@ -235,12 +253,18 @@ async function censusSuggest(
   const region = isoCode(country);
   if (region && region !== "US") return [];
 
+  const response = await censusRequest(query);
+  if (response.error) console.error(`[address] census geocoder — ${response.error}`);
+  return parseCensusResponse(response.data);
+}
+
+/** The geocoder call itself, so the health probe runs the SAME request. */
+function censusRequest(query: string): Promise<ProviderResult> {
   const url = new URL(CENSUS_URL);
   url.searchParams.set("address", query);
   url.searchParams.set("benchmark", "Public_AR_Current");
   url.searchParams.set("format", "json");
-
-  return parseCensusResponse(await fetchJson(url.toString()));
+  return fetchJson(url.toString());
 }
 
 /**
@@ -299,21 +323,136 @@ function isoCode(value?: string | null): string | null {
   return /^[A-Za-z]{2}$/.test(v) ? v.toUpperCase() : null;
 }
 
+/** What a provider call actually did — the part a silent catch used to lose. */
+type ProviderResult = {
+  ok: boolean;
+  status: number;
+  data: Record<string, unknown> | null;
+  /** Short, safe description of why it failed. Never contains the API key. */
+  error?: string;
+};
+
 /**
- * Fetch with a hard timeout, returning parsed JSON.
+ * Fetch with a hard timeout, returning parsed JSON AND why it failed.
  *
  * The timeout is not optional: this runs inside a checkout request, and a
  * provider that hangs would hold a Worker open until the platform kills it.
+ *
+ * The reason is not optional either. The buyer must never see a provider error,
+ * but swallowing it entirely left no way to tell a missing key from a malformed
+ * request from a genuine no-match — which is exactly what you need to know when
+ * the box is empty on a deployment you cannot attach a debugger to. See
+ * probeAddressLookup and /api/health/address.
  */
-async function fetchJson(
-  url: string,
-  init?: RequestInit
-): Promise<Record<string, unknown> | null> {
-  const response = await fetch(url, {
-    ...init,
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-    cache: "no-store",
-  });
-  if (!response.ok) return null;
-  return (await response.json()) as Record<string, unknown>;
+async function fetchJson(url: string, init?: RequestInit): Promise<ProviderResult> {
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      return {
+        ok: false,
+        status: response.status,
+        data: null,
+        error: describeFailure(response.status, body),
+      };
+    }
+    return {
+      ok: true,
+      status: response.status,
+      data: (await response.json()) as Record<string, unknown>,
+    };
+  } catch (e) {
+    const message = String((e as Error)?.name === "TimeoutError" ? "timed out" : (e as Error)?.message || e);
+    return { ok: false, status: 0, data: null, error: `request failed: ${message}`.slice(0, 200) };
+  }
+}
+
+/**
+ * Turn a provider rejection into the action that fixes it.
+ *
+ * Deliberately does NOT pass the raw body through: a provider error is echoed
+ * into a public health endpoint, and third-party error text is not something to
+ * reflect unfiltered. Only the status and a recognised reason survive.
+ */
+function describeFailure(status: number, body: string): string {
+  const b = body.toLowerCase();
+  if (b.includes("api key not valid") || b.includes("api_key_invalid")) {
+    return `${status}: the Google API key is not valid`;
+  }
+  if (b.includes("api key expired")) return `${status}: the Google API key has expired`;
+  if (b.includes("permission_denied") || b.includes("has not been used") || b.includes("is disabled")) {
+    return `${status}: the key is valid but the Places API (New) is not enabled for that project`;
+  }
+  if (b.includes("referer") || b.includes("referrer") || b.includes("ip address")) {
+    return `${status}: the key has an application restriction that blocks server-side calls`;
+  }
+  if (b.includes("resource_exhausted") || status === 429) return `${status}: quota exhausted`;
+  if (b.includes("invalid_argument") || status === 400) {
+    return `${status}: the provider rejected the request as malformed`;
+  }
+  return `${status}: the provider rejected the request`;
+}
+
+/**
+ * Run a real lookup against whatever provider is configured, and report what
+ * happened — for /api/health/address.
+ *
+ * This exists because the sandbox this was written in cannot reach either
+ * provider, so the only place the network path can be proven is the deployment
+ * itself. Hitting one URL on the live site tells you which provider is active,
+ * whether it answered, and if not, exactly why.
+ */
+export async function probeAddressLookup(query = "1600 Pennsylvania Ave NW, Washington, DC"): Promise<{
+  provider: AddressProvider;
+  configured: boolean;
+  ok: boolean;
+  suggestions: number;
+  sample: string | null;
+  error?: string;
+  hint?: string;
+}> {
+  const provider = addressProvider();
+  const configured = provider === "google" ? Boolean(googleKey()) : true;
+
+  const result =
+    provider === "google"
+      ? await googleProbe(query)
+      : await censusProbe(query);
+
+  return {
+    provider,
+    configured,
+    ok: result.suggestions.length > 0,
+    suggestions: result.suggestions.length,
+    sample: result.suggestions[0]?.label ?? null,
+    ...(result.error ? { error: result.error } : {}),
+    ...(result.suggestions.length === 0 && !result.error
+      ? {
+          hint:
+            provider === "census"
+              ? "The keyless US geocoder matches COMPLETE addresses, not partial ones, and only in the United States. Set GOOGLE_MAPS_API_KEY for worldwide type-ahead."
+              : "The provider answered but matched nothing for this query.",
+        }
+      : {}),
+  };
+}
+
+async function googleProbe(query: string) {
+  const response = await googleRequest(query, "US");
+  return {
+    suggestions: parseGoogleSuggestions(response.data),
+    error: response.error,
+  };
+}
+
+async function censusProbe(query: string) {
+  const response = await censusRequest(query);
+  return {
+    suggestions: parseCensusResponse(response.data),
+    error: response.error,
+  };
 }
