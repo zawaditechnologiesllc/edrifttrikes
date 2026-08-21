@@ -124,11 +124,21 @@ function orderTable(order) {
  * The confirmation now goes out from the fulfilment email when the order is
  * actually marked paid.
  */
-export async function abandonedCartEmail({ order, subject, title }) {
+export async function abandonedCartEmail({ order, subject, title, paragraphs, href, cta }) {
+  // The app composes the wording for the day 3/7/12 reminders and passes it in,
+  // so the escalation lives in one place (lib/abandoned.ts) rather than being
+  // written twice. Without it, this is the first email.
+  const lead =
+    Array.isArray(paragraphs) && paragraphs.length
+      ? paragraphs.map((p) => `<p style="color:#c3c5d9;line-height:1.6">${esc(p)}</p>`).join("")
+      : `<p style="color:#c3c5d9;line-height:1.6">We've saved order <strong style="color:#c4f731">${esc(order.order_number)}</strong> for you, but we haven't received payment for it yet — so nothing has been charged and nothing has shipped.</p>
+         <p style="color:#c3c5d9;line-height:1.6">If you were interrupted at the payment step, everything below is still reserved. Pick up where you left off and we'll get straight to work on your build.</p>`;
+  // The link carries the order id so the cart page can restore exactly what
+  // they picked, colours included.
+  const link = href || `${process.env.SITE_URL || ""}/cart?recover=${encodeURIComponent(order.id || "")}`;
   const body = `
-    <p style="color:#c3c5d9;line-height:1.6">We've saved order <strong style="color:#c4f731">${esc(order.order_number)}</strong> for you, but we haven't received payment for it yet — so nothing has been charged and nothing has shipped.</p>
-    <p style="color:#c3c5d9;line-height:1.6">If you were interrupted at the payment step, everything below is still reserved. Pick up where you left off and we'll get straight to work on your build.</p>
-    <a href="${process.env.SITE_URL || ""}/cart" style="display:inline-block;margin:8px 0;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">Complete your order</a>
+    ${lead}
+    <a href="${link}" style="display:inline-block;margin:8px 0;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">${esc(cta || "Complete your order")}</a>
     ${orderTable(order)}
     <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">Changed your mind? No action is needed — an unpaid order simply expires and you will not be charged.</p>`;
   const result = await send(

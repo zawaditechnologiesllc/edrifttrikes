@@ -397,3 +397,72 @@ Tests assert the absence, not just the presence of what replaced it:
 `total`; and the Stripe copy, the PDF sheet and the cart-recovery email are each
 checked against `/duty|customs|import charge|tariff/i`. A stray extra key in the
 totals would otherwise surface as a line on every surface at once.
+
+## Chasing orders that were never paid for
+
+An unpaid order is the most convertible audience the store has: someone who
+wanted the thing and stopped. The sequence, counted from when the order was
+created:
+
+| Day | What happens |
+| --- | --- |
+| 0 | The checkout API sends the first email — the receipt, and a link back |
+| 3 | A nudge |
+| 7 | A firmer one |
+| 12 | The last. Nothing after this, ever |
+
+The schedule and all three pieces of copy live in `lib/abandoned.ts`;
+`sweepAbandonedOrders()` in `lib/orders.ts` runs it, from the same hourly cron
+that advances paid orders.
+
+**It stops the moment there is any reason to.** Paid, fulfilled, cancelled or
+refunded ends it — mailing "you left something behind" about an order the store
+itself cancelled reads as incompetence. So does chasing someone who has since
+bought: the check looks at **every** order for that email address, not just this
+one, and matches on the email rather than the account because most abandoned
+orders are guests. If that check errors it fails **safe** and skips the send — a
+missed reminder costs a maybe, a reminder to a paying customer costs their
+confidence in the shop.
+
+**Send-once survives overlapping cron runs** the same way the delivery schedule
+does: each reminder inserts an `order_events` row keyed `abandoned_<step>`, and
+the UNIQUE `(order_id, stage)` constraint means exactly one racer wins. There is
+no migration for this — the column is plain text and the admin timeline renders
+each row's title, so a reminder shows up there as "Unpaid-order reminder sent
+(day 7)".
+
+**A late sweep sends one email, not three.** If the cron is down for a week,
+`dueReminder` returns the furthest due step and the skipped ones are claimed
+silently — so a recovered scheduler can never work backwards and send a day-3
+note after the day-12 one.
+
+**Switching it on is safe.** The sweep only looks back `ABANDONED_WINDOW_DAYS`
+(14). Every pending order older than that is left alone rather than mailed out
+of the blue, which matters on a database that has been accumulating unpaid
+orders for months.
+
+### The link carries what they were buying
+
+Every one of these emails links to `/cart?recover=<order id>`, which puts that
+order's exact items, colours and quantities back in the cart
+(`components/cart/CartRecovery.tsx` + `/api/cart/recover`). A bare link to the
+shop would ask them to find the trike again — the work that made them give up.
+
+It is **additive**: anything already in the cart stays, and a line already there
+is not re-added, so a live cart is never destroyed to restore a stale one.
+
+The order ID is the capability — a random UUID that appears nowhere public. The
+short, guessable order *number* is deliberately not accepted, the response
+carries line items only (never the email, address or totals), and the link stops
+working once the order is paid.
+
+## Colours fill themselves in
+
+The same cron pass runs `syncProductColors()`: any product whose `colors` is
+empty but whose description names colours gets them written onto the row.
+
+`productColorOptions()` already falls back to the description at read time, so
+the picker appears either way — this makes it permanent, which means the admin
+sees and can edit the colours in the product form. It only ever touches products
+with no colours set, so it can never overwrite an admin's choice, and it
+revalidates the catalog cache when it writes anything.

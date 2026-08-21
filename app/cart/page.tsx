@@ -8,6 +8,8 @@ import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeCartTotals } from "@/lib/totals";
 import { Icon } from "@/components/Icon";
+import { Suspense } from "react";
+import CartRecovery from "@/components/cart/CartRecovery";
 
 export default function CartPage() {
   const { items, setQty, remove } = useCart();
@@ -32,6 +34,12 @@ export default function CartPage() {
         <p className="text-on-surface-variant font-label-bold uppercase tracking-widest mb-10">
           {items.length} {items.length === 1 ? "item" : "items"} staged for deployment
         </p>
+
+        {/* Restores an abandoned order's items when arriving from the email
+            link. Suspense because it reads the query string. */}
+        <Suspense fallback={null}>
+          <CartRecovery />
+        </Suspense>
 
         {items.length === 0 ? (
           <div className="text-center py-24 border border-dashed border-white/10 rounded-lg">
