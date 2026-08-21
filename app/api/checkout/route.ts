@@ -8,7 +8,13 @@ import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
 import { sendAbandonedCartEmail } from "@/lib/email";
 import { matchColor, productColorOptions } from "@/lib/colors";
-import { publicSiteUrl } from "@/lib/env";
+import { blockedCountriesRaw, publicSiteUrl } from "@/lib/env";
+import {
+  BLOCKED_MESSAGE,
+  countryFromHeaders,
+  isBlockedCountry,
+  parseBlockedCountries,
+} from "@/lib/geo";
 import type { Order } from "@/lib/types";
 
 type IncomingItem = { productId: string; qty: number; color?: string | null };
@@ -111,6 +117,19 @@ export async function POST(request: Request) {
   // Trimmed, length-bounded, whitelisted keys only, with the country stored in
   // its canonical spelling.
   const shipping = normalizeShipping(stringFields(payload.shipping));
+
+  // Belt and braces on the country block. validateCheckout has already refused
+  // a blocked country — they are not in the list isKnownCountry checks — but a
+  // request that reaches here from a blocked one is worth REFUSING EXPLICITLY
+  // and logging, because that log is the only record the owner has of an
+  // attempt. Read from the request's own headers, not the form: the form can
+  // say anything.
+  const originCountry = countryFromHeaders(request.headers);
+  const blockedCountries = parseBlockedCountries(blockedCountriesRaw());
+  if (isBlockedCountry(originCountry, blockedCountries)) {
+    console.warn(`[checkout] refused an order from ${originCountry}`);
+    return NextResponse.json({ error: BLOCKED_MESSAGE }, { status: 403 });
+  }
 
   const admin = createAdminClient();
 

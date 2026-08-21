@@ -39,17 +39,49 @@ export default async function HomePage() {
             <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl border-l-4 border-secondary pl-6">
               Precision torque meets lateral freedom. Dominate every corner with the world&apos;s most advanced electric drift trikes.
             </p>
+            {/*
+              Two doors, deliberately. The first is for someone who arrived
+              ready to buy. The second is for the much larger group who did
+              not — sending them straight to a price is how you lose them,
+              so it opens the spec instead, on the same page.
+            */}
             <div className="flex flex-wrap gap-4 pt-4">
               <Link href="/shop?category=trikes" className="bg-primary-container text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition-all">
                 Shop Trikes
+              </Link>
+              <Link href="#the-drift-spec" className="border-2 border-white/30 text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:border-secondary hover:text-secondary active:scale-95 transition-all">
+                See the Spec
               </Link>
             </div>
           </div>
         </div>
       </header>
 
+      {/*
+        Featured products sit directly under the hero on purpose: the thing
+        being sold is the first thing below the fold. The spec section that
+        used to be here is still on the page, one scroll further down, for
+        the visitor who wants convincing before they look at prices.
+      */}
+      {featured.length > 0 && (
+        <section className="py-24 bg-off-white text-surface-container-lowest">
+          <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
+            <div className="flex items-end justify-between mb-12">
+              <div>
+                <span className="font-label-bold text-label-bold text-primary-container uppercase tracking-widest">Latest Drop</span>
+                <h2 className="font-headline-xl text-headline-xl uppercase mt-2">Featured Rigs</h2>
+              </div>
+              <Link href="/shop" className="font-label-bold text-label-bold uppercase tracking-widest text-primary-container hover:underline hidden md:block">View all →</Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+              {featured.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Drift spec */}
-      <section className="py-24 md:py-32 bg-surface-container-lowest technical-grid">
+      <section id="the-drift-spec" className="scroll-mt-20 py-24 md:py-32 bg-surface-container-lowest technical-grid">
         <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-gutter">
             <div>
@@ -71,24 +103,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Featured products */}
-      {featured.length > 0 && (
-        <section className="py-24 bg-off-white text-surface-container-lowest">
-          <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
-            <div className="flex items-end justify-between mb-12">
-              <div>
-                <span className="font-label-bold text-label-bold text-primary-container uppercase tracking-widest">Latest Drop</span>
-                <h2 className="font-headline-xl text-headline-xl uppercase mt-2">Featured Rigs</h2>
-              </div>
-              <Link href="/shop" className="font-label-bold text-label-bold uppercase tracking-widest text-primary-container hover:underline hidden md:block">View all →</Link>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-              {featured.map((p) => <ProductCard key={p.id} product={p} />)}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Category grid */}
       <section className="py-24 bg-white text-black power-slant-divider-reverse">

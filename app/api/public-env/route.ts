@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { turnstileSiteKey, paypalClientId, paypalCardFieldsEnabled } from "@/lib/env";
+import {
+  turnstileSiteKey,
+  paypalClientId,
+  paypalCardFieldsEnabled,
+  serverEnv,
+} from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +35,10 @@ export async function GET() {
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey() ?? "",
       NEXT_PUBLIC_PAYPAL_CLIENT_ID: paypalClientId() ?? "",
       NEXT_PUBLIC_PAYPAL_CARD_FIELDS: paypalCardFieldsEnabled() ? "1" : "",
+      // Not a NEXT_PUBLIC_ var, but public in the same sense: the beacon
+      // token ships in the page for every visitor to read. Here so that
+      // analytics work on statically prerendered pages too.
+      CLOUDFLARE_ANALYTICS_TOKEN: serverEnv("CLOUDFLARE_ANALYTICS_TOKEN") ?? "",
     },
     // Short cache: these change only on redeploy, but a stale key would break
     // the forms, so keep the window small.

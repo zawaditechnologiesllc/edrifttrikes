@@ -188,11 +188,25 @@ describe("country", () => {
     // The form submits the code. If the server ever resolved different display
     // names than the browser (no ICU on Workers, say), name-based validation
     // would reject every order — code-based validation cannot.
-    for (const code of ["US", "GB", "KE", "AU", "IN", "BR"]) {
+    for (const code of ["US", "GB", "KE", "AU", "NP", "BR"]) {
       assert.equal(
         validateShippingField("country", code),
         null,
         `code ${code} was rejected`
+      );
+    }
+  });
+
+  test("refuses a country the store does not serve, by code or by name", () => {
+    // The block lives in lib/geo and is applied once, in countries(). This
+    // asserts it actually reaches the server-side validator — a form that
+    // stopped offering India while the API still accepted it would be no
+    // block at all.
+    for (const value of ["IN", "India", "PK", "Pakistan", "BD", "Bangladesh"]) {
+      assert.equal(
+        validateShippingField("country", value),
+        "Choose your country from the list.",
+        `${value} was accepted`
       );
     }
   });
