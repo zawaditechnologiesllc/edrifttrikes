@@ -501,6 +501,55 @@ short, guessable order *number* is deliberately not accepted, the response
 carries line items only (never the email, address or totals), and the link stops
 working once the order is paid.
 
+## Where an order came from
+
+Every order now records what the Cloudflare edge already knew about the
+connection that placed it — and what the buyer's own browser said about itself.
+It shows as a country column on `/admin/orders` and a full panel on the order
+page.
+
+**It costs nothing and slows nothing down.** Cloudflare resolves all of this
+before the Worker runs; it rides along on the request. No lookup, no third-party
+API, no added latency.
+
+**No IP address is stored.** It is the most sensitive field available and the
+least useful for review — country, city and network answer "does this add up?"
+without the store holding an identifier it would then have to protect, disclose
+and delete on request. (Migration `0015_order_origin.sql`.)
+
+### The signals
+
+| Flag | What it means |
+|---|---|
+| **Tor exit node** | `cf-ipcountry` came back `T1`. Real location unknowable. |
+| **Commercial VPN** | The network belongs to a company that sells VPN access. |
+| **Datacentre connection** | A hosting or cloud provider, not a home or mobile ISP. |
+| **Clock doesn't match the IP** | The browser's own timezone disagrees with the one the IP resolves to. **The strongest single hint here** — a VPN moves the IP but not the computer's clock. |
+| **Browsing from another country** | Connecting from one country, shipping to another. |
+| **No location data** | The edge could not place the connection at all. |
+
+Scores add up to `clear` / `check` / `review`. **No single flag except Tor
+reaches the top level on its own** — one fact about a connection is never a
+fraud case, and an owner who sees a red badge on every VPN user stops reading
+badges inside a week.
+
+### ⚠️ What this is not
+
+> **It does not detect VPNs, and nothing does reliably.** It detects connections
+> that don't look residential, and facts that contradict each other. A
+> **residential proxy** — the kind card fraudsters actually buy, routing through
+> a compromised home router in the victim's own city — looks exactly like a
+> customer and passes every check here.
+>
+> So it is a **review tool, not a gate**. Nothing in the app refuses an order on
+> these signals and nothing should: a corporate VPN, a privacy-minded customer,
+> an expat and a business traveller all trip them, and every one is a real sale.
+> The control that actually stops a stolen card is at the payment layer — see
+> [`PAYMENTS.md` §7](./PAYMENTS.md).
+
+Every flag in the admin panel is printed with a plain-English caveat for exactly
+this reason; a flag without one becomes an excuse to cancel a real order.
+
 ## Colours fill themselves in
 
 The same cron pass runs `syncProductColors()`: any product whose `colors` is

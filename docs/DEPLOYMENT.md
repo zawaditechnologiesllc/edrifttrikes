@@ -525,7 +525,6 @@ PAYPAL_CLIENT_ID                     # if using PayPal
 PAYPAL_SECRET                        # if using PayPal
 PAYPAL_ENV                           # sandbox | live
 GOOGLE_MAPS_API_KEY                  # optional — upgrades address autocomplete
-BLOCKED_COUNTRIES                    # optional — defaults to IN,PK,BD (see 10f)
 CLOUDFLARE_ANALYTICS_TOKEN           # optional — turns on Web Analytics (see 11)
 ```
 
@@ -611,42 +610,29 @@ months). Only do this once you're sure the site is always HTTPS.
 - The service-role key bypasses RLS — treat it like a root password. Rotate it in
   Supabase (Settings → API) if it's ever exposed.
 
-### 10f. Countries the store does not serve
-After a run of stolen-card attempts, the store refuses **India, Pakistan and
-Bangladesh** by default. That is a commercial decision about who carries the
-chargeback, and you change it without a deploy:
+### 10f. Reviewing orders for card fraud
+**The store ships everywhere and blocks no country.** An earlier version refused
+a short list of them after a run of stolen-card attempts; that was removed,
+because it cost real customers and stopped almost no fraud — a carder on a VPN
+shipping to a mule address never touched it.
 
-- Worker → **Settings → Variables and Secrets** → `BLOCKED_COUNTRIES`
-- Comma or space separated ISO alpha-2 codes, e.g. `IN,PK,BD,NG`
-- **Unset** = the default `IN,PK,BD`
-- **Empty string** = block nobody (the fast way to switch it off)
+What replaced it is a review trail. Every order records what the Cloudflare edge
+already knew about the connection that placed it — country, region, city,
+network — plus the timezone the buyer's own browser reported. It shows as a
+country column on `/admin/orders` and a full panel on each order.
 
-The list is applied in three places, from one definition in `lib/geo.ts`:
+- **Nothing to configure.** Cloudflare resolves it before the Worker runs, so
+  there is no lookup, no third-party API and no added latency.
+- **No IP address is stored.** Country, city and network answer "does this add
+  up?" without the store holding an identifier it must then protect, disclose
+  and delete on request. (Migration `0015_order_origin.sql`.)
+- **Nothing is ever refused on these signals**, and nothing should be: a
+  corporate VPN, a privacy-minded customer, an expat and a business traveller
+  all trip them.
 
-| Layer | What it catches | What it misses |
-|---|---|---|
-| `middleware.ts` | Page requests, by the IP's country (Cloudflare's `cf-ipcountry`) | Anyone on a VPN |
-| `lib/countries.ts` | The checkout country select — a blocked country is not a shipping destination, and `validateShippingField` rejects it server-side too | Nothing; it's about where the goods go |
-| `app/api/checkout` | A crafted request that never touched the form | Anyone on a VPN shipping elsewhere |
-
-Blocked visitors get `/unavailable` (a rewrite, HTTP 403 — the URL they asked
-for stays in the bar). Payment webhooks, cron, health checks and static assets
-are exempt: refusing a webhook does not prevent a payment, it loses the order.
-A country Cloudflare **cannot** identify is served, never refused.
-
-> ⚠️ **This does not stop a stolen card.** It stops one being used *from* these
-> countries to ship *to* these countries. A carder on a VPN shipping to a mule
-> address walks straight through. The control that actually catches that is in
-> Stripe → **Radar**: block when the card's issuing country doesn't match the
-> billing country, and require CVC + postal-code match. See
-> [`PAYMENTS.md`](./PAYMENTS.md).
-
-**Cost note.** The middleware matcher now covers every page, so the Worker runs
-on requests Cloudflare previously served as free static assets. If that ever
-shows up on the bill, move the country block to a **WAF custom rule** (Security
-→ WAF → Custom rules → `ip.geoip.country in {"IN" "PK" "BD"}` → Block). That
-runs before the Worker and costs nothing; then narrow the matcher in
-`middleware.ts` back to the auth paths.
+See [`FULFILLMENT.md`](./FULFILLMENT.md) for what each flag means, and
+[`PAYMENTS.md` §7](./PAYMENTS.md) for the control that actually stops a stolen
+card — Stripe Radar. Do that one first if you have seen attempts.
 
 ---
 
@@ -669,6 +655,28 @@ privacy-policy change. Watch: sessions that reach `/cart` vs `/checkout` vs
 `/order-confirmation` — that ratio is what tells you whether a homepage change
 helped.
 
+
+## Filtering the shop by price
+
+`/shop` has a **Price** section in the sidebar. The bands are **derived from
+your actual catalogue**, not hard-coded: `lib/price-filter.ts` reads the prices
+of the products matching the other filters and lays out a ladder on round
+numbers. Nothing to configure, and it stays correct when you change prices.
+
+- Bands only appear once there are **three or more products at different
+  prices** — below that a single band covering everything is a control that does
+  nothing.
+- **A band with no products in it is never shown.** A buyer who clicks a band
+  and lands on an empty grid concludes the shop is broken.
+- The boxes underneath take any custom range in dollars. It is a plain GET form:
+  no JavaScript, and the result is a URL that can be bookmarked or sent to
+  someone.
+- Every filter rides along in the URL, so a price never quietly drops the
+  category the buyer already chose.
+
+Bands are one cent apart at the edges (`0-99999`, `100000-199999`, …) so a
+product priced at exactly $1,000 lands in one band rather than two, and the
+counts add up to the catalogue.
 
 ## Product colours
 

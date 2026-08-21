@@ -141,13 +141,18 @@ Stripe Payment Element.
 
 ## 7. Stolen cards: the control that actually works
 
-The store blocks a list of countries at the edge (`BLOCKED_COUNTRIES`, see
-[`DEPLOYMENT.md` §10f](./DEPLOYMENT.md)). **That is a speed bump, not a
-defence.** It works on where the browser appears to be, and a VPN changes that
-in one click. A carder on a VPN, shipping to a mule address in a country you do
-serve, never touches it.
+**The store blocks no countries, and blocking them would not have helped.** An
+IP-level country block works on where the browser appears to be, and a VPN
+changes that in one click — a carder on a VPN, shipping to a mule address in a
+country you do serve, walks straight past it, while the real cost lands on
+customers who happen to live in the wrong place.
 
-Card fraud is stopped at the payment layer, where the card details actually are.
+Every order does now carry a review trail — the country, network and timezone
+the connection came from (see [`DEPLOYMENT.md` §10f](./DEPLOYMENT.md)) — but
+that is evidence for a person to weigh after the fact.
+
+Card fraud is *stopped* at the payment layer, where the card details actually
+are.
 Stripe → **Radar** → **Rules**. None of this needs a deploy:
 
 | Rule | Why |
@@ -156,7 +161,7 @@ Stripe → **Radar** → **Rules**. None of this needs a deploy:
 | Block if `:cvc_check: != 'pass'` | A carder usually has the number, not the card. Stripe already requires CVC entry; this refuses the payment when the *issuer* says it was wrong. |
 | Block if `:address_zip_check: != 'pass'` | Same reasoning for the billing postcode. |
 | Review if `:risk_level: = 'elevated'` | Holds the borderline ones for a human instead of guessing. |
-| Block if `:card_country: in (...)` | Only if you want the country block enforced against the *card* as well as the IP — this is the version a VPN cannot get around. |
+| Block if `:card_country: in (...)` | If a specific country keeps producing chargebacks, refuse it **by the card's issuing country** rather than by IP. That is the version a VPN cannot get around, and it turns nobody away for merely browsing from there. |
 
 Also worth doing, in order of value:
 

@@ -103,6 +103,15 @@ export default function CheckoutClient({
       : "";
   const [method, setMethod] = useState<PaymentMethod>(initialMethod);
 
+  /** Never throws: a browser without full timezone data simply reports none. */
+  function browserTimezone(): string | null {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+    } catch {
+      return null;
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -126,6 +135,12 @@ export default function CheckoutClient({
           shipping,
           method,
           items: items.map((i) => ({ productId: i.productId, qty: i.qty, color: i.color ?? null })),
+          // The browser's own timezone, read from the OS. Nothing about the
+          // checkout changes — no prompt, no permission, no extra request —
+          // but it is the one fact a VPN cannot rewrite, so comparing it
+          // against the timezone the IP resolves to is what tells the owner
+          // whether an order's stated location holds together.
+          client: { timezone: browserTimezone() },
         }),
       });
       const data = await res.json();

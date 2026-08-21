@@ -1,5 +1,4 @@
 import {
-  blockedCountriesRaw,
   serverEnv,
   supabaseUrl,
   supabaseAnonKey,
@@ -26,11 +25,6 @@ export default function PublicEnvScript() {
     NEXT_PUBLIC_PAYPAL_CLIENT_ID: paypalClientId() ?? "",
     NEXT_PUBLIC_PAYPAL_CARD_FIELDS: paypalCardFieldsEnabled() ? "1" : "",
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey() ?? "",
-    // Not a NEXT_PUBLIC_ var, and here for a different reason: the checkout
-    // country select is rendered on BOTH sides. Without this the browser
-    // would fall back to the hard-coded default list while the server used
-    // the configured one, and React would hydrate a different <select>.
-    BLOCKED_COUNTRIES: blockedCountriesRaw() ?? null,
     CLOUDFLARE_ANALYTICS_TOKEN: serverEnv("CLOUDFLARE_ANALYTICS_TOKEN") ?? "",
   };
   return (

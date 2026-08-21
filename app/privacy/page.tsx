@@ -20,6 +20,7 @@ export default function PrivacyPage() {
         <li><strong>Payment data</strong> — processed by our payment provider (Stripe). We receive confirmation and limited details (such as the last digits and status); we do not store full card numbers.</li>
         <li><strong>Support &amp; contact data</strong> — messages you send us through the contact form, email, or newsletter sign-up.</li>
         <li><strong>Usage &amp; device data</strong> — basic technical information (such as IP address, browser type, and pages viewed) collected automatically to operate and secure the site.</li>
+        <li><strong>Fraud-prevention data</strong> — when you place an order we record the approximate location (country, region and city) and the network your connection came from, as reported by our CDN, along with the timezone your browser reports. We use it only to review orders for card fraud. <strong>We do not store your IP address with your order.</strong></li>
       </ul>
 
       <h2>2. How we use your information</h2>
