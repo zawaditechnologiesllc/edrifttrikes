@@ -1,12 +1,13 @@
 import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
+import { formatDeliveryWindow, MAX_ROUTE_EXTRA_DAYS } from "@/lib/delivery";
 
 export const metadata = { title: "Shipping & Warranty" };
 
 const SHIPPING = [
   { title: "One flat shipping rate", body: "Shipping is a single flat fee per order, shown in your cart and at checkout — no weight tiers, no surprises. When we run free-shipping promotions, every order ships free." },
-  { title: "Delivery times", body: "Delivery takes 12–20 days from dispatch, depending on the shipping route to your country. Custom builds add 2–4 weeks of build time before dispatch." },
+  { title: "Delivery times", body: `Delivery takes ${formatDeliveryWindow()} from payment on our fastest routes. Distant destinations add up to ${MAX_ROUTE_EXTRA_DAYS} days — the exact window for your country is shown at checkout before you pay. Custom builds add 2–4 weeks of build time before dispatch.` },
   { title: "Tracking", body: "Every order gets a tracking link by email the moment it ships. Track status anytime from your dashboard." },
   { title: "Worldwide shipping", body: "We manufacture and ship direct to every country. Duties and taxes are calculated at checkout where supported, or billed by your local customs." },
 ];

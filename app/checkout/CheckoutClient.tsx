@@ -12,7 +12,8 @@ import PayPalCardFields from "@/components/cart/PayPalCardFields";
 import { DutyRow } from "@/components/storefront/DutyNotice";
 import CheckoutField from "./CheckoutField";
 import { CHECKOUT_FIELDS, validateCheckout } from "@/lib/validation";
-import { ESTIMATED_DELIVERY_DAYS } from "@/lib/fulfillment";
+import { deliveryEstimateSentence } from "@/lib/delivery";
+import type { AddressPrefill } from "@/lib/address-lookup";
 
 type PaymentMethod = "stripe" | "paypal" | "";
 
@@ -50,6 +51,30 @@ export default function CheckoutClient({
 
   const markTouched = (name: string) =>
     setTouched((t) => (t[name] ? t : { ...t, [name]: true }));
+
+  /**
+   * Fill the address fields from a picked suggestion.
+   *
+   * Only writes fields the provider actually returned — a lookup that couldn't
+   * determine the ZIP must not wipe one the buyer already typed. Everything it
+   * does fill is marked touched, so a field the provider got wrong shows its
+   * error straight away rather than waiting for the buyer to visit it.
+   */
+  const applyPickedAddress = (prefill: AddressPrefill) => {
+    const filled = Object.entries(prefill).filter(
+      ([, v]) => typeof v === "string" && v.trim()
+    ) as [string, string][];
+    setShipping((prev) => {
+      const next = { ...prev };
+      for (const [name, v] of filled) next[name] = v;
+      return next;
+    });
+    setTouched((prev) => {
+      const next = { ...prev };
+      for (const [name] of filled) next[name] = true;
+      return next;
+    });
+  };
 
   /**
    * Reveal every problem at once and jump to the first one.
@@ -183,11 +208,9 @@ export default function CheckoutClient({
     ["1", "Place your order", "Pay securely by card or PayPal. Receipt emailed straight away."],
     ["2", "Payment confirmed", "We confirm and start preparing your build."],
     ["3", "Shipped", "Leaves the garage in about 3 days. Tracking is emailed."],
-    [
-      "4",
-      "Delivery",
-      `Around ${ESTIMATED_DELIVERY_DAYS} days, tracked at every step on your dashboard.`,
-    ],
+    // The window narrows to the buyer's own country the moment they choose
+    // one, so the promise on this page is the promise in their email.
+    ["4", "Delivery", deliveryEstimateSentence(shipping.country)],
   ] as const;
 
   const methodBtn = (active: boolean) =>
@@ -276,8 +299,9 @@ export default function CheckoutClient({
               <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary mb-1">02 — Shipping address</h2>
               <p className="text-on-surface-variant text-sm mb-6">
                 Where the rig is delivered. Fields marked{" "}
-                <span className="text-secondary">*</span> are required — your browser
-                can fill most of this for you.
+                <span className="text-secondary">*</span> are required. Start typing your
+                street address and pick it from the list — we&apos;ll fill in the city,
+                state and postal code for you.
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-5">
                 {CHECKOUT_FIELDS.map((spec) => (
@@ -287,6 +311,8 @@ export default function CheckoutClient({
                     value={shipping[spec.name] || ""}
                     error={validation.errors[spec.name]}
                     touched={Boolean(touched[spec.name])}
+                    country={shipping.country || ""}
+                    onPickAddress={applyPickedAddress}
                     // No need to re-check on change: the field renders an error
                     // only while `touched && error`, so correcting the value
                     // clears the message on the very next keystroke.

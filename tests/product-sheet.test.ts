@@ -4,7 +4,8 @@ import { buildProductSheet, productSheetFilename } from "../lib/product-sheet";
 import { parseColors } from "../lib/colors";
 import { parseRichText } from "../lib/rich-text";
 import { COMPANY, DEFAULT_SITE_SETTINGS } from "../lib/company";
-import { ESTIMATED_DELIVERY_DAYS } from "../lib/fulfillment";
+import { formatDeliveryWindow } from "../lib/delivery";
+import { toWinAnsi } from "../lib/pdf";
 import type { Product, SiteSettings } from "../lib/types";
 
 /**
@@ -169,10 +170,16 @@ describe("what the sheet says", () => {
     assert.ok(text.includes("A 60V fast charger"), "a bullet was dropped");
   });
 
-  test("quotes the delivery estimate the fulfilment emails actually commit to", async () => {
-    // A second, different number here would be a promise the emails don't keep.
+  test("quotes the same delivery window as the rest of the store", async () => {
+    // A second, different number here would be a promise the checkout page and
+    // the confirmation email don't keep.
     const text = await build().then(sheetText);
-    assert.ok(text.includes(`About ${ESTIMATED_DELIVERY_DAYS} days from payment`));
+    // Folded through toWinAnsi first: the en dash in "12–20" is stored as a
+    // single WinAnsi byte in the PDF, so the UTF-8 spelling would never match.
+    assert.ok(
+      text.includes(toWinAnsi(`${formatDeliveryWindow()} from payment`)),
+      "the sheet quotes a window the rest of the site doesn't"
+    );
   });
 
   test("says how to reach us", async () => {

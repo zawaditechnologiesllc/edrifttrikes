@@ -344,7 +344,7 @@ export async function POST(request: Request) {
       // window, and the import duty they owe separately. Derived from the same
       // constants as our checkout and emails so the three cannot disagree.
       // See lib/stripe-branding.ts. Logo and colours are Dashboard settings.
-      ...stripeCompanyContent(order.order_number),
+      ...stripeCompanyContent(order.order_number, shipping.country),
     });
     await admin.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
     return NextResponse.json({ url: session.url });

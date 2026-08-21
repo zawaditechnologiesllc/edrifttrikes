@@ -117,7 +117,9 @@ function orderTable(order) {
 export async function orderConfirmationEmail(order) {
   const body = `
     <p style="color:#c3c5d9;line-height:1.6">Order <strong style="color:#c4f731">${esc(order.order_number)}</strong> is confirmed.</p>
-    <p style="color:#c3c5d9;line-height:1.6">Delivery typically takes <strong style="color:#fff">12–20 days</strong> depending on the shipping route to your country. We'll email your tracking link the moment it ships.</p>
+    <!-- Keep in step with lib/delivery.ts, which is the source of truth for the
+         quoted window everywhere else. This service cannot import it. -->
+    <p style="color:#c3c5d9;line-height:1.6">Delivery takes <strong style="color:#fff">12–20 days</strong> on our fastest routes, and up to 7 days longer depending on the shipping route to your country. We'll email your tracking link the moment it ships.</p>
     ${orderTable(order)}`;
   const result = await send(
     order.email,

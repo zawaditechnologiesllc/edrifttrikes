@@ -12,6 +12,7 @@ import WishlistButton from "@/components/storefront/WishlistButton";
 import { getProductBySlug, getProducts, getSiteSettings } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 import { productShippingCents, DEFAULT_SHIPPING_CENTS } from "@/lib/totals";
+import { formatDeliveryWindow, MAX_ROUTE_EXTRA_DAYS } from "@/lib/delivery";
 
 // Product pages are ISR-cached; per-user wishlist state loads client-side.
 export const revalidate = 120;
@@ -104,7 +105,16 @@ export default async function ProductPage({
               ) : (
                 <span className="text-white">{formatMoney(shipFee)}</span>
               )}{" "}
-              <span className="normal-case font-body-md tracking-normal">· delivery in 12–20 days</span>
+              <span className="normal-case font-body-md tracking-normal">
+                · delivery in {formatDeliveryWindow()}
+              </span>
+            </p>
+            {/* The base window is the fastest route. Saying so here means the
+                narrower number at checkout reads as a refinement rather than a
+                change of story. */}
+            <p className="text-outline text-xs -mt-4">
+              Distant destinations add up to {MAX_ROUTE_EXTRA_DAYS} days — checkout shows the
+              exact window for your address before you pay.
             </p>
 
             {lowStock && (

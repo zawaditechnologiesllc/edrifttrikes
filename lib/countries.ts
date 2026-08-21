@@ -97,3 +97,20 @@ export function normalizeCountry(value: string): string | null {
   );
   return hit ? hit.name : null;
 }
+
+/**
+ * ISO alpha-2 code for a user-supplied name or code, or null.
+ *
+ * The mirror of normalizeCountry: the checkout form submits a code while an
+ * order row stores the display name, so anything reasoning about WHERE an order
+ * is going (delivery windows, shipping zones) needs to get back to the code
+ * from either one.
+ */
+export function countryCode(value: string): string | null {
+  const v = value.trim().toLowerCase();
+  if (!v) return null;
+  const hit = countries().find(
+    (c) => c.code.toLowerCase() === v || c.name.toLowerCase() === v
+  );
+  return hit ? hit.code : null;
+}

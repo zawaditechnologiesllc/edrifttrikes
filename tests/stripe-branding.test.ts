@@ -9,7 +9,7 @@ import {
   submitMessage,
 } from "../lib/stripe-branding";
 import { COMPANY } from "../lib/company";
-import { ESTIMATED_DELIVERY_DAYS } from "../lib/fulfillment";
+import { formatDeliveryWindow } from "../lib/delivery";
 import { DEFAULT_DUTY_RATE_BPS } from "../lib/totals";
 
 /**
@@ -61,13 +61,30 @@ describe("custom_text messages", () => {
     // minutes later.
     const m = submitMessage();
     assert.ok(
-      m.includes(String(ESTIMATED_DELIVERY_DAYS)),
-      "delivery estimate does not match lib/fulfillment.ts"
+      m.includes(formatDeliveryWindow()),
+      "delivery estimate does not match lib/delivery.ts"
     );
     assert.ok(
       m.includes(String(DEFAULT_DUTY_RATE_BPS / 100)),
       "duty rate does not match lib/totals.ts"
     );
+  });
+
+  test("quotes the DESTINATION's window once the buyer has given one", () => {
+    // Stripe's page is shown after the address is filled in, so quoting the
+    // base window there would under-promise for a buyer half a world away.
+    const uk = submitMessage("GB");
+    assert.ok(uk.includes(formatDeliveryWindow("GB")), "the window is not the destination's");
+    assert.ok(uk.includes("United Kingdom"), "the destination is not named");
+    assert.notEqual(uk, submitMessage("US"), "every destination reads the same");
+  });
+
+  test("falls back to neutral wording for a country it cannot place", () => {
+    // Never echo an unrecognised string from the request back onto a payment
+    // page: it is buyer-supplied text on a page about their money.
+    const m = submitMessage("Wakanda");
+    assert.ok(m.includes("your address"));
+    assert.ok(!m.includes("Wakanda"));
   });
 
   test("is explicit that duty is not collected by us", () => {

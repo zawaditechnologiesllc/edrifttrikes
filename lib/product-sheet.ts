@@ -24,7 +24,7 @@ import { COMPANY } from "@/lib/company";
 import { productColors } from "@/lib/colors";
 import { parseRichText } from "@/lib/rich-text";
 import { formatMoney } from "@/lib/format";
-import { ESTIMATED_DELIVERY_DAYS } from "@/lib/fulfillment";
+import { MAX_ROUTE_EXTRA_DAYS, formatDeliveryWindow } from "@/lib/delivery";
 import {
   DEFAULT_DUTY_RATE_BPS,
   DEFAULT_SHIPPING_CENTS,
@@ -219,7 +219,7 @@ export async function buildProductSheet(
   ]);
   facts.push([
     "Estimated delivery",
-    `About ${ESTIMATED_DELIVERY_DAYS} days from payment`,
+    `${formatDeliveryWindow()} from payment — add up to ${MAX_ROUTE_EXTRA_DAYS} days for distant routes`,
   ]);
   facts.push(["Product code", product.slug]);
 

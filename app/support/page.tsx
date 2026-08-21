@@ -3,11 +3,12 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ContactForm from "./ContactForm";
 import { Icon } from "@/components/Icon";
+import { formatDeliveryWindow, MAX_ROUTE_EXTRA_DAYS } from "@/lib/delivery";
 
 export const metadata = { title: "Support Hub" };
 
 const FAQS = [
-  { q: "How long does shipping take?", a: "Delivery takes 12–20 days depending on the shipping route to your country. You'll get tracking by email the moment your order leaves the garage." },
+  { q: "How long does shipping take?", a: `Delivery takes ${formatDeliveryWindow()} on our fastest routes, and up to ${MAX_ROUTE_EXTRA_DAYS} days longer for distant countries. Checkout shows the exact window for your address before you pay, and you'll get tracking by email the moment your order leaves the garage.` },
   { q: "What's covered under warranty?", a: "Every trike includes a 2-year frame warranty and 1-year coverage on the drivetrain and electronics. See Shipping & Warranty for full details." },
   { q: "Can I return a trike?", a: "Unused rigs can be returned within 30 days, minus return shipping and any restocking fee. Custom builds are final sale. See our Returns & Refunds policy for the full process." },
   { q: "Do you ship internationally?", a: "Yes — we manufacture and ship direct to every country. Duties and taxes are calculated at checkout for supported regions, or billed by your local customs." },

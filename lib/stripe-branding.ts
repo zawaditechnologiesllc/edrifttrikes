@@ -1,5 +1,6 @@
 import { COMPANY } from "@/lib/company";
-import { ESTIMATED_DELIVERY_DAYS } from "@/lib/fulfillment";
+import { normalizeCountry } from "@/lib/countries";
+import { formatDeliveryWindow } from "@/lib/delivery";
 import { DEFAULT_DUTY_RATE_BPS } from "@/lib/totals";
 
 /**
@@ -49,13 +50,26 @@ export function clampCustomText(
 const dutyPct = DEFAULT_DUTY_RATE_BPS / 100;
 
 /**
+ * How the destination is named on Stripe's page.
+ *
+ * The buyer has already typed their address, so naming the country makes the
+ * quoted window read as theirs rather than as generic marketing copy. An
+ * unrecognised country falls back to neutral wording rather than echoing
+ * whatever string arrived.
+ */
+function destination(country?: string | null): string {
+  const name = country ? normalizeCountry(country) : null;
+  return name ?? "your address";
+}
+
+/**
  * Text shown alongside the pay button — the last thing a buyer reads before
  * committing, so it carries the two facts most likely to cause a dispute
  * later: who is charging them, and the customs duty they will owe separately.
  */
-export function submitMessage(): string {
+export function submitMessage(country?: string | null): string {
   return clampCustomText(
-    `You're paying ${COMPANY.name}. Delivery is tracked end to end and takes around ${ESTIMATED_DELIVERY_DAYS} days. ` +
+    `You're paying ${COMPANY.name}. Delivery to ${destination(country)} is tracked end to end and takes ${formatDeliveryWindow(country)}. ` +
       `An estimated ${dutyPct}% import duty is payable by you to your local customs authority on arrival — it is not included in this total and we never collect it. ` +
       `Questions before you pay? ${COMPANY.supportEmail}`
   );
@@ -84,12 +98,12 @@ export function paymentDescription(orderNumber: string): string {
  * Kept as one object so every caller gets the same treatment and nothing drifts
  * between the redirect flow and any future embedded one.
  */
-export function stripeCompanyContent(orderNumber: string) {
+export function stripeCompanyContent(orderNumber: string, country?: string | null) {
   return {
     // "Pay" rather than the default "Subscribe"/"Donate" wording.
     submit_type: "pay" as const,
     custom_text: {
-      submit: { message: submitMessage() },
+      submit: { message: submitMessage(country) },
       after_submit: { message: afterSubmitMessage() },
     },
     payment_intent_data: {

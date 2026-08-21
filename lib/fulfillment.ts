@@ -40,8 +40,15 @@ export const FULFILLMENT_SCHEDULE = [
   { stage: "ready_for_collection", afterDays: 28 },
 ] as const satisfies readonly { stage: FulfillmentStage; afterDays: number }[];
 
-/** Days after payment that the customer is told to expect the package. */
-export const ESTIMATED_DELIVERY_DAYS = 28;
+/**
+ * How long the tracking schedule runs — the day the final stage falls due.
+ *
+ * NOT the delivery window quoted to the customer. That lives in lib/delivery.ts
+ * and depends on where the parcel is going (12–20 days, plus up to 7 for
+ * distant routes). This number is the cadence the stage emails fire on, and it
+ * is the outer bound: the longest quoted window still lands inside it.
+ */
+export const SCHEDULE_SPAN_DAYS = 28;
 
 /** Stages the scheduler is allowed to move an order through, in order. */
 export const SCHEDULED_STAGES: FulfillmentStage[] = FULFILLMENT_SCHEDULE.map(
@@ -127,9 +134,19 @@ export function addDays(from: Date | string, days: number): Date {
   return new Date(base.getTime() + days * DAY_MS);
 }
 
-/** The delivery date a customer is quoted, derived from when they paid. */
-export function estimatedDeliveryAt(paidAt: Date | string): Date {
-  return addDays(paidAt, ESTIMATED_DELIVERY_DAYS);
+/**
+ * The delivery date a customer is quoted, derived from when they paid.
+ *
+ * `days` comes from lib/delivery.ts — the far end of THAT BUYER's window, which
+ * depends on where the parcel is going. It is passed in rather than looked up
+ * here so this module stays purely about the schedule: callers that know the
+ * destination supply it, and the rest get the base window.
+ */
+export function estimatedDeliveryAt(
+  paidAt: Date | string,
+  days: number = SCHEDULE_SPAN_DAYS
+): Date {
+  return addDays(paidAt, days);
 }
 
 /** Human-readable delivery date for emails and the tracker ("12 March 2026"). */

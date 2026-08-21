@@ -2,6 +2,8 @@
 
 import { countries } from "@/lib/countries";
 import type { FieldSpec } from "@/lib/validation";
+import type { AddressPrefill } from "@/lib/address-lookup";
+import AddressAutocomplete from "@/components/checkout/AddressAutocomplete";
 
 /**
  * One checkout input, with everything a buyer needs to fill it correctly:
@@ -27,6 +29,8 @@ export default function CheckoutField({
   touched,
   onChange,
   onBlur,
+  country,
+  onPickAddress,
 }: {
   spec: FieldSpec;
   value: string;
@@ -34,6 +38,10 @@ export default function CheckoutField({
   touched: boolean;
   onChange: (value: string) => void;
   onBlur: () => void;
+  /** Current country code — narrows the address lookup to where they are. */
+  country?: string;
+  /** Fills the rest of the address from a picked suggestion. */
+  onPickAddress?: (prefill: AddressPrefill) => void;
 }) {
   const showError = touched && Boolean(error);
   const describedBy = showError ? `${spec.name}-error` : `${spec.name}-hint`;
@@ -52,7 +60,24 @@ export default function CheckoutField({
         {spec.required && <span className="text-secondary ml-1">*</span>}
       </label>
 
-      {spec.name === "country" ? (
+      {spec.name === "address" && onPickAddress ? (
+        /* The street line gets the lookup. Everything it fills — city, state,
+           ZIP, country — is a field the buyer would otherwise type by hand. */
+        <AddressAutocomplete
+          id={spec.name}
+          value={value}
+          country={country ?? ""}
+          onChange={onChange}
+          onPick={onPickAddress}
+          onBlur={onBlur}
+          placeholder={spec.placeholder}
+          describedBy={describedBy}
+          invalid={showError}
+          maxLength={spec.maxLength}
+          required={spec.required}
+          className={`${baseInput} ${borderClass}`}
+        />
+      ) : spec.name === "country" ? (
         <select
           id={spec.name}
           name={spec.name}
