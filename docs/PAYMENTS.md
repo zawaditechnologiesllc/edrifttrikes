@@ -135,6 +135,46 @@ Stripe Payment Element.
 - [ ] Redeploy Cloudflare **and** Render after changing variables.
 - [ ] `/api/health` shows the providers you expect as `true`; `/admin/status` says **"Checkout live."**
 - [ ] One end-to-end test order per provider (sandbox first), confirm redirect → paid → receipt.
+- [ ] Stripe **Radar** rules configured — see section 7. Do this one first if you
+      have seen stolen-card attempts.
+
+
+## 7. Stolen cards: the control that actually works
+
+The store blocks a list of countries at the edge (`BLOCKED_COUNTRIES`, see
+[`DEPLOYMENT.md` §10f](./DEPLOYMENT.md)). **That is a speed bump, not a
+defence.** It works on where the browser appears to be, and a VPN changes that
+in one click. A carder on a VPN, shipping to a mule address in a country you do
+serve, never touches it.
+
+Card fraud is stopped at the payment layer, where the card details actually are.
+Stripe → **Radar** → **Rules**. None of this needs a deploy:
+
+| Rule | Why |
+|---|---|
+| Block if `:card_country: != :ip_country:` | The single strongest signal. A card issued in one country being used from another is the shape almost every stolen-card attempt has. Expect a few false positives from genuine travellers and expats — review, don't just block, if that matters to you. |
+| Block if `:cvc_check: != 'pass'` | A carder usually has the number, not the card. Stripe already requires CVC entry; this refuses the payment when the *issuer* says it was wrong. |
+| Block if `:address_zip_check: != 'pass'` | Same reasoning for the billing postcode. |
+| Review if `:risk_level: = 'elevated'` | Holds the borderline ones for a human instead of guessing. |
+| Block if `:card_country: in (...)` | Only if you want the country block enforced against the *card* as well as the IP — this is the version a VPN cannot get around. |
+
+Also worth doing, in order of value:
+
+1. **Turn on 3D Secure for risky payments** (Radar → *Request 3D Secure* on
+   elevated risk). It shifts chargeback liability to the issuer on authenticated
+   payments — the fraud stops costing you money rather than merely being
+   detected.
+2. **Watch the dispute rate.** Above roughly 0.75% of transactions, card
+   networks start charging monitoring fees; the reputational cost with Stripe
+   arrives well before the financial one.
+3. **Don't fulfil straight off `paid`.** The store already requires an admin to
+   move an order along; keep that habit for first-time buyers with a high order
+   value and a fresh email address.
+
+PayPal has its own equivalent (Fraud Protection filters in the developer
+dashboard), but the payment protection it offers on Seller Protection–eligible
+transactions covers most of this already, provided you ship to the address
+PayPal supplied and keep the tracking number on the order.
 
 
 ## Company content on the Stripe page

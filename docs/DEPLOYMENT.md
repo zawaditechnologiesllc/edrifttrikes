@@ -525,6 +525,8 @@ PAYPAL_CLIENT_ID                     # if using PayPal
 PAYPAL_SECRET                        # if using PayPal
 PAYPAL_ENV                           # sandbox | live
 GOOGLE_MAPS_API_KEY                  # optional — upgrades address autocomplete
+BLOCKED_COUNTRIES                    # optional — defaults to IN,PK,BD (see 10f)
+CLOUDFLARE_ANALYTICS_TOKEN           # optional — turns on Web Analytics (see 11)
 ```
 
 **Render (`/server`):**
@@ -608,6 +610,64 @@ months). Only do this once you're sure the site is always HTTPS.
   never committed. (`.env*` is git-ignored.)
 - The service-role key bypasses RLS — treat it like a root password. Rotate it in
   Supabase (Settings → API) if it's ever exposed.
+
+### 10f. Countries the store does not serve
+After a run of stolen-card attempts, the store refuses **India, Pakistan and
+Bangladesh** by default. That is a commercial decision about who carries the
+chargeback, and you change it without a deploy:
+
+- Worker → **Settings → Variables and Secrets** → `BLOCKED_COUNTRIES`
+- Comma or space separated ISO alpha-2 codes, e.g. `IN,PK,BD,NG`
+- **Unset** = the default `IN,PK,BD`
+- **Empty string** = block nobody (the fast way to switch it off)
+
+The list is applied in three places, from one definition in `lib/geo.ts`:
+
+| Layer | What it catches | What it misses |
+|---|---|---|
+| `middleware.ts` | Page requests, by the IP's country (Cloudflare's `cf-ipcountry`) | Anyone on a VPN |
+| `lib/countries.ts` | The checkout country select — a blocked country is not a shipping destination, and `validateShippingField` rejects it server-side too | Nothing; it's about where the goods go |
+| `app/api/checkout` | A crafted request that never touched the form | Anyone on a VPN shipping elsewhere |
+
+Blocked visitors get `/unavailable` (a rewrite, HTTP 403 — the URL they asked
+for stays in the bar). Payment webhooks, cron, health checks and static assets
+are exempt: refusing a webhook does not prevent a payment, it loses the order.
+A country Cloudflare **cannot** identify is served, never refused.
+
+> ⚠️ **This does not stop a stolen card.** It stops one being used *from* these
+> countries to ship *to* these countries. A carder on a VPN shipping to a mule
+> address walks straight through. The control that actually catches that is in
+> Stripe → **Radar**: block when the card's issuing country doesn't match the
+> billing country, and require CVC + postal-code match. See
+> [`PAYMENTS.md`](./PAYMENTS.md).
+
+**Cost note.** The middleware matcher now covers every page, so the Worker runs
+on requests Cloudflare previously served as free static assets. If that ever
+shows up on the bill, move the country block to a **WAF custom rule** (Security
+→ WAF → Custom rules → `ip.geoip.country in {"IN" "PK" "BD"}` → Block). That
+runs before the Worker and costs nothing; then narrow the matcher in
+`middleware.ts` back to the auth paths.
+
+---
+
+## 11. Analytics (optional, 2 minutes)
+Nothing is measured until you do this — which means "should the homepage lead
+with products or with the spec?" is currently unanswerable.
+
+1. Cloudflare dashboard → **Web Analytics** → **Add a site** → your domain.
+2. Copy the **token** out of the snippet it shows you (the value of
+   `data-cf-beacon`). You do **not** need to paste the snippet anywhere.
+3. Worker → **Settings → Variables and Secrets** → `CLOUDFLARE_ANALYTICS_TOKEN`
+   = that token. **No redeploy needed** — the beacon is loaded in the browser
+   from a runtime read, so it works on statically prerendered pages (the
+   homepage included) as well as dynamic ones. Allow a minute for the cached
+   `/api/public-env` response to turn over.
+
+No token set = no script tag, so this is safe to leave off. It sets **no
+cookies** and stores no personal data, so it needs no consent banner and no
+privacy-policy change. Watch: sessions that reach `/cart` vs `/checkout` vs
+`/order-confirmation` — that ratio is what tells you whether a homepage change
+helped.
 
 
 ## Product colours

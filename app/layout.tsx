@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import Analytics from "@/components/Analytics";
 import Enhancements from "@/components/Enhancements";
 import PublicEnvScript from "@/components/PublicEnvScript";
 import SiteSettingsProvider from "@/components/storefront/SiteSettingsProvider";
@@ -76,6 +77,7 @@ export default async function RootLayout({
           </CartProvider>
         </SiteSettingsProvider>
         <Enhancements />
+        <Analytics />
       </body>
     </html>
   );

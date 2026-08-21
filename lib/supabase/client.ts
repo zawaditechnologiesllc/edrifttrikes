@@ -13,6 +13,10 @@ declare global {
       NEXT_PUBLIC_PAYPAL_CLIENT_ID?: string;
       NEXT_PUBLIC_PAYPAL_CARD_FIELDS?: string;
       NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string;
+      // null means "not configured" (fall back to the default list); an
+      // empty string means "block nothing". They are not the same.
+      BLOCKED_COUNTRIES?: string | null;
+      CLOUDFLARE_ANALYTICS_TOKEN?: string;
     };
   }
 }
