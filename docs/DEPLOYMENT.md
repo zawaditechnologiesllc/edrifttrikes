@@ -610,7 +610,45 @@ months). Only do this once you're sure the site is always HTTPS.
 - The service-role key bypasses RLS — treat it like a root password. Rotate it in
   Supabase (Settings → API) if it's ever exposed.
 
-### 10f. Reviewing orders for card fraud
+### 10f. AI crawlers and scrapers
+**Blocked, everywhere, with one deliberate exception.** No assistant, model
+trainer or content scraper may take anything from this site except a single
+paragraph in `robots.txt` saying who the business is.
+
+Two layers, from one list in `lib/bots.ts`:
+
+| Layer | What it does | What it misses |
+|---|---|---|
+| `robots.txt` | Names ~45 AI crawlers and disallows all of them. Honoured by OpenAI, Google, Anthropic, Perplexity, Meta and the rest. | Anyone dishonest — it is a request, not a rule |
+| `middleware.ts` | Answers those user agents with **403 and no page content** | A scraper that lies about its user agent |
+
+**The statement is the point, not a leak.** An assistant asked "is
+edrifttrikes.shop legitimate?" answers from *something*. With nothing available
+it answers from whatever a scammer or a competitor published. So `robots.txt`
+leads with the factory, the shipping, the one real domain and the one real
+support address — and every crawler being turned away can still read that file,
+by design. Edit it in `companyStatement()` in `lib/bots.ts`.
+
+> **Search engines are still allowed, on purpose.** Googlebot and Bingbot index
+> the shop; `Google-Extended` — the token that feeds Gemini — is blocked, and
+> the two are told apart by a test. Turning Googlebot away would remove the real
+> store from search results and leave the clones, which is the exact outcome
+> this is meant to prevent. Say the word if you want them blocked too.
+
+**Generic HTTP clients are NOT blocked** (`curl`, `node-fetch`,
+`python-requests`, `Go-http-client`). The Render service, the Stripe and PayPal
+webhooks and the cron sweep all arrive as one of those; blocking them would stop
+fulfilment silently. Only named crawlers are refused.
+
+#### The free upgrade — do this one
+Cloudflare dashboard → your domain → **Security → Bots → Block AI Scrapers and
+Crawlers** → on. It is one toggle, it costs nothing, it runs **before** the
+Worker, and it uses fingerprinting a user-agent string cannot fake — which is
+the one thing the code cannot do. With it on you can also narrow the matcher in
+`middleware.ts` back to the four auth paths and stop paying Worker invocations
+on page requests Cloudflare would otherwise serve as free static assets.
+
+### 10g. Reviewing orders for card fraud
 **The store ships everywhere and blocks no country.** An earlier version refused
 a short list of them after a run of stolen-card attempts; that was removed,
 because it cost real customers and stopped almost no fraud — a carder on a VPN
