@@ -29,8 +29,15 @@ export type CheckoutFieldName =
 export type FieldSpec = {
   name: CheckoutFieldName;
   label: string;
-  /** Shown under the input — what to type and, where useful, why we need it. */
-  hint: string;
+  /**
+   * Shown under the input, and OPTIONAL on purpose.
+   *
+   * Only where it earns its place: an edge case the buyer would otherwise get
+   * wrong, or a reason we are asking. A hint that restates the label ("Your
+   * family or surname") is one more line between someone and paying, on the
+   * page where that costs the most.
+   */
+  hint?: string;
   placeholder: string;
   /** Lets the browser autofill the whole address in one go. */
   autoComplete: string;
@@ -76,7 +83,6 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
   {
     name: "first_name",
     label: "First name",
-    hint: "As it appears on your ID — couriers may check it on delivery.",
     placeholder: "Enter your first name",
     autoComplete: "given-name",
     required: true,
@@ -86,7 +92,6 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
   {
     name: "last_name",
     label: "Last name",
-    hint: "Your family or surname.",
     placeholder: "Enter your last name",
     autoComplete: "family-name",
     required: true,
@@ -106,7 +111,6 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
   {
     name: "address2",
     label: "Apartment, suite, unit (optional)",
-    hint: "Anything else the courier needs to find you — floor, buzzer, gate code.",
     placeholder: "Apartment, suite, floor or gate code",
     autoComplete: "address-line2",
     required: false,
@@ -116,7 +120,6 @@ export const CHECKOUT_FIELDS: FieldSpec[] = [
   {
     name: "city",
     label: "City / Town",
-    hint: "The city or town for delivery.",
     placeholder: "Enter your city or town",
     autoComplete: "address-level2",
     required: true,

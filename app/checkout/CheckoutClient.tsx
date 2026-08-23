@@ -219,15 +219,6 @@ export default function CheckoutClient({
   // Mirrors the real journey in lib/fulfillment.ts — the emails a buyer
   // actually receives. Quoting a different window here than the one the system
   // then emails them is how a store ends up arguing with its own customers.
-  const STEPS = [
-    ["1", "Place your order", "Pay securely by card or PayPal. We email you what you ordered right away."],
-    ["2", "Payment confirmed", "Once your payment clears we email your full receipt and start your build."],
-    ["3", "Shipped", "Leaves the garage in about 3 days. Tracking is emailed."],
-    // The window narrows to the buyer's own country the moment they choose
-    // one, so the promise on this page is the promise in their email.
-    ["4", "Delivery", deliveryEstimateSentence(shipping.country)],
-  ] as const;
-
   const methodBtn = (active: boolean) =>
     `flex items-center justify-center gap-2 rounded-lg border py-3 px-3 text-sm font-label-bold uppercase tracking-widest transition-all ${
       active
@@ -239,19 +230,16 @@ export default function CheckoutClient({
     <div className="bg-background text-on-surface min-h-screen">
       <SiteHeader />
       <main className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-12">
-        <h1 className="font-headline-xl text-headline-xl uppercase text-white mb-2">Secure Checkout</h1>
-        <p className="text-on-surface-variant font-label-bold uppercase tracking-widest mb-8">Encrypted performance protocol</p>
-
-        {/* What happens after you order — keeps the process unambiguous. */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
-          {STEPS.map(([n, title, body]) => (
-            <div key={n} className="bg-surface-container-low border border-white/10 rounded-lg p-4">
-              <p className="text-secondary font-headline-md text-lg">{n}</p>
-              <p className="text-white font-label-bold uppercase tracking-widest text-xs mt-1">{title}</p>
-              <p className="text-on-surface-variant text-xs mt-1">{body}</p>
-            </div>
-          ))}
-        </div>
+        {/*
+          NOTHING BETWEEN THE HEADING AND THE FIRST FIELD.
+          This page used to open with a tagline that said nothing ("encrypted
+          performance protocol") and a four-card explainer of what happens after
+          ordering — together about 400px on a laptop and a full screen on a
+          phone, every pixel of it standing between a buyer and the email box.
+          The one genuinely useful line in it, the delivery window, moved to the
+          order summary where it does its work at the moment of paying.
+        */}
+        <h1 className="font-headline-xl text-headline-xl uppercase text-white mb-8">Secure Checkout</h1>
 
         {noPayments && (
           <div className="mb-10 bg-signal-orange/10 border border-signal-orange/50 rounded-lg p-6">
@@ -311,22 +299,22 @@ export default function CheckoutClient({
             </section>
 
             <section className="bg-surface-container-low p-6 sm:p-8 border border-white/10 rounded-lg">
-              <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary mb-1">02 — Shipping address</h2>
-              <p className="text-on-surface-variant text-sm mb-6">
-                Where the rig is delivered. Fields marked{" "}
-                <span className="text-secondary">*</span> are required.{" "}
-                {shipping.country ? (
-                  <>
-                    Start typing your street address and pick it from the list — we&apos;ll
-                    fill in the rest for you.
-                  </>
-                ) : (
-                  <>
-                    Choose your country first — we&apos;ll then find your address as you
-                    type and fill in the rest.
-                  </>
-                )}
-              </p>
+              <h2
+                className={`font-label-bold text-label-bold uppercase tracking-widest text-secondary ${
+                  shipping.country ? "mb-6" : "mb-1"
+                }`}
+              >
+                02 — Shipping address
+              </h2>
+              {/* The asterisks already say which fields are required, and the
+                  street field's own hint already explains the lookup. This line
+                  is only worth its space before a country is chosen, when the
+                  buyer cannot yet see either. */}
+              {!shipping.country && (
+                <p className="text-on-surface-variant text-sm mb-6">
+                  Choose your country first — we&apos;ll find your address as you type.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-x-4 gap-y-5">
                 {checkoutFieldsFor(shipping.country).map((spec) => (
                   <CheckoutField
@@ -382,6 +370,13 @@ export default function CheckoutClient({
               <div className="flex justify-between text-on-surface-variant"><span>Shipping</span><span className="text-white">{totals.shipping === 0 ? "FREE" : formatMoney(totals.shipping)}</span></div>
               <div className="flex justify-between text-on-surface-variant"><span>Tax</span><span className="text-white">{formatMoney(totals.tax)}</span></div>
               <div className="flex justify-between font-label-bold uppercase tracking-widest pt-2"><span className="text-white">Total</span><span className="text-secondary text-xl">{formatMoney(totals.total)}</span></div>
+              {/* The one line from the old explainer band worth keeping, moved
+                  to where a buyer actually wants it: next to the amount, at the
+                  moment they decide. It narrows to their own country as soon as
+                  they pick one. */}
+              <p className="text-on-surface-variant text-xs pt-1">
+                {deliveryEstimateSentence(shipping.country)}
+              </p>
             </div>
 
             {both && (
