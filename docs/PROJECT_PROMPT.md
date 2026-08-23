@@ -190,6 +190,16 @@ Everything is server-rendered with `unstable_cache` + tags (`catalog`,
 - **Do not clear the cart on redirect to the payment provider.** Clear it on the
   confirmation page, after payment actually succeeded. Emptying a cart for a
   buyer who bounces off the payment page loses the sale.
+- **Put the amount in your own copy on the hosted payment page.** The provider
+  renders its own summary, but it is a side column on desktop and a collapsed
+  bar on mobile — and once local-currency conversion is on, the figure in it is
+  not the currency the order is denominated in. State the charge amount, with
+  cents, in the custom text beside the pay button. Send no zero-value line items
+  (`Tax $0.00`) — they only push the total further down.
+- **A display feature must never be able to break a payment.** Anything optional
+  on a session — local-currency conversion, a custom field — goes in behind a
+  retry that drops it and creates the session again. Losing the nicety is a
+  shame; losing the sale is not acceptable.
 
 **Order status is owned by payment, not by the checkout.** An order is created
 `pending`. Only a verified webhook, a completed capture, or an admin marks it

@@ -7,6 +7,7 @@ import {
   paymentDescription,
   stripeCompanyContent,
   submitMessage,
+  formatUsd,
 } from "../lib/stripe-branding";
 import { COMPANY } from "../lib/company";
 import { formatDeliveryWindow } from "../lib/delivery";
@@ -111,5 +112,79 @@ describe("stripeCompanyContent", () => {
     const d = paymentDescription("EDT-99887766");
     assert.ok(d.includes("EDT-99887766"));
     assert.ok(d.includes(COMPANY.name));
+  });
+});
+
+describe("the amount on Stripe's page", () => {
+  /**
+   * Stripe renders its own order summary, but it is a separate column on
+   * desktop, a collapsed bar at the top on mobile, and — with Adaptive Pricing
+   * on — denominated in the buyer's LOCAL currency. Putting the USD figure in
+   * our own copy means the amount being charged is on screen whatever Stripe
+   * does with the layout around it.
+   */
+
+  test("always shows cents, even on a round figure", () => {
+    // "US$1,446" beside a card form reads as an estimate. "US$1,446.00" reads
+    // as the amount being taken.
+    assert.equal(formatUsd(144600), "US$1,446.00");
+    assert.equal(formatUsd(40000), "US$400.00");
+    assert.equal(formatUsd(1050), "US$10.50");
+    assert.equal(formatUsd(0), "US$0.00");
+  });
+
+  test("says US$, not a bare dollar sign", () => {
+    // The page is read in Canada, Australia and Singapore too, where a lone
+    // dollar sign is genuinely ambiguous.
+    assert.ok(formatUsd(40000).startsWith("US$"));
+  });
+
+  test("never renders NaN into a payment page", () => {
+    for (const bad of [NaN, Infinity, -1, undefined]) {
+      assert.equal(formatUsd(bad as unknown as number), "US$0.00");
+    }
+  });
+
+  test("the submit message carries the total and the order number", () => {
+    const msg = submitMessage("Kenya", { totalCents: 144600, orderNumber: "ED-2026-0148" });
+    assert.ok(msg.includes("US$1,446.00"), msg);
+    assert.ok(msg.includes("ED-2026-0148"), msg);
+    assert.ok(msg.includes(COMPANY.name));
+  });
+
+  test("and still works when no total is passed", () => {
+    // The signature has to stay usable without one — a message with a dangling
+    // "You're paying  ." would be worse than no amount.
+    const msg = submitMessage("Kenya");
+    assert.ok(!msg.includes("US$"));
+    assert.doesNotMatch(msg, /\s{2,}/);
+    assert.doesNotMatch(msg, / \./);
+  });
+
+  test("warns that the bank may bill in another currency", () => {
+    // True whether or not Adaptive Pricing is on, and it is the difference
+    // between a surprise on a statement and an expected one.
+    assert.match(submitMessage("Kenya", { totalCents: 100 }), /own currency/i);
+  });
+
+  test("stays inside Stripe's limit with the longest realistic inputs", () => {
+    const msg = submitMessage("United States", {
+      totalCents: 99999999,
+      orderNumber: "ED-2026-0148",
+    });
+    assert.ok(msg.length <= STRIPE_CUSTOM_TEXT_LIMIT);
+  });
+});
+
+describe("showing the buyer their own currency", () => {
+  test("Adaptive Pricing is requested explicitly", () => {
+    // It defaults to a Dashboard setting; sending it is the half we control.
+    const content = stripeCompanyContent("ED-1", "Kenya", 144600);
+    assert.deepEqual(content.adaptive_pricing, { enabled: true });
+  });
+
+  test("the USD total reaches the page through the submit message", () => {
+    const content = stripeCompanyContent("ED-1", "Kenya", 144600);
+    assert.ok(content.custom_text.submit.message.includes("US$1,446.00"));
   });
 });

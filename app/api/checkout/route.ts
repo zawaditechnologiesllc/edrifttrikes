@@ -359,8 +359,8 @@ export async function POST(request: Request) {
   // Stripe path — real payment (default when configured).
   if (stripe) {
     try {
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
+    const params = {
+      mode: "payment" as const,
       customer_email: email,
       line_items: [
         ...lineItems.map((i) => ({
@@ -383,14 +383,20 @@ export async function POST(request: Request) {
               },
             ]
           : []),
-        {
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: totals.tax,
-            product_data: { name: "Tax" },
-          },
-        },
+        // Only when there IS tax. A "Tax US$0.00" row on the payment page is
+        // noise that pushes the total further down the summary for nothing.
+        ...(totals.tax > 0
+          ? [
+              {
+                quantity: 1,
+                price_data: {
+                  currency: "usd",
+                  unit_amount: totals.tax,
+                  product_data: { name: "Tax" },
+                },
+              },
+            ]
+          : []),
       ],
       success_url: `${siteUrl}/order-confirmation?order=${order.order_number}`,
       cancel_url: `${siteUrl}/checkout`,
@@ -399,8 +405,25 @@ export async function POST(request: Request) {
       // window, derived from the same constants as our checkout and emails so
       // the three cannot disagree.
       // See lib/stripe-branding.ts. Logo and colours are Dashboard settings.
-      ...stripeCompanyContent(order.order_number, shipping.country),
-    });
+      ...stripeCompanyContent(order.order_number, shipping.country, totals.total),
+    };
+
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(params);
+    } catch (e) {
+      // Adaptive Pricing is a DISPLAY feature: it shows the buyer their own
+      // currency. Not every account or region has it, and an account that
+      // rejects the flag would otherwise take the whole checkout down with it.
+      // Losing the local-currency display is a shame; losing the sale is not
+      // acceptable, so retry once without it.
+      const reason = String((e as Error)?.message || e);
+      if (!/adaptive_pricing/i.test(reason)) throw e;
+      console.warn("[checkout] Stripe rejected adaptive_pricing; retrying without it");
+      const { adaptive_pricing: _dropped, ...rest } = params;
+      session = await stripe.checkout.sessions.create(rest);
+    }
+
     await admin.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
     return NextResponse.json({ url: session.url });
     } catch (e) {
