@@ -10,6 +10,8 @@ import {
   parseColors,
   productColors,
   requiresColorChoice,
+  defaultColor,
+  resolveColor,
   colorsFromDescription,
   colorsFromPhrase,
   descriptionBody,
@@ -498,5 +500,49 @@ describe("colours written as a SENTENCE, not under a heading", () => {
     for (const spec of ["5000w", "certified", "configuration", "kg", "battery"]) {
       assert.ok(!found.some((c) => c.includes(spec)), `"${spec}" became a colour`);
     }
+  });
+});
+
+describe("what colour a line gets when nobody picked one", () => {
+  /**
+   * The shop does not block checkout to make someone choose. Every unit has a
+   * colour whether or not a buyer thought about it, so an unchosen line takes
+   * the first colour on the product — the order the admin wrote them in the
+   * sheet, which makes the default a decision rather than an accident.
+   *
+   * The product page selects the same value from the moment it loads, so the
+   * buyer always SEES what is going in the cart. A default they never saw
+   * would be a support conversation, not a saved sale.
+   */
+  const offered = parseColors("Red, Black, White, Blue, Purple");
+
+  test("takes the FIRST colour on the product", () => {
+    assert.equal(defaultColor(offered), "Red");
+    assert.equal(resolveColor(offered, null), "Red");
+    assert.equal(resolveColor(offered, undefined), "Red");
+    assert.equal(resolveColor(offered, ""), "Red");
+  });
+
+  test("a product with no colours has no default — that is not a colour", () => {
+    assert.equal(defaultColor([]), null);
+    assert.equal(resolveColor([], null), null);
+    assert.equal(resolveColor([], "Red"), null);
+  });
+
+  test("an actual choice still wins, in the product's own spelling", () => {
+    assert.equal(resolveColor(offered, "blue"), "Blue");
+    assert.equal(resolveColor(offered, "  WHITE  "), "White");
+  });
+
+  test("a colour the product does NOT come in is not silently defaulted", () => {
+    // matchColor stays the guard for that: quietly substituting would put a
+    // colour on the order the buyer explicitly did not ask for, and the
+    // packing slip would be the first they heard of it. The checkout route
+    // refuses this case rather than calling resolveColor.
+    assert.equal(matchColor(offered, "Chartreuse"), null);
+  });
+
+  test("the default follows the sheet's order, not the alphabet", () => {
+    assert.equal(defaultColor(parseColors("Purple, Black, Red")), "Purple");
   });
 });

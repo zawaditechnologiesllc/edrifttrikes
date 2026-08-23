@@ -8,7 +8,6 @@ export default function AddToCartButton({
   className,
   label = "Add to Cart",
   qty = 1,
-  guard,
 }: {
   item: Omit<CartItem, "qty">;
   className?: string;
@@ -21,7 +20,6 @@ export default function AddToCartButton({
    * click can explain what is missing — a disabled control just sits there
    * telling the buyer nothing.
    */
-  guard?: () => boolean;
 }) {
   const { add, setOpen } = useCart();
   const [added, setAdded] = useState(false);
@@ -33,7 +31,6 @@ export default function AddToCartButton({
       disabled={soldOut}
       onClick={() => {
         if (soldOut) return;
-        if (guard && !guard()) return;
         add(item, qty);
         setOpen(true);
         setAdded(true);

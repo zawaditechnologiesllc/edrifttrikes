@@ -7,7 +7,7 @@ import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
 import { sendAbandonedCartEmail } from "@/lib/email";
-import { matchColor, productColorOptions } from "@/lib/colors";
+import { matchColor, productColorOptions, defaultColor } from "@/lib/colors";
 import { publicSiteUrl } from "@/lib/env";
 import { originFromRequest } from "@/lib/request-origin";
 import { assessOrigin } from "@/lib/risk";
@@ -136,10 +136,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No valid products in cart." }, { status: 400 });
   }
 
-  // A colour the product doesn't come in must never reach an order — the
-  // packing slip would name something that cannot be shipped. matchColor also
-  // returns the PRODUCT's spelling, so the order reads consistently however the
-  // request capitalised it.
+  // Two different situations, deliberately handled differently:
+  //
+  //  - NO COLOUR CHOSEN → take the first the product offers. Blocking checkout
+  //    to make someone pick costs sales, and every unit has a colour whether or
+  //    not anyone chose it. The product page pre-selects the same value, so
+  //    this only fires for a stale cart or a request that never saw the form.
+  //  - A COLOUR THE PRODUCT DOESN'T COME IN → still refused. Quietly swapping
+  //    it would put a colour on the order that the buyer explicitly did not
+  //    ask for, and the packing slip would be the first they heard of it.
+  //
+  // matchColor returns the PRODUCT's spelling either way, so the order reads
+  // consistently however the request capitalised it.
   let colorError: string | null = null;
 
   const lineItems = items
@@ -152,13 +160,11 @@ export async function POST(request: Request) {
       let color: string | null = null;
       if (offered.length > 0) {
         color = matchColor(offered, i.color);
-        if (!color) {
-          colorError =
-            i.color
-              ? `"${String(i.color).slice(0, 40)}" isn't a colour ${p.name} comes in. Please choose again.`
-              : `Choose a colour for ${p.name} before checking out.`;
+        if (!color && i.color) {
+          colorError = `"${String(i.color).slice(0, 40)}" isn't a colour ${p.name} comes in. Please choose again.`;
           return null;
         }
+        color = color ?? defaultColor(offered);
       }
 
       return {

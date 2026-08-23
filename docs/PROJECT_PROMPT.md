@@ -282,21 +282,45 @@ against the stored row and name what changed.
 
 ## 8. PRODUCT COLOURS
 
-The admin writes one line in the product sheet:
+The admin writes them in the product sheet, and **real sheets write them three
+different ways**. Support all three or the picker will not appear on most of the
+catalogue:
 
 ```
-Colors: Midnight Black #101010, Voltage Blue #1e5bff, Hazard Lime
+Colors: Midnight Black #101010, Voltage Blue #1e5bff, Hazard Lime   ← heading
+
+COLOURS                                                             ← heading alone
+- Midnight Black                                                       on its line
+- Voltage Blue
+
+- Available in Red, Black, White, Blue, and Purple                  ← a SENTENCE,
+                                                                       mid-list
 ```
 
 Parse commas, semicolons or newlines; accept the hex before, after or in
 brackets; drop duplicates; the hex is optional.
 
+**Keep ONE list of colour headings** shared by the sheet importer and the
+description reader. When those two are maintained separately they drift, and a
+sheet saying "Colour Options:" imports perfectly and then shows no swatches —
+the colours sit in the database with nothing willing to read them. Cover both
+spellings and the obvious synonyms (available colors, colors available, color
+options, colour choices, colorways, frame colours, finish, finishes, shades).
+
+**The sentence form needs guards**, because a false positive renders a sentence
+fragment as a swatch on the live shop. Require the phrase ("available in",
+"comes in", "offered in", "choose from"), at least two items, no item that looks
+like a measurement, and at least one item containing a real colour word. Then
+"Available in 48V, 60V and 72V" and "Available in the UK, Europe and North
+America" both correctly yield nothing. Strip the conjunction off the last item
+or the Oxford comma gives you a colour called "and Purple".
+
 **Read colours from the description too**, for products uploaded before the
-column existed — with a plausibility filter so "Weighs 42kg and ships in a
-crate." never becomes a selectable colour. Provide an admin button that writes
-them onto every product in one pass, **paging through the whole catalogue**, and
-that reports which products still have none. Never overwrite a list edited by
-hand.
+column existed. Provide an admin button that writes them onto every product in
+one pass, **paging through the whole catalogue**, and that reports which
+products still have none. Never overwrite a list edited by hand. Show in the
+edit form when the colours on screen came from the sheet and are **not saved
+yet** — prefilling silently means the admin closes the page assuming they are.
 
 **The swatches, Amazon-style:**
 - A `Colour: <name>` line above that **follows the pointer** — hovering a tile
@@ -307,7 +331,14 @@ hand.
 - An inset hairline on every swatch, or a near-black colour on a dark card is an
   invisible button.
 - No hex in the sheet → show the name in the tile, never a blank or a guess.
-- No pre-selection. Block add-to-cart until a colour is chosen and say why.
+- **Select the first colour from the moment the page loads.** Do not block
+  add-to-cart to force a choice: every unit has a colour whether or not the
+  buyer thought about it, and stopping checkout over it costs sales. Do not
+  label it optional either — a selected default needs no explanation. The
+  server applies the same default when a line arrives with no colour (a stale
+  cart, a non-browser request), and still refuses a colour the product does not
+  come in: quietly substituting one would put a colour on the order the buyer
+  explicitly did not ask for.
 
 Colour is part of the **cart line identity**: the same item in two colours is two
 lines, and it must reach `order_items` and every email and PDF.
@@ -328,6 +359,17 @@ from the critical path.
   updated a variable the caller already had by value.
 - Contents: name, tagline, price, full description, the colour list, delivery
   window, and contact details.
+
+**Say why a logo will not print.** An image decoder that returns null on failure
+means the sheet silently falls back to a text watermark, and an admin who
+uploads a logo, sees it in the preview (a browser reads anything) and finds it
+missing from the PDF cannot tell whether the upload, the save or the file is at
+fault — three different fixes, one silence. Expose a probe that uses the
+writer's own decoder and names the actual problem (interlaced PNG, 16-bit with
+transparency, CMYK or progressive JPEG, not a raster image), refuse the upload
+at save time, and show the state of the CURRENTLY stored logo in the admin,
+separating "not saved" from "saved but unreachable" (a private storage bucket)
+from "downloaded but unusable".
 
 ---
 
@@ -437,7 +479,12 @@ These are what separate this from a generated project.
   served, not refused.
 - **One definition per fact.** If a number appears in two files, one of them is
   going to be wrong later. Where two must be written separately, bind them with
-  a test.
+  a test. This applies to *lists* too: two modules keeping their own copy of the
+  same vocabulary is the same bug with a longer fuse.
+- **Get a real input before widening a parser.** Ask for one actual file. Two
+  rounds were spent adding heading synonyms to a parser when the real sheets had
+  no heading at all — the colours were a sentence in a bullet list, and one look
+  at the file would have said so.
 - **Verify in a browser, not in the diff.** Render the page, take the
   screenshot, click the button. Several of the worst bugs in this codebase were
   invisible in review and obvious on screen.

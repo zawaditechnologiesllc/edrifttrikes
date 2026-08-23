@@ -160,9 +160,39 @@ export function matchColor(
   return colors.find((c) => colorKey(c.name) === key)?.name ?? null;
 }
 
-/** True when the buyer must choose before this product can be added to a cart. */
+/** True when this product has colours to choose between at all. */
 export function requiresColorChoice(colors: ProductColor[]): boolean {
   return colors.length > 0;
+}
+
+/**
+ * The colour a line gets when the buyer never picked one.
+ *
+ * THE FIRST ON THE LIST, which is the order the admin wrote them in the product
+ * sheet — so the default is a decision the shop made rather than an accident of
+ * sorting. Null when the product has no colours, which is not a default: it is
+ * a product that simply has no colour.
+ *
+ * WHY A DEFAULT AT ALL: blocking checkout until a buyer picks costs sales, and
+ * every product here has a colour whether or not anyone chose it. The picker
+ * pre-selects this same value, so a buyer always SEES what is going in the cart
+ * — a silent default they never saw would be a support conversation.
+ */
+export function defaultColor(colors: ProductColor[]): string | null {
+  return colors.length > 0 ? colors[0].name : null;
+}
+
+/**
+ * The colour to record for a line: what they asked for, else the default.
+ *
+ * One function so the product page, the cart and the checkout API cannot
+ * disagree about what an unchosen colour means.
+ */
+export function resolveColor(
+  colors: ProductColor[],
+  requested: string | null | undefined
+): string | null {
+  return matchColor(colors, requested) ?? defaultColor(colors);
 }
 
 // ---------------------------------------------------------------------------
