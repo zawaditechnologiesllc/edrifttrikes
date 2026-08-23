@@ -59,13 +59,47 @@ function destination(country?: string | null): string {
 }
 
 /**
- * Text shown alongside the pay button — the last thing a buyer reads before
- * committing, so it says who is charging them, when it arrives, and where to
- * ask before they commit.
+ * The charge amount, in USD, always with cents.
+ *
+ * `formatMoney` drops the decimals on a round figure, which is right in a
+ * catalogue and wrong on a payment page: "US$1,446" next to a card form reads
+ * as an estimate, "US$1,446.00" reads as the amount being taken. "US$" rather
+ * than a bare "$" because this page is read in Canada, Australia and Singapore
+ * too, where a lone dollar sign is genuinely ambiguous.
  */
-export function submitMessage(country?: string | null): string {
+export function formatUsd(cents: number): string {
+  const amount = Number.isFinite(cents) && cents >= 0 ? cents : 0;
+  return `US$${(amount / 100).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/**
+ * Text shown alongside the pay button — the last thing a buyer reads before
+ * committing, so it says who is charging them, HOW MUCH, when it arrives, and
+ * where to ask.
+ *
+ * THE AMOUNT IS HERE ON PURPOSE. Stripe renders its own order summary, but it
+ * is a separate column on desktop and a collapsed bar at the top on mobile —
+ * and with Adaptive Pricing on, the figure in it is the buyer's LOCAL currency.
+ * Putting the USD total in our own copy means the amount being charged is
+ * always on screen, in the currency the order is actually denominated in,
+ * whatever Stripe does with the layout around it.
+ */
+export function submitMessage(
+  country?: string | null,
+  opts: { totalCents?: number; orderNumber?: string } = {}
+): string {
+  const amount =
+    typeof opts.totalCents === "number"
+      ? ` ${formatUsd(opts.totalCents)}`
+      : "";
+  const order = opts.orderNumber ? ` for order ${opts.orderNumber}` : "";
   return clampCustomText(
-    `You're paying ${COMPANY.name}. Delivery to ${destination(country)} is tracked end to end and takes ${formatDeliveryWindow(country)}. ` +
+    `You're paying ${COMPANY.name}${amount}${order}. ` +
+      `Delivery to ${destination(country)} is tracked end to end and takes ${formatDeliveryWindow(country)}. ` +
+      `Your card may be billed in your own currency at your bank's rate. ` +
       `Questions before you pay? ${COMPANY.supportEmail}`
   );
 }
@@ -93,12 +127,31 @@ export function paymentDescription(orderNumber: string): string {
  * Kept as one object so every caller gets the same treatment and nothing drifts
  * between the redirect flow and any future embedded one.
  */
-export function stripeCompanyContent(orderNumber: string, country?: string | null) {
+export function stripeCompanyContent(
+  orderNumber: string,
+  country?: string | null,
+  totalCents?: number
+) {
   return {
     // "Pay" rather than the default "Subscribe"/"Donate" wording.
     submit_type: "pay" as const,
+    /**
+     * Show the price in the buyer's own currency.
+     *
+     * Stripe converts and presents the total in the local currency, and charges
+     * in it — the order stays denominated in USD on our side either way. Our
+     * submit message states the USD figure, so the page carries both: Stripe's
+     * summary in their currency, our line in ours.
+     *
+     * ⚠️ ALSO A DASHBOARD SETTING. This flag defaults to whatever is configured
+     * at dashboard.stripe.com/settings/adaptive-pricing, and the feature has to
+     * be available to the account at all. Sending it explicitly is the half we
+     * control; if the account rejects it, the checkout route retries without it
+     * rather than losing the sale over a display feature.
+     */
+    adaptive_pricing: { enabled: true },
     custom_text: {
-      submit: { message: submitMessage(country) },
+      submit: { message: submitMessage(country, { totalCents, orderNumber }) },
       after_submit: { message: afterSubmitMessage() },
     },
     payment_intent_data: {

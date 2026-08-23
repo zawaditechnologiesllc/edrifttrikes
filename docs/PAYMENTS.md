@@ -182,6 +182,41 @@ transactions covers most of this already, provided you ship to the address
 PayPal supplied and keep the tracking number on the order.
 
 
+## Showing the buyer their own currency
+
+Every order is denominated in **USD** — that is what the products are priced in
+and what lands on the order record. **Adaptive Pricing** is what makes Stripe's
+hosted page show the total in the buyer's local currency as well.
+
+**Turn it on:** [dashboard.stripe.com/settings/adaptive-pricing](https://dashboard.stripe.com/settings/adaptive-pricing).
+The code already sends `adaptive_pricing: { enabled: true }` on every session,
+but that flag defaults to — and can be overridden by — the Dashboard setting,
+and the feature has to be available to the account at all. If Stripe rejects it,
+the checkout route **retries the session without it** rather than losing the
+sale: a display feature must never be able to break a payment.
+
+With it on, Stripe converts and charges in the local currency and settles to you
+in USD. Your order record, receipt email and admin panel stay in USD either way.
+
+### Both currencies, on one page
+
+Stripe's hosted page shows **one** currency in its own summary — you cannot make
+it print two. So the USD figure goes in **our** copy instead, right beside the
+pay button:
+
+> You're paying {Company} **US$1,446.00** for order ED-2026-0148. Delivery to
+> Kenya is tracked end to end and takes 12–20 days. Your card may be billed in
+> your own currency at your bank's rate.
+
+That is deliberate belt and braces. Stripe's summary is a separate column on
+desktop and a **collapsed bar at the top on mobile** — so on a phone the total
+is behind a tap. The line above is always on screen, always in cents
+(`US$1,446.00`, never `US$1,446` — a round figure beside a card form reads as an
+estimate), and always in the currency the order is actually denominated in.
+
+A `Tax US$0.00` row is no longer sent when there is no tax; it was noise pushing
+the total further down the summary.
+
 ## Company content on the Stripe page
 
 Stripe Checkout is **hosted by Stripe** — you cannot inject HTML, CSS or scripts
