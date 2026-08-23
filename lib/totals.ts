@@ -25,11 +25,13 @@ export type ShippingConfig = {
 
 /** Tax on a subtotal, in cents, at the store's configured rate. */
 export function computeTax(subtotalCents: number, config?: ShippingConfig): number {
-  const bps = config?.tax_rate_bps ?? DEFAULT_TAX_RATE_BPS;
+  const base = Number.isFinite(subtotalCents) && subtotalCents > 0 ? subtotalCents : 0;
+  const raw = config?.tax_rate_bps;
+  const bps = typeof raw === "string" ? Number(raw) : (raw ?? DEFAULT_TAX_RATE_BPS);
   // Guard against a nonsense value reaching a charge: a negative or absurd rate
   // means bad data, and falling back beats billing it.
   const safeBps = Number.isFinite(bps) && bps >= 0 && bps <= 5000 ? bps : DEFAULT_TAX_RATE_BPS;
-  return Math.round((subtotalCents * safeBps) / 10_000);
+  return Math.round((base * safeBps) / 10_000);
 }
 
 export type TotalsItem = {
@@ -47,15 +49,40 @@ export type TotalsItem = {
  * admin-set fee (or the store default), free-shipping products contribute
  * nothing, and the store-wide free_shipping switch zeroes everything.
  */
+/**
+ * A money value that can be trusted downstream.
+ *
+ * Everything here ends up on a screen a buyer reads and, eventually, in an
+ * amount somebody is charged. A single undefined price — a cart entry saved by
+ * an older build, a settings row with a null column, a hand-edited product —
+ * would otherwise turn the whole order into NaN and the checkout would show
+ * nothing where the total goes.
+ */
+function money(value: unknown, fallback = 0): number {
+  const n = typeof value === "string" ? Number(value) : value;
+  return typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+/** Quantity, as an integer of at least one. */
+function count(value: unknown): number {
+  const n = Math.floor(money(value, 1));
+  return n >= 1 ? n : 1;
+}
+
 export function computeCartTotals(items: TotalsItem[], config?: ShippingConfig) {
-  const subtotal = items.reduce((n, i) => n + i.price_cents * i.qty, 0);
-  const defaultFee = config?.shipping_cents ?? DEFAULT_SHIPPING_CENTS;
+  const lines = Array.isArray(items) ? items : [];
+  const subtotal = lines.reduce((n, i) => n + money(i?.price_cents) * count(i?.qty), 0);
+  const defaultFee = money(config?.shipping_cents, DEFAULT_SHIPPING_CENTS);
   const shipping =
     config?.free_shipping || subtotal === 0
       ? 0
-      : items.reduce(
+      : lines.reduce(
           (n, i) =>
-            n + (i.free_shipping ? 0 : (i.shipping_cents ?? defaultFee)) * i.qty,
+            n +
+            (i?.free_shipping
+              ? 0
+              : money(i?.shipping_cents ?? defaultFee, defaultFee)) *
+              count(i?.qty),
           0
         );
   const tax = computeTax(subtotal, config);

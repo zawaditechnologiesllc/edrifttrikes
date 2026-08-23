@@ -7,6 +7,7 @@ import {
   DEFAULT_SHIPPING_CENTS,
   DEFAULT_TAX_RATE_BPS,
 } from "../lib/totals";
+import { formatMoney } from "../lib/format";
 
 /**
  * Order money math. This is what a customer is charged, so the cases below are
@@ -130,5 +131,100 @@ describe("productShippingCents", () => {
   test("free shipping wins, from either the product or the store", () => {
     assert.equal(productShippingCents({ free_shipping: true }, { shipping_cents: 5000 }), 0);
     assert.equal(productShippingCents({ shipping_cents: 9999 }, { free_shipping: true }), 0);
+  });
+});
+
+describe("bad data must never reach a buyer as NaN", () => {
+  /**
+   * The checkout summary and the payment button both print these numbers. A
+   * single undefined price — a cart entry saved by an older build, a settings
+   * row with a null column, a hand-edited product — used to turn the whole
+   * order into NaN, and a buyer who sees "$NaN" where the total goes does not
+   * report a bug, they close the tab.
+   */
+
+  test("a line with no price is worth nothing, not NaN", () => {
+    const t = computeCartTotals(
+      [{ price_cents: undefined as unknown as number, qty: 1 }],
+      { shipping_cents: 0, tax_rate_bps: 0 }
+    );
+    assert.equal(t.subtotal, 0);
+    assert.ok(Number.isFinite(t.total));
+  });
+
+  test("one bad line does not poison the good ones", () => {
+    const t = computeCartTotals(
+      [
+        { price_cents: 40000, qty: 1 },
+        { price_cents: NaN, qty: 1 },
+        { price_cents: 10000, qty: 2 },
+      ],
+      { shipping_cents: 0, tax_rate_bps: 0 }
+    );
+    assert.equal(t.subtotal, 60000);
+    assert.equal(t.total, 60000);
+  });
+
+  test("a quantity that is missing, zero or nonsense counts as one", () => {
+    for (const qty of [undefined, 0, -3, NaN, "two"]) {
+      const t = computeCartTotals(
+        [{ price_cents: 1000, qty: qty as unknown as number }],
+        { shipping_cents: 0, tax_rate_bps: 0 }
+      );
+      assert.equal(t.subtotal, 1000, `qty ${String(qty)}`);
+    }
+  });
+
+  test("numeric strings from the database are read as numbers", () => {
+    // PostgREST returns some numeric columns as strings depending on the type.
+    const t = computeCartTotals([{ price_cents: 40000, qty: 1 }], {
+      shipping_cents: "2500" as unknown as number,
+      tax_rate_bps: "0" as unknown as number,
+    });
+    assert.equal(t.shipping, 2500);
+    assert.equal(t.total, 42500);
+  });
+
+  test("a settings row of nulls falls back to the store defaults", () => {
+    const t = computeCartTotals([{ price_cents: 10000, qty: 1 }], {
+      shipping_cents: null as unknown as number,
+      tax_rate_bps: null as unknown as number,
+    });
+    assert.equal(t.shipping, DEFAULT_SHIPPING_CENTS);
+    assert.ok(Number.isFinite(t.total));
+  });
+
+  test("no items at all is a zero order, not a crash", () => {
+    for (const items of [[], null, undefined]) {
+      const t = computeCartTotals(items as never);
+      assert.deepEqual(t, { subtotal: 0, shipping: 0, tax: 0, total: 0 });
+    }
+  });
+
+  test("every total stays a finite, non-negative number", () => {
+    const t = computeCartTotals(
+      [{ price_cents: -500, qty: 1 }, { price_cents: Infinity, qty: 2 }],
+      { shipping_cents: -1 as unknown as number }
+    );
+    for (const [name, value] of Object.entries(t)) {
+      assert.ok(Number.isFinite(value), `${name} is not finite`);
+      assert.ok(value >= 0, `${name} is negative`);
+    }
+  });
+});
+
+describe("formatMoney never prints NaN", () => {
+  test("because a checkout that shows $NaN loses the sale", () => {
+    for (const bad of [NaN, undefined, null, Infinity, "abc"]) {
+      const out = formatMoney(bad as unknown as number);
+      assert.ok(!out.includes("NaN"), `${String(bad)} rendered as ${out}`);
+      assert.equal(out, "$0");
+    }
+  });
+
+  test("and still formats real amounts exactly as before", () => {
+    assert.equal(formatMoney(189900), "$1,899");
+    assert.equal(formatMoney(144600), "$1,446");
+    assert.equal(formatMoney(1050), "$10.50");
   });
 });

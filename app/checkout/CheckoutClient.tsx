@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
-import { useCart } from "@/components/cart/CartProvider";
+import { useCart, cartLineKey } from "@/components/cart/CartProvider";
 import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
 import { computeCartTotals } from "@/lib/totals";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import PayPalCardFields from "@/components/cart/PayPalCardFields";
 import CheckoutField from "./CheckoutField";
 import { CHECKOUT_FIELDS, checkoutFieldsFor, validateCheckout } from "@/lib/validation";
@@ -363,7 +364,7 @@ export default function CheckoutClient({
             <h2 className="font-label-bold text-label-bold uppercase tracking-widest text-secondary">03 — Review &amp; Pay</h2>
             <div className="space-y-3 max-h-72 overflow-y-auto">
               {items.map((i) => (
-                <div key={i.productId} className="flex gap-3 items-center">
+                <div key={cartLineKey(i)} className="flex gap-3 items-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img loading="lazy" decoding="async" src={i.imageUrl ?? "/assets/placeholder.svg"} alt={i.name} className="w-14 h-14 object-cover rounded bg-surface-container-high" />
                   <div className="flex-1 min-w-0">
@@ -395,13 +396,32 @@ export default function CheckoutClient({
 
             {showCardFields ? (
               <>
-                {/* Inline card entry — no redirect, no account prompt. */}
-                <PayPalCardFields
-                  getPayload={cardPayload}
-                  validate={validatePayment}
-                  amountLabel={formatMoney(totals.total)}
-                  onPaid={onCardPaid}
-                />
+                {/*
+                  FENCED OFF FROM THE TOTALS ABOVE. This widget loads a
+                  third-party SDK, and React unmounts the whole subtree when a
+                  render throws — so a provider script that failed to load used
+                  to take the order total off the screen with it. A checkout
+                  showing no money is the most alarming thing a shop can put in
+                  front of someone. If it breaks, the buyer still sees what they
+                  owe and still has the redirect button below.
+                */}
+                <ErrorBoundary
+                  label="PayPalCardFields"
+                  fallback={
+                    <p className="text-on-surface-variant text-xs leading-relaxed">
+                      Card entry could not load. Use the button below to pay —
+                      it accepts the same cards.
+                    </p>
+                  }
+                >
+                  {/* Inline card entry — no redirect, no account prompt. */}
+                  <PayPalCardFields
+                    getPayload={cardPayload}
+                    validate={validatePayment}
+                    amountLabel={formatMoney(totals.total)}
+                    onPaid={onCardPaid}
+                  />
+                </ErrorBoundary>
                 {/* Secondary: pay with a PayPal balance/account via the redirect. */}
                 <button
                   type="submit"
