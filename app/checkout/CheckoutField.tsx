@@ -44,7 +44,13 @@ export default function CheckoutField({
   onPickAddress?: (prefill: AddressPrefill) => void;
 }) {
   const showError = touched && Boolean(error);
-  const describedBy = showError ? `${spec.name}-error` : `${spec.name}-hint`;
+  // Never point at an id that is not rendered: a dangling aria-describedby
+  // makes a screen reader announce nothing where it promised something.
+  const describedBy = showError
+    ? `${spec.name}-error`
+    : spec.hint
+      ? `${spec.name}-hint`
+      : undefined;
 
   const borderClass = showError
     ? "border-error focus:border-error"
@@ -125,11 +131,13 @@ export default function CheckoutField({
         <p id={`${spec.name}-error`} className="text-error text-xs mt-1.5">
           {error}
         </p>
-      ) : (
+      ) : spec.hint ? (
+        // Only fields that have something worth saying get a line under them.
+        // An empty <p> here would still cost the vertical space.
         <p id={`${spec.name}-hint`} className="text-outline text-xs mt-1.5">
           {spec.hint}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

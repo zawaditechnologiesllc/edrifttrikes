@@ -73,12 +73,31 @@ describe("required fields", () => {
     assert.equal(validateShippingField("phone", ""), null);
   });
 
-  test("every field carries a label, hint and placeholder for the buyer", () => {
+  test("every field carries a label, a placeholder and an autofill token", () => {
     for (const spec of CHECKOUT_FIELDS) {
       assert.ok(spec.label.length > 0, `${spec.name} has no label`);
-      assert.ok(spec.hint.length > 10, `${spec.name} has no useful hint`);
       assert.ok(spec.placeholder.length > 0, `${spec.name} has no placeholder`);
       assert.ok(spec.autoComplete.length > 0, `${spec.name} can't be autofilled`);
+    }
+  });
+
+  test("a hint is present only where it EARNS its place", () => {
+    // Every line under an input is one more thing between someone and paying.
+    // A hint that restates the label ("Your family or surname") is noise on the
+    // page where noise costs the most, so those fields carry none — and the
+    // ones that remain have to actually say something.
+    for (const spec of CHECKOUT_FIELDS) {
+      if (spec.hint === undefined) continue;
+      assert.ok(spec.hint.length > 10, `${spec.name} has a hint that says nothing`);
+    }
+    const withHints = CHECKOUT_FIELDS.filter((f) => f.hint).map((f) => f.name);
+    // The ones that earn it: an edge case, or a reason we are asking.
+    assert.ok(withHints.includes("country"));
+    assert.ok(withHints.includes("address"));
+    assert.ok(withHints.includes("phone"));
+    // The ones that do not.
+    for (const bare of ["first_name", "last_name", "city", "address2"]) {
+      assert.ok(!withHints.includes(bare as never), `${bare} still restates itself`);
     }
   });
 
@@ -337,10 +356,10 @@ describe("the address fields are named the way the buyer's country names them", 
 
   test("before a country is chosen, the address field says to choose one", () => {
     const address = checkoutFieldsFor("").find((f) => f.name === "address")!;
-    assert.match(address.hint, /country/i);
+    assert.match(address.hint ?? "", /country/i);
     // And stops saying it once they have.
     assert.doesNotMatch(
-      checkoutFieldsFor("US").find((f) => f.name === "address")!.hint,
+      checkoutFieldsFor("US").find((f) => f.name === "address")!.hint ?? "",
       /choose your country/i
     );
   });

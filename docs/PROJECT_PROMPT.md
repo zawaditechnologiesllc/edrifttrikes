@@ -187,6 +187,16 @@ Everything is server-rendered with `unstable_cache` + tags (`catalog`,
   product ids, quantities and colours — nothing else about money.
 - Never offer a variant the server would reject: validate the chosen colour
   against the product's own list and refuse with a readable message.
+- **Nothing between the heading and the first field.** A checkout is not a
+  place to explain the business. No tagline, no "how it works" band, no trust
+  badges above the form — every pixel there stands between someone and paying,
+  and it costs the most on a phone. Anything genuinely useful (the delivery
+  window) belongs beside the total, where it does its work at the moment of
+  deciding.
+- **A hint under a field has to earn its place.** "Your family or surname" under
+  *Last name* is a line of noise. Keep the ones that prevent a real mistake (an
+  address format, why you want a phone number) and delete the rest — make the
+  field's `hint` optional so there is nothing to write.
 - **Do not clear the cart on redirect to the payment provider.** Clear it on the
   confirmation page, after payment actually succeeded. Emptying a cart for a
   buyer who bounces off the payment page loses the sale.
