@@ -8,6 +8,7 @@ import type { Order } from "@/lib/types";
 import StorageCacheButton from "./StorageCacheButton";
 import { getSiteSettings } from "@/lib/db";
 import { trustGaps } from "@/lib/seo";
+import { checkStoredLogo } from "@/lib/logo";
 
 export const metadata = { title: "System status" };
 
@@ -44,6 +45,10 @@ function paymentMethod(o: Order): string {
 export default async function SystemStatus() {
   const settings = await getSiteSettings();
   const gaps = trustGaps(settings);
+  // Checked live rather than assumed: the product sheet falls back to a text
+  // watermark on ANY logo failure, so "no logo on the PDF" has three completely
+  // different causes and looked identical from the admin.
+  const logo = await checkStoredLogo(settings.logo_url);
   const stripeOk = Boolean(serverEnv("STRIPE_SECRET_KEY"));
   const paypalOk = Boolean(serverEnv("PAYPAL_CLIENT_ID") && serverEnv("PAYPAL_SECRET"));
 
@@ -248,6 +253,35 @@ export default async function SystemStatus() {
           captured and receipt emailed. A pending order older than an hour
           usually means the buyer abandoned payment.
         </p>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="font-headline-md text-headline-md text-white uppercase mb-2">
+          Store logo on product sheets
+        </h2>
+        <div
+          className={`bg-surface-container border rounded-lg p-4 flex items-start gap-3 ${
+            logo.state === "ok" ? "border-secondary/40" : "border-signal-orange/50"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 ${
+              logo.state === "ok" ? "border-secondary bg-secondary/30" : "border-signal-orange"
+            }`}
+          />
+          <div>
+            <p className={logo.state === "ok" ? "text-white text-sm" : "text-signal-orange text-sm"}>
+              {logo.state === "ok" ? "Logo is working" : "Logo is not printing"}
+            </p>
+            <p className="text-on-surface-variant text-xs mt-1 leading-relaxed max-w-2xl">
+              {logo.detail}
+            </p>
+            {settings.logo_url && (
+              <p className="text-outline text-[11px] mt-2 break-all">{settings.logo_url}</p>
+            )}
+          </div>
+        </div>
       </section>
 
       {/*

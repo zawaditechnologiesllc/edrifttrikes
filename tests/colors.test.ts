@@ -11,6 +11,7 @@ import {
   productColors,
   requiresColorChoice,
   colorsFromDescription,
+  colorsFromPhrase,
   descriptionBody,
 } from "../lib/colors";
 
@@ -409,5 +410,93 @@ describe("the headings a real product sheet actually uses", () => {
       descriptionBody("Spec text.\n\nColours\n- Midnight Black\n- Voltage Blue\n\nShips flat."),
       "Spec text.\n\nShips flat."
     );
+  });
+});
+
+describe("colours written as a SENTENCE, not under a heading", () => {
+  /**
+   * Taken from a real product sheet. There is no heading and no colon — the
+   * colours are one bullet in a spec list:
+   *
+   *   • Available in Red, Black, White, Blue, and Purple
+   *
+   * The heading parser never saw it, so the product had no swatches at all
+   * while the information sat in the description the whole time.
+   */
+  const REAL_SHEET = [
+    "The 60V 5000W High-Speed Electric Drift Kart is built for riders who want",
+    "serious speed, long-range electric performance, and responsive drift control.",
+    "",
+    "- 5000W peak power electric drift system",
+    "- 60V 30Ah CATL LiFePO4 battery",
+    "- Up to 70 km/h top speed",
+    "- Maximum load capacity of 200 kg",
+    "- Net weight of 93.3 kg",
+    "- Designed for indoor and outdoor track riding",
+    "- Available in Red, Black, White, Blue, and Purple",
+    "- CE certified",
+    "- Customized configuration available",
+  ].join("\n");
+
+  test("finds them in a real product sheet", () => {
+    assert.deepEqual(
+      colorsFromDescription(REAL_SHEET).map((c) => c.name),
+      ["Red", "Black", "White", "Blue", "Purple"]
+    );
+  });
+
+  test("the Oxford comma does not become a colour called 'and Purple'", () => {
+    // "Red, Black, and Purple" splits on commas first, leaving the conjunction
+    // stuck to the last item — which would go on the shop as a swatch.
+    assert.deepEqual(
+      colorsFromPhrase("Available in Red, Black, and Purple").map((c) => c.name),
+      ["Red", "Black", "Purple"]
+    );
+  });
+
+  test("reads the other ways a sheet says it", () => {
+    for (const [line, expected] of [
+      ["Available in Red, Black, White and Blue", ["Red", "Black", "White", "Blue"]],
+      ["Comes in Midnight Black, Voltage Blue and Hazard Lime.", ["Midnight Black", "Voltage Blue", "Hazard Lime"]],
+      ["Available in Red, Black and White colours.", ["Red", "Black", "White"]],
+      ["Choose from Stealth Grey, Inferno Red or Arctic White", ["Stealth Grey", "Inferno Red", "Arctic White"]],
+      ["• Offered in Matte Black and Gloss Red", ["Matte Black", "Gloss Red"]],
+    ] as [string, string[]][]) {
+      assert.deepEqual(colorsFromPhrase(line).map((c) => c.name), expected, line);
+    }
+  });
+
+  test("REFUSES anything that is not a colour list", () => {
+    // The cost of a false positive is a sentence fragment rendered as a swatch
+    // on the live shop, which looks broken to every buyer who sees it.
+    for (const line of [
+      "Available in the UK, Europe and North America",
+      "Available in 3 sizes and 2 configurations",
+      "Available in 48V, 60V and 72V",
+      "Available in stock",
+      "Available in Red",
+      "Customized configuration available",
+      "Up to 70 km/h top speed",
+      "Maximum load capacity of 200 kg",
+    ]) {
+      assert.deepEqual(colorsFromPhrase(line), [], `matched: ${line}`);
+    }
+  });
+
+  test("a real heading still wins over a sentence", () => {
+    // The heading is what the admin wrote deliberately; the sentence is prose
+    // that happens to list colours.
+    assert.deepEqual(
+      colorsFromDescription("Colors: Stealth, Lime\n\n- Available in Red, Black and White")
+        .map((c) => c.name),
+      ["Stealth", "Lime"]
+    );
+  });
+
+  test("every spec bullet in the real sheet stays out of the colour list", () => {
+    const found = colorsFromDescription(REAL_SHEET).map((c) => c.name.toLowerCase());
+    for (const spec of ["5000w", "certified", "configuration", "kg", "battery"]) {
+      assert.ok(!found.some((c) => c.includes(spec)), `"${spec}" became a colour`);
+    }
   });
 });

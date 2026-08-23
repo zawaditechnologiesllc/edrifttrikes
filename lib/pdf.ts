@@ -441,6 +441,68 @@ async function decodePng(b: Uint8Array): Promise<DecodedImage | null> {
   return null;
 }
 
+/**
+ * Can this image go in a PDF, and if not, WHY not?
+ *
+ * WHY THIS EXISTS: addImage() returns null for anything it cannot decode, and
+ * the product sheet then quietly falls back to a text watermark. An admin who
+ * uploads a logo, sees it appear in the admin preview, and then finds it
+ * missing from the PDF has no way to tell whether the upload failed, the save
+ * failed, or the format is wrong — the three have completely different fixes.
+ * This turns that silence into a sentence.
+ *
+ * Uses the SAME code path the writer does, so a "yes" here means the writer
+ * will accept it, not that it probably will.
+ */
+export async function probeImage(
+  bytes: Uint8Array | null | undefined
+): Promise<
+  | { ok: true; kind: "png" | "jpeg"; width: number; height: number }
+  | { ok: false; reason: string }
+> {
+  const b = bytes ?? new Uint8Array();
+  if (b.length === 0) return { ok: false, reason: "The file is empty." };
+
+  if (isPng(b)) {
+    // Read the header ourselves so the failure can be named rather than just
+    // reported as "could not decode".
+    if (b.length > 33) {
+      const bitDepth = b[24];
+      const colorType = b[25];
+      if (b[28] !== 0) {
+        return {
+          ok: false,
+          reason:
+            "This PNG is interlaced (saved as 'progressive'). Re-export it without interlacing — in most tools that is an 'Interlaced' checkbox in the PNG export options.",
+        };
+      }
+      if ((colorType === 4 || colorType === 6) && bitDepth !== 8) {
+        return {
+          ok: false,
+          reason: `This PNG is ${bitDepth}-bit with transparency. Re-export it as an 8-bit PNG.`,
+        };
+      }
+    }
+    const decoded = await decodePng(b);
+    return decoded
+      ? { ok: true, kind: "png", width: decoded.width, height: decoded.height }
+      : { ok: false, reason: "This PNG uses a variant a PDF cannot embed. Re-export it as a standard 8-bit PNG." };
+  }
+
+  if (isJpeg(b)) {
+    const decoded = decodeJpeg(b);
+    return decoded
+      ? { ok: true, kind: "jpeg", width: decoded.width, height: decoded.height }
+      : { ok: false, reason: "This JPEG could not be read — it may be CMYK or progressive. Re-save it as a standard RGB JPEG, or export a PNG." };
+  }
+
+  return {
+    ok: false,
+    reason:
+      "This is not a PNG or a JPEG. Those are the only image formats a PDF can embed — an SVG, WebP, AVIF or HEIC logo has to be exported as a PNG first.",
+  };
+}
+
 function hex(b: Uint8Array): string {
   let s = "";
   for (let i = 0; i < b.length; i++) s += b[i].toString(16).padStart(2, "0");

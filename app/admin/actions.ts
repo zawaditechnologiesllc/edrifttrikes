@@ -16,6 +16,7 @@ import { sendAccountInviteEmail, sendRefundEmail, resendFailureHint } from "@/li
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
 import { looksInternal, trackingUrlFor } from "@/lib/couriers";
+import { probeImage } from "@/lib/pdf";
 import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 import { parseColors } from "@/lib/colors";
 import { normalizeHref, normalizeMessage } from "@/lib/announcements";
@@ -689,6 +690,17 @@ async function resolveLogo(
       error:
         "The logo must be a PNG or a JPEG — those are the only image formats a PDF can embed. Your browser normally converts the file for you; if it couldn't, export the logo as a PNG (which keeps a transparent background) and upload that.",
     };
+  }
+
+  // REFUSE IT HERE, not silently at render time. A PNG can carry the right MIME
+  // type and still be a variant the PDF writer cannot embed — interlaced is the
+  // common one. Accepting it stores a logo that looks fine in the admin preview
+  // (the browser reads anything) and then vanishes from every product sheet
+  // with no error anywhere. Probing with the writer's own decoder means an
+  // upload that succeeds is an upload that will print.
+  const probe = await probeImage(new Uint8Array(await file.arrayBuffer()));
+  if (!probe.ok) {
+    return { error: `That logo can't be used on the product sheets. ${probe.reason}` };
   }
 
   const { url, error } = await uploadImage(file);

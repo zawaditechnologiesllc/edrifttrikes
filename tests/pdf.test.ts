@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { PdfDocument, A4, toWinAnsi } from "../lib/pdf";
+import { PdfDocument, A4, toWinAnsi, probeImage } from "../lib/pdf";
 
 /**
  * The PDF writer.
@@ -498,4 +498,119 @@ describe("page geometry", () => {
     doc.addPage();
     assert.match(asText(doc.toBytes()), /\/MediaBox \[0 0 595\.28 841\.89\]/);
   });
+});
+
+describe("telling an admin why a logo will not print", () => {
+  /**
+   * The bug behind this: a logo uploaded in the admin appeared in the preview
+   * (a browser reads anything) and then silently vanished from every product
+   * sheet, because addImage returned null and the sheet fell back to a text
+   * watermark. Three completely different causes — wrong format, a variant the
+   * writer cannot embed, a file it never received — all looked identical.
+   */
+
+  test("rejects a file that is not an image at all", async () => {
+    const result = await probeImage(new TextEncoder().encode("<svg xmlns=\"x\"></svg>"));
+    assert.equal(result.ok, false);
+    assert.match((result as { reason: string }).reason, /not a PNG or a JPEG/i);
+    // The message has to name the fix, not just the fault.
+    assert.match((result as { reason: string }).reason, /SVG|export/i);
+  });
+
+  test("rejects an empty file rather than reporting a format problem", async () => {
+    const result = await probeImage(new Uint8Array());
+    assert.equal(result.ok, false);
+    assert.match((result as { reason: string }).reason, /empty/i);
+    assert.equal((await probeImage(null)).ok, false);
+  });
+
+  test("says INTERLACED when that is what is wrong", async () => {
+    // The commonest real cause: a logo exported with "interlaced"/"progressive"
+    // ticked. Without naming it, the owner re-uploads the same file forever.
+    const result = await probeImage(await makeInterlacedPng());
+    assert.equal(result.ok, false);
+    assert.match((result as { reason: string }).reason, /interlaced/i);
+  });
+
+  test("a plain 8-bit PNG passes, with its real dimensions", async () => {
+    const result = await probeImage(await makePlainPng());
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.kind, "png");
+      assert.equal(result.width, 4);
+      assert.equal(result.height, 3);
+    }
+  });
+
+  test("the probe agrees with the writer — no false yes", async () => {
+    // A probe that said yes where addImage says no would be worse than none:
+    // the upload would be accepted and the sheet would still print nothing.
+    const doc = new PdfDocument();
+    for (const bytes of [await makePlainPng(), await makeInterlacedPng()]) {
+      const probe = await probeImage(bytes);
+      const embedded = await doc.addImage(bytes);
+      assert.equal(probe.ok, embedded !== null, "probe and writer disagree");
+    }
+  });
+
+  /** Builders that mirror what a design tool exports. */
+  async function makePlainPng(): Promise<Uint8Array> {
+    return buildPng(4, 3, 2, [255, 0, 0], 0);
+  }
+  async function makeInterlacedPng(): Promise<Uint8Array> {
+    return buildPng(4, 3, 2, [255, 0, 0], 1);
+  }
+
+  async function buildPng(
+    width: number,
+    height: number,
+    colorType: number,
+    pixel: number[],
+    interlace: 0 | 1
+  ): Promise<Uint8Array> {
+    const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : 1;
+    const stride = width * channels;
+    const raw = new Uint8Array(height * (stride + 1));
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        for (let c = 0; c < channels; c++) {
+          raw[y * (stride + 1) + 1 + x * channels + c] = pixel[c];
+        }
+      }
+    }
+    const cs = new CompressionStream("deflate");
+    const writer = cs.writable.getWriter() as WritableStreamDefaultWriter<Uint8Array>;
+    void writer.write(raw);
+    void writer.close();
+    const idat = new Uint8Array(await new Response(cs.readable).arrayBuffer());
+
+    const chunk = (type: string, data: Uint8Array) => {
+      const out = new Uint8Array(12 + data.length);
+      new DataView(out.buffer).setUint32(0, data.length);
+      for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+      out.set(data, 8);
+      return out;
+    };
+    const ihdr = new Uint8Array(13);
+    const view = new DataView(ihdr.buffer);
+    view.setUint32(0, width);
+    view.setUint32(4, height);
+    ihdr[8] = 8;
+    ihdr[9] = colorType;
+    ihdr[12] = interlace;
+
+    const parts = [
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      chunk("IHDR", ihdr),
+      chunk("IDAT", idat),
+      chunk("IEND", new Uint8Array(0)),
+    ];
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const p of parts) {
+      out.set(p, at);
+      at += p.length;
+    }
+    return out;
+  }
 });

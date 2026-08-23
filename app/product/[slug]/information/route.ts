@@ -2,6 +2,7 @@ import { getProductBySlug, getSiteSettings } from "@/lib/db";
 import { buildProductSheet, productSheetFilename } from "@/lib/product-sheet";
 import { publicSiteUrl } from "@/lib/env";
 import { COMPANY } from "@/lib/company";
+import { fetchLogoBytes } from "@/lib/logo";
 
 /**
  * GET /product/<slug>/information — the product information sheet as a PDF.
@@ -15,10 +16,6 @@ import { COMPANY } from "@/lib/company";
  * catalog and settings tags, which drops this route's cached copy with them.
  */
 export const revalidate = 3600;
-
-/** Never let a slow or oversized logo hold up (or blow out) the response. */
-const LOGO_TIMEOUT_MS = 4000;
-const MAX_LOGO_BYTES = 4 * 1024 * 1024;
 
 export async function GET(
   _request: Request,
@@ -37,7 +34,7 @@ export async function GET(
   const pdf = await buildProductSheet({
     product,
     settings,
-    logo: await fetchLogo(settings.logo_url),
+    logo: await fetchLogoBytes(settings.logo_url),
     siteUrl: publicSiteUrl() ?? COMPANY.siteUrl,
   });
 
@@ -50,28 +47,4 @@ export async function GET(
       "cache-control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
     },
   });
-}
-
-/**
- * Fetch the logo bytes. Any failure returns null, and the sheet falls back to
- * the company-name watermark — a missing logo must never cost the buyer their
- * download.
- */
-async function fetchLogo(url: string | null | undefined): Promise<Uint8Array | null> {
-  if (!url) return null;
-  try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(LOGO_TIMEOUT_MS),
-      // Long-lived: the stored object is an immutable UUID filename, so a new
-      // logo is always a new URL.
-      cache: "force-cache",
-    });
-    if (!response.ok) return null;
-    const length = Number(response.headers.get("content-length") ?? 0);
-    if (length > MAX_LOGO_BYTES) return null;
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    return bytes.length > MAX_LOGO_BYTES ? null : bytes;
-  } catch {
-    return null;
-  }
 }
