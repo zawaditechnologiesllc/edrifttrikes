@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Analytics from "@/components/Analytics";
+import StructuredData from "@/components/StructuredData";
 import Enhancements from "@/components/Enhancements";
 import PublicEnvScript from "@/components/PublicEnvScript";
 import SiteSettingsProvider from "@/components/storefront/SiteSettingsProvider";
@@ -8,6 +9,8 @@ import { CartProvider } from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
 import { getAnnouncements, getSiteSettings } from "@/lib/db";
 import { liveAnnouncements } from "@/lib/announcements";
+import { organizationSchema, websiteSchema } from "@/lib/seo";
+import { publicSiteUrl } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: {
@@ -51,6 +54,7 @@ export default async function RootLayout({
     getSiteSettings(),
     getAnnouncements(),
   ]);
+  const base = publicSiteUrl();
   return (
     <html lang="en" className="dark">
       <head>
@@ -66,6 +70,16 @@ export default async function RootLayout({
         />
       </head>
       <body className="bg-background text-on-surface font-body-md antialiased overflow-x-hidden">
+        {/*
+          Who this business is, in the form a search engine reads. Built from
+          the same settings the footer shows, so the two can never disagree —
+          an inconsistent name/address/phone across a site is one of the things
+          a legitimacy scanner explicitly scores down. Placeholder values are
+          omitted rather than published; see lib/seo.ts.
+        */}
+        <StructuredData
+          data={[organizationSchema(settings, base), websiteSchema(base)]}
+        />
         <PublicEnvScript />
         <SiteSettingsProvider
           settings={settings}

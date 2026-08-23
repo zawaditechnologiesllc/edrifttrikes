@@ -8,6 +8,9 @@ import ProductGallery from "@/components/storefront/ProductGallery";
 import RichText from "@/components/storefront/RichText";
 import ProductBuyPanel from "@/components/storefront/ProductBuyPanel";
 import { descriptionBody, productColorOptions } from "@/lib/colors";
+import StructuredData from "@/components/StructuredData";
+import { productSchema } from "@/lib/seo";
+import { publicSiteUrl } from "@/lib/env";
 import WishlistButton from "@/components/storefront/WishlistButton";
 import { getProductBySlug, getProducts, getSiteSettings } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
@@ -56,8 +59,23 @@ export default async function ProductPage({
   const struckFee =
     product.shipping_cents ?? settings.shipping_cents ?? DEFAULT_SHIPPING_CENTS;
 
+  const colors = productColorOptions(product);
+
   return (
     <div className="bg-surface text-on-surface min-h-screen">
+      {/*
+        The product, its real price and its REAL availability, read off the
+        stock the shop actually has. Deliberately carries no rating and no
+        review: markup for reviews that don't exist is the commonest cause of a
+        structured-data manual action, and the penalty falls on the whole
+        domain. See lib/seo.ts.
+      */}
+      <StructuredData
+        data={productSchema(product, {
+          base: publicSiteUrl(),
+          colors: colors.map((c) => c.name),
+        })}
+      />
       <SiteHeader />
 
       <main className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-12">
@@ -126,7 +144,7 @@ export default async function ProductPage({
             <div className="pt-2">
               <ProductBuyPanel
                 productId={product.id}
-                colors={productColorOptions(product)}
+                colors={colors}
                 item={{
                   productId: product.id,
                   slug: product.slug,
