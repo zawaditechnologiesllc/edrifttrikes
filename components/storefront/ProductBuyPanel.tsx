@@ -5,7 +5,7 @@ import AddToCartButton from "@/components/cart/AddToCartButton";
 import BuyNowButton from "@/components/cart/BuyNowButton";
 import WishlistButton from "@/components/storefront/WishlistButton";
 import type { CartItem } from "@/components/cart/CartProvider";
-import type { ProductColor } from "@/lib/colors";
+import { defaultColor, type ProductColor } from "@/lib/colors";
 
 /**
  * Colour choice plus the buy actions.
@@ -26,11 +26,15 @@ export default function ProductBuyPanel({
   colors: ProductColor[];
   productId: string;
 }) {
-  const mustChoose = colors.length > 0;
-  // No default when there's a choice to make: pre-selecting one means a buyer
-  // who skimmed the page receives a colour they never picked.
-  const [color, setColor] = useState<string | null>(null);
-  const [nudged, setNudged] = useState(false);
+  const hasColors = colors.length > 0;
+  // The first colour is selected from the start. Every unit has a colour
+  // whether or not anyone chose one, so the alternative is either blocking
+  // checkout to force a pick — which costs sales on a decision most buyers do
+  // not care about — or shipping a colour the buyer never saw. Selecting it
+  // means the label reads "Colour: Red" from the moment the page loads, it is
+  // in the cart line, on the receipt and on the packing slip, and changing it
+  // is one click.
+  const [color, setColor] = useState<string | null>(defaultColor(colors));
   /** What the pointer (or keyboard focus) is over, which the label shows. */
   const [hovered, setHovered] = useState<string | null>(null);
   const ids = useId();
@@ -40,16 +44,9 @@ export default function ProductBuyPanel({
 
   const cartItem: Omit<CartItem, "qty"> = { ...item, color };
 
-  /** Blocks the buy actions until a colour is chosen, and says why. */
-  const guard = (): boolean => {
-    if (!mustChoose || color !== null) return true;
-    setNudged(true);
-    return false;
-  };
-
   return (
     <div className="space-y-5">
-      {mustChoose && (
+      {hasColors && (
         <div>
           {/*
             THE LABEL FOLLOWS THE POINTER, as it does on Amazon. Reading the
@@ -59,11 +56,7 @@ export default function ProductBuyPanel({
           */}
           <p className="text-sm" id={`${ids}-label`}>
             <span className="text-on-surface-variant">Colour: </span>
-            <span className="text-white font-label-bold">
-              {preview ?? (
-                <span className="text-secondary">Select a colour</span>
-              )}
-            </span>
+            <span className="text-white font-label-bold">{preview}</span>
           </p>
 
           <div
@@ -80,10 +73,7 @@ export default function ProductBuyPanel({
                   title={c.name}
                   aria-label={c.name}
                   aria-pressed={active}
-                  onClick={() => {
-                    setColor(c.name);
-                    setNudged(false);
-                  }}
+                  onClick={() => setColor(c.name)}
                   onMouseEnter={() => setHovered(c.name)}
                   onMouseLeave={() => setHovered(null)}
                   onFocus={() => setHovered(c.name)}
@@ -123,20 +113,14 @@ export default function ProductBuyPanel({
             })}
           </div>
 
-          {nudged && !color && (
-            <p role="alert" className="text-error text-xs mt-2">
-              Choose a colour before adding this to your cart.
-            </p>
-          )}
         </div>
       )}
 
       <div className="flex flex-wrap gap-4">
-        <BuyNowButton item={cartItem} label="Buy Now" guard={guard} />
+        <BuyNowButton item={cartItem} label="Buy Now" />
         <AddToCartButton
           item={cartItem}
           label="Add to Cart"
-          guard={guard}
           className="border border-white text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:bg-white/10 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         />
         <WishlistButton productId={productId} variant="full" />

@@ -14,7 +14,6 @@ export default function BuyNowButton({
   className,
   label = "Buy Now",
   qty = 1,
-  guard,
 }: {
   item: Omit<CartItem, "qty">;
   className?: string;
@@ -27,7 +26,6 @@ export default function BuyNowButton({
    * click can explain what is missing — a disabled control just sits there
    * telling the buyer nothing.
    */
-  guard?: () => boolean;
 }) {
   const { add } = useCart();
   const router = useRouter();
@@ -40,7 +38,6 @@ export default function BuyNowButton({
       disabled={soldOut || busy}
       onClick={() => {
         if (soldOut || busy) return;
-        if (guard && !guard()) return;
         setBusy(true);
         add(item, qty);
         router.push("/checkout");
