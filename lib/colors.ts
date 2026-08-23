@@ -217,6 +217,80 @@ function plausibleColorName(name: string): boolean {
 }
 
 /**
+ * Words that make a phrase about colour rather than about anything else.
+ *
+ * The guard on the sentence path below. "Available in Red, Black and White" is
+ * a colour list; "Available in the UK and Europe" is not, and without something
+ * like this the second becomes two swatches on the shop.
+ *
+ * Only ONE item in a list has to contain one of these — that is what lets
+ * "Stealth Grey, Inferno, Arctic" through on the strength of "Grey".
+ */
+const COLOR_WORDS = [
+  "black", "white", "red", "blue", "green", "yellow", "orange", "purple",
+  "pink", "grey", "gray", "silver", "gold", "bronze", "copper", "brown",
+  "beige", "ivory", "cream", "navy", "teal", "turquoise", "cyan", "magenta",
+  "maroon", "burgundy", "olive", "lime", "tan", "charcoal", "chrome",
+  "carbon", "matte", "matt", "gloss", "graphite", "titanium", "gunmetal",
+  "camo", "chameleon", "rainbow", "transparent", "clear",
+];
+
+/** A phrase that introduces a list of colours in ordinary prose. */
+const COLOR_PHRASE =
+  /\b(?:available|comes|come|offered|supplied|finished|shipped|sold)\s+in\s+(.+)$|\bchoose\s+from\s+(.+)$/i;
+
+/** Units and figures — a spec, not a colour. */
+const LOOKS_LIKE_SPEC = /\d|\b(?:kg|km|mm|cm|inch|in|lb|lbs|v|w|ah|kw|mph|kph|hr|hrs)\b/i;
+
+/**
+ * Colours written as a SENTENCE rather than under a heading.
+ *
+ * Real product sheets very often say it this way, as one bullet in a spec list:
+ *
+ *   • Available in Red, Black, White, Blue, and Purple
+ *
+ * There is no heading and no colon, so the heading path above never sees it and
+ * the product ends up with no swatches at all even though the information is
+ * right there in the description.
+ *
+ * DELIBERATELY CONSERVATIVE, because the cost of a false positive is a sentence
+ * fragment rendered as a colour swatch on the live shop:
+ *   - the phrase has to be one of a short list ("available in", "comes in", …);
+ *   - nothing in the list may look like a measurement;
+ *   - and at least one item has to contain an actual colour word.
+ */
+export function colorsFromPhrase(line: string): ProductColor[] {
+  const text = String(line ?? "").trim().replace(/^[-*•]\s*/, "");
+  if (!text) return [];
+
+  const m = COLOR_PHRASE.exec(text);
+  const tail = m?.[1] ?? m?.[2];
+  if (!tail) return [];
+
+  const cleaned = tail
+    .replace(/[.;]+\s*$/, "")
+    // "…in Red, Black and White colours" — the noun is not one of the colours.
+    .replace(/\s+(?:colou?rs?|finishes|finish|options|variants|shades)\s*$/i, "")
+    .trim();
+  if (!cleaned) return [];
+
+  const parts = cleaned
+    .split(/\s*,\s*|\s+(?:and|&|or)\s+/i)
+    // The Oxford comma leaves the conjunction attached to the last item:
+    // "Red, Black, and Purple" splits to [..., "and Purple"], which would go
+    // on the shop as a swatch labelled "and Purple".
+    .map((p) => p.trim().replace(/^(?:and|&|or)\s+/i, "").trim())
+    .filter(Boolean);
+
+  // One item is nearly always a false positive ("available in stock").
+  if (parts.length < 2) return [];
+  if (parts.some((p) => LOOKS_LIKE_SPEC.test(p))) return [];
+  if (!parts.some((p) => COLOR_WORDS.some((w) => p.toLowerCase().includes(w)))) return [];
+
+  return parseColors(parts.join(", ")).filter((c) => plausibleColorName(c.name));
+}
+
+/**
  * Colours mentioned inside a product's description text.
  *
  * This is what makes the colour picker appear on products that were uploaded
@@ -235,10 +309,24 @@ export function colorsFromDescription(
   description: string | null | undefined
 ): ProductColor[] {
   const text = String(description ?? "");
-  if (!text.trim() || !hasColorHeading(text)) return [];
-  return parseColors(parseProductText(text).fields.colors).filter((c) =>
-    plausibleColorName(c.name)
-  );
+  if (!text.trim()) return [];
+
+  // A real heading wins: it is what the admin wrote on purpose.
+  if (hasColorHeading(text)) {
+    const headed = parseColors(parseProductText(text).fields.colors).filter((c) =>
+      plausibleColorName(c.name)
+    );
+    if (headed.length > 0) return headed;
+  }
+
+  // Otherwise look for the sentence form, one line at a time — the first line
+  // that yields a real list is the answer, and prose that merely mentions a
+  // colour yields nothing (see colorsFromPhrase).
+  for (const line of text.split(/\r?\n/)) {
+    const found = colorsFromPhrase(line);
+    if (found.length > 0) return found;
+  }
+  return [];
 }
 
 /**
