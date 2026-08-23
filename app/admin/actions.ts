@@ -10,6 +10,7 @@ import {
   setOrderStage,
   ensureCustomerAccountLink,
   loadOrder,
+  syncProductColors,
 } from "@/lib/orders";
 import { sendAccountInviteEmail, sendRefundEmail, resendFailureHint } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
@@ -307,6 +308,63 @@ export async function deleteProduct(formData: FormData) {
 function wantsNotify(formData: FormData): boolean {
   const values = formData.getAll("notify");
   return values.length === 0 || values.includes("on");
+}
+
+export type ColorRefreshState = {
+  ok?: boolean;
+  error?: string;
+  message?: string;
+  /** Products with no colours anywhere, so the owner knows what to go and fix. */
+  missing?: string[];
+};
+
+/**
+ * Re-read every product's colours out of the description text the admin
+ * uploaded, and write them onto the row.
+ *
+ * The nightly sweep already does this a few at a time, which is right for a
+ * background job and useless when someone has just uploaded twenty product
+ * sheets and wants the swatches to appear NOW. This runs the same function
+ * across the whole catalogue in one go and reports what it found.
+ *
+ * NON-DESTRUCTIVE: a product that already has colours is counted and skipped,
+ * never overwritten. An admin's hand-edited list survives any number of runs.
+ */
+export async function refreshProductColors(): Promise<ColorRefreshState> {
+  await requireAdmin();
+  if (!adminConfigured()) {
+    return { error: "Connect Supabase (URL + service role key) first." };
+  }
+
+  const admin = createAdminClient();
+  let result;
+  try {
+    // No write cap: this is the deliberate "do the lot" path.
+    result = await syncProductColors(admin, { limit: Infinity });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[admin] colour refresh failed", e);
+    return { error: `Could not refresh colours: ${message}` };
+  }
+
+  // Product pages are cached under the catalog tag; without this the new
+  // swatches would not appear until the TTL happened to expire.
+  if (result.updated > 0) {
+    revalidateTag(CATALOG_TAG);
+    revalidatePath("/admin/products");
+  }
+
+  const parts = [
+    `${result.updated} product${result.updated === 1 ? "" : "s"} filled in`,
+    `${result.alreadyHad} already had colours`,
+  ];
+  if (result.missing.length > 0) {
+    parts.push(
+      `${result.missing.length} still ha${result.missing.length === 1 ? "s" : "ve"} none`
+    );
+  }
+
+  return { ok: true, message: `${parts.join(", ")}.`, missing: result.missing };
 }
 
 export type OrderUpdateState = { ok?: boolean; error?: string; message?: string };
