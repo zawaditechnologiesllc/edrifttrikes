@@ -6,6 +6,8 @@ import { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey, serverEnv } from 
 import { formatMoney } from "@/lib/format";
 import type { Order } from "@/lib/types";
 import StorageCacheButton from "./StorageCacheButton";
+import { getSiteSettings } from "@/lib/db";
+import { trustGaps } from "@/lib/seo";
 
 export const metadata = { title: "System status" };
 
@@ -40,6 +42,8 @@ function paymentMethod(o: Order): string {
 }
 
 export default async function SystemStatus() {
+  const settings = await getSiteSettings();
+  const gaps = trustGaps(settings);
   const stripeOk = Boolean(serverEnv("STRIPE_SECRET_KEY"));
   const paypalOk = Boolean(serverEnv("PAYPAL_CLIENT_ID") && serverEnv("PAYPAL_SECRET"));
 
@@ -243,6 +247,61 @@ export default async function SystemStatus() {
           Pending = placed, awaiting payment confirmation. Paid = payment
           captured and receipt emailed. A pending order older than an hour
           usually means the buyer abandoned payment.
+        </p>
+      </section>
+
+      {/*
+        The things that actually decide whether a scanner calls a new shop
+        legitimate. Every one is a five-minute job for the owner and impossible
+        for anyone else to do for them, which is why they belong on a screen
+        rather than in a document nobody opens.
+      */}
+      <section className="mt-8">
+        <h2 className="font-headline-md text-headline-md text-white uppercase mb-2">
+          Looking legitimate
+        </h2>
+        <p className="text-on-surface-variant text-sm mb-4 max-w-2xl leading-relaxed">
+          Sites that rate new shops — and the buyers who check them — look for
+          business details that resolve to something real. A missing detail
+          scores lower than a filled-in one; a{" "}
+          <strong className="text-white">placeholder scores lowest of all</strong>,
+          because a checker follows it and finds nothing. Anything unticked here
+          is left out of the site&apos;s structured data rather than published as
+          fact.
+        </p>
+        <div className="bg-surface-container border border-white/10 rounded-lg divide-y divide-white/5">
+          {gaps.map((gap) => (
+            <div key={gap.key} className="flex items-start gap-3 p-4">
+              <span
+                aria-hidden="true"
+                className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 ${
+                  gap.done ? "border-secondary bg-secondary/30" : "border-signal-orange"
+                }`}
+              />
+              <div>
+                <p className={gap.done ? "text-white text-sm" : "text-signal-orange text-sm"}>
+                  {gap.label}
+                  {gap.done && <span className="text-secondary text-xs"> · set</span>}
+                </p>
+                {!gap.done && (
+                  <p className="text-on-surface-variant text-xs mt-1 leading-relaxed max-w-xl">
+                    {gap.why}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-on-surface-variant text-xs mt-3 max-w-2xl leading-relaxed">
+          Contact details live in{" "}
+          <Link href="/admin/settings" className="text-secondary hover:underline">
+            Settings
+          </Link>
+          ; the legal entity name and governing law are in{" "}
+          <code className="text-secondary">lib/company.ts</code>. Beyond this
+          screen, the things that move the score most are a claimed Google
+          Business Profile, a real review platform collecting real reviews, and
+          public WHOIS rather than privacy-shielded registration.
         </p>
       </section>
     </div>

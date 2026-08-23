@@ -1,5 +1,7 @@
 import { AI_CRAWLERS, companyStatement, wrapText } from "@/lib/bots";
 import { COMPANY } from "@/lib/company";
+import { publicSiteUrl } from "@/lib/env";
+import { siteUrl } from "@/lib/seo";
 
 /**
  * robots.txt, written by hand rather than through Next's `app/robots.ts`
@@ -59,6 +61,10 @@ export function GET(): Response {
     "Disallow: /order-confirmation",
     "Disallow: /wishlist",
     "Allow: /",
+    "",
+    // How a brand-new domain gets found at all: nobody links to it yet, so
+    // this is the only way to say "here is everything" in one go.
+    `Sitemap: ${siteUrl(publicSiteUrl())}/sitemap.xml`,
     "",
   ].join("\n");
 
