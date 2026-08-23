@@ -28,6 +28,68 @@ export type ParsedProduct = {
   unknownKeys: string[];
 };
 
+/**
+ * Every heading an admin might put a colour list under.
+ *
+ * ONE LIST, because two things read it: the sheet importer below, and
+ * colorsFromDescription() in lib/colors.ts, which is what makes the colour
+ * picker appear on products uploaded before colours had a column. When those
+ * two disagreed, a product sheet saying "Colour Options:" imported fine and
+ * then showed no swatches — the information was in the database and nothing
+ * was reading it.
+ *
+ * Written in American spelling; the British forms are generated, so adding an
+ * alias here covers both.
+ */
+const COLOR_HEADINGS_US = [
+  "color",
+  "colors",
+  "available colors",
+  "colors available",
+  "color options",
+  "color choices",
+  "color variants",
+  "colorways",
+  "frame color",
+  "frame colors",
+  "finish",
+  "finishes",
+  "finish options",
+  "available finishes",
+  "shades",
+];
+
+/** American + British spelling of every heading above. */
+export const COLOR_HEADINGS: string[] = [
+  ...new Set(
+    COLOR_HEADINGS_US.flatMap((h) => [h, h.replace(/\bcolor/g, "colour")])
+  ),
+];
+
+const COLOR_KEY_ENTRIES: Record<string, string> = Object.fromEntries(
+  COLOR_HEADINGS.map((h) => [h, h.includes("colour") ? "colours_alias" : "colors"])
+);
+
+/**
+ * True when a whole line is nothing but a colour heading.
+ *
+ * A sheet often writes the heading on its own line with the colours beneath it
+ * as bullets, and requiring a colon would silently drop every one of them. The
+ * WHOLE line has to be the heading — a sentence merely containing the word
+ * "colours" is prose, not a heading.
+ */
+export function isBareColorHeading(line: string): boolean {
+  const bare = String(line ?? "")
+    .trim()
+    .replace(/^[-*•]\s*/, "")
+    .replace(/[:=]\s*$/, "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return COLOR_HEADINGS.includes(bare);
+}
+
 // normalized alias -> form field name ("" = handled specially)
 const KEY_MAP: Record<string, string> = {
   "name": "name",
@@ -74,14 +136,7 @@ const KEY_MAP: Record<string, string> = {
   "shipping fee": "shipping_fee",
   "shipping cost": "shipping_fee",
   "free shipping": "free_shipping",
-  "colors": "colors",
-  "color": "colors",
-  "colours": "colours_alias",
-  "colour": "colours_alias",
-  "available colors": "colors",
-  "available colours": "colours_alias",
-  "color options": "colors",
-  "colour options": "colours_alias",
+  ...COLOR_KEY_ENTRIES,
 };
 
 const TRUTHY = new Set(["yes", "y", "true", "1", "on", "✓", "x"]);
@@ -136,7 +191,12 @@ export function parseProductText(text: string): ParsedProduct {
     // `Key: value` — the key side must be short words, so a colon inside prose
     // (e.g. a URL in the description) doesn't start a new field.
     const m = line.match(/^([A-Za-z][A-Za-z0-9 _-]{0,30})\s*[:=]\s*(.*)$/);
-    const field = m ? KEY_MAP[normalizeKey(m[1])] : undefined;
+    let field = m ? KEY_MAP[normalizeKey(m[1])] : undefined;
+    // A colour heading alone on its line, with the colours listed beneath it.
+    // Recognised only when the ENTIRE line is the heading, so a sentence that
+    // happens to mention colour stays prose.
+    const bareColorHeading = !field && isBareColorHeading(line);
+    if (bareColorHeading) field = "colors";
 
     if (!field) {
       // Keep blank lines inside the description — they mark paragraph breaks,
@@ -152,7 +212,7 @@ export function parseProductText(text: string): ParsedProduct {
       continue;
     }
 
-    const value = m![2].trim();
+    const value = bareColorHeading ? "" : m![2].trim();
     inDescription = field === "description";
     inColors = field === "colors" || field === "colours_alias";
 

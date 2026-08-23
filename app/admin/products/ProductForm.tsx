@@ -7,7 +7,12 @@ import { saveProduct, createUploadUrls } from "../actions";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/image-compress";
 import { parseProductText, PRODUCT_TEMPLATE } from "@/lib/product-import";
-import { formatColors, parseColors, productColorOptions } from "@/lib/colors";
+import {
+  formatColors,
+  parseColors,
+  productColors,
+  productColorOptions,
+} from "@/lib/colors";
 import type { Category, Product } from "@/lib/types";
 
 // Largest ORIGINAL a photo picker may hand us. Generous on purpose — normal
@@ -52,11 +57,26 @@ export default function ProductForm({
   const [error, setError] = useState<string | null>(null);
   const [importNote, setImportNote] = useState<string | null>(null);
   // Controlled so the .txt import can fill it and the swatch preview updates
-  // as it's typed. Seeded from whatever is stored, in the admin's own spelling.
+  // as it's typed. Seeded from productColorOptions, which falls back to the
+  // colours already written into the product sheet — so opening an old product
+  // shows them rather than an empty box.
   const [colorsText, setColorsText] = useState(() =>
     formatColors(productColorOptions(p ?? {}))
   );
   const parsedColors = parseColors(colorsText);
+
+  /**
+   * True when what's in the box came from the SHEET rather than the product.
+   *
+   * Prefilling silently is not enough: the admin cannot tell whether the
+   * colours are saved, so they close the page assuming they are and the PDF
+   * sheet still lists nothing. Saying so, with the fix in the same sentence, is
+   * the difference between a prefill and a working feature.
+   */
+  const fromSheetUnsaved =
+    Boolean(p) &&
+    productColors(p?.colors).length === 0 &&
+    parsedColors.length > 0;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -361,6 +381,14 @@ export default function ProductForm({
             Filled automatically by the <span className="text-secondary">Colors:</span>{" "}
             line in a product .txt.
           </p>
+          {fromSheetUnsaved && (
+            <p className="text-signal-orange text-[11px] mt-2 leading-relaxed">
+              Read from this product&apos;s sheet — <strong>not saved yet</strong>.
+              Press Save below to store them on the product, or use{" "}
+              <span className="text-white">Refresh colours</span> on the products
+              list to do it for every product at once.
+            </p>
+          )}
           {/* Parsed preview, so a typo shows up here rather than on the live
               product page. Uses the same parser the storefront does. */}
           {parsedColors.length > 0 && (
