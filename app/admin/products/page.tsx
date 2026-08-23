@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
 import { deleteProduct } from "../actions";
+import RefreshColorsButton from "./RefreshColorsButton";
 
 export default async function AdminProducts() {
   if (!adminConfigured()) {
@@ -23,9 +24,14 @@ export default async function AdminProducts() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-display-lg text-display-lg-mobile text-white uppercase">Products</h1>
-        <Link href="/admin/products/new" className="bg-secondary text-on-secondary-fixed px-6 py-3 rounded font-label-bold uppercase tracking-widest text-sm hover:brightness-105">
-          + New product
-        </Link>
+        <div className="flex items-start gap-3">
+          {/* Pulls the `Colors:` line out of every uploaded product sheet and
+              writes it onto the row, so old products get swatches too. */}
+          <RefreshColorsButton />
+          <Link href="/admin/products/new" className="bg-secondary text-on-secondary-fixed px-6 py-3 rounded font-label-bold uppercase tracking-widest text-sm hover:brightness-105">
+            + New product
+          </Link>
+        </div>
       </div>
 
       <div className="bg-surface-container border border-white/10 rounded-lg overflow-hidden">

@@ -750,6 +750,27 @@ What it changes downstream:
 Requires `supabase/migrations/0012_product_colors.sql`. Until it runs, products
 save without colours and the admin form warns which migration is missing.
 
+### Getting colours onto products you uploaded earlier
+
+Products uploaded before colours had a column of their own kept their `Colors:`
+line as ordinary description text. The shop already reads it at render time, so
+the swatches appear either way — but the colours are not on the row, which means
+the admin form can't show them and the PDF sheet can't list them.
+
+**`/admin/products` → "Refresh colours"** fixes that for the whole catalogue in
+one click. It reads every product's description, writes any colours it finds
+onto the row, and reports:
+
+- how many products it filled in,
+- how many already had colours (those are **never** overwritten — a list you
+  edited by hand survives any number of runs),
+- and **which products have no colours anywhere**, which is the useful part: it
+  names the product sheets still missing a `Colors:` line.
+
+The nightly sweep does the same thing a few products at a time in the
+background. The button is for when you have just uploaded a batch and want the
+swatches on the shop now.
+
 ## Product information sheets (PDF)
 
 Every product page carries a **Download product information** link. It serves

@@ -38,6 +38,7 @@ function fakeDb(seed: Row[] | Partial<Record<string, Row[]>>) {
     const rows = () => (tables[name] ??= []);
     const filters: ((r: Row) => boolean)[] = [];
     let limitTo = Infinity;
+    let rangeFrom = 0;
 
     const builder: Record<string, unknown> = {
       select() {
@@ -66,6 +67,13 @@ function fakeDb(seed: Row[] | Partial<Record<string, Row[]>>) {
         limitTo = n;
         return builder;
       },
+      // Postgres-style inclusive range, which is what Supabase sends and what
+      // the colour sync uses to page through the catalogue.
+      range(from: number, to: number) {
+        rangeFrom = from;
+        limitTo = to - from + 1;
+        return builder;
+      },
       update(patch: Row) {
         return {
           eq(col: string, val: unknown) {
@@ -87,7 +95,9 @@ function fakeDb(seed: Row[] | Partial<Record<string, Row[]>>) {
         return Promise.resolve({ error: null });
       },
       then(resolve: (v: { data: Row[]; error: null }) => unknown) {
-        const out = rows().filter((r) => filters.every((f) => f(r))).slice(0, limitTo);
+        const out = rows()
+          .filter((r) => filters.every((f) => f(r)))
+          .slice(rangeFrom, rangeFrom + limitTo);
         return Promise.resolve(resolve({ data: out, error: null }));
       },
     };
@@ -340,5 +350,62 @@ describe("filling in colours the admin already wrote", () => {
     const second = await syncProductColors(db, {});
     assert.equal(first.updated, 1);
     assert.equal(second.updated, 0);
+  });
+
+  test("REACHES PRODUCTS PAST THE FIRST PAGE", async () => {
+    // The bug this replaced: one page of rows was read and the rest of the
+    // catalogue was never looked at, so a shop's 201st product could not be
+    // filled in no matter how many times the sweep ran.
+    const products = Array.from({ length: 250 }, (_, i) => ({
+      id: `p${String(i).padStart(3, "0")}`,
+      name: `Trike ${i}`,
+      colors: [],
+      description: "Colors: Black, Red",
+    }));
+    const { db } = fakeDb({ products });
+    const result = await syncProductColors(db, { limit: Infinity, pageSize: 100 });
+    assert.equal(result.updated, 250);
+    assert.equal(
+      products.filter((p) => (p.colors as unknown[]).length > 0).length,
+      250,
+      "some products were never reached"
+    );
+  });
+
+  test("the write cap bounds WRITES, not what it looks at", async () => {
+    // The cron passes a small cap to stay inside its time budget. The report
+    // still has to describe the whole catalogue, or it would tell the owner
+    // their shop is smaller than it is.
+    const products = Array.from({ length: 30 }, (_, i) => ({
+      id: `p${String(i).padStart(3, "0")}`,
+      name: `Trike ${i}`,
+      colors: [],
+      description: "Colors: Black",
+    }));
+    const { db } = fakeDb({ products });
+    const result = await syncProductColors(db, { limit: 5, pageSize: 10 });
+    assert.equal(result.updated, 5);
+    assert.equal(result.scanned, 30, "it stopped counting when it stopped writing");
+  });
+
+  test("reports which products still have no colours anywhere", async () => {
+    // The useful half of the report: the owner can only add a Colors: line to
+    // a product sheet if they know which sheet is missing one.
+    const products = [
+      { id: "p1", name: "Volt S1", colors: [], description: "Colors: Black" },
+      { id: "p2", name: "Hub Motor", colors: [], description: "A 3000W hub motor." },
+      { id: "p3", name: "Helmet", colors: [{ name: "Matte White", hex: null }], description: "" },
+    ];
+    const { db } = fakeDb({ products });
+    const result = await syncProductColors(db, { limit: Infinity });
+    assert.equal(result.updated, 1);
+    assert.equal(result.alreadyHad, 1);
+    assert.deepEqual(result.missing, ["Hub Motor"]);
+  });
+
+  test("falls back to the id when a product has no name", async () => {
+    const products = [{ id: "p9", name: null, colors: [], description: "no colours here" }];
+    const { db } = fakeDb({ products });
+    assert.deepEqual((await syncProductColors(db, {})).missing, ["p9"]);
   });
 });

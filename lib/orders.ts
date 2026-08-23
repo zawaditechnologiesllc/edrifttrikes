@@ -728,62 +728,115 @@ async function claimReminder(
 // Colours on products uploaded before colours had a column
 // ---------------------------------------------------------------------------
 
+export type ColorSyncResult = {
+  /** Products looked at that had no colours of their own. */
+  scanned: number;
+  /** Products written to. */
+  updated: number;
+  /** Products that already had colours and were left alone. */
+  alreadyHad: number;
+  /**
+   * Names of products with no colours anywhere — not on the row, not in the
+   * description. This is the useful half of the report: it tells the owner
+   * exactly which product sheets still need a `Colors:` line.
+   */
+  missing: string[];
+};
+
+/** Rows fetched per query. Bounded so one page can't blow the Worker's memory. */
+const COLOR_SYNC_PAGE = 200;
+
 /**
  * Write colours onto products that only have them in their description text.
  *
  * productColorOptions() already falls back to the description at read time, so
  * the picker appears immediately either way. This makes the fallback permanent:
  * the colours become real data on the row, which means the admin sees and can
- * edit them in the product form, and nothing downstream has to re-derive them.
+ * edit them in the product form, the PDF sheet lists them, and nothing
+ * downstream has to re-derive them on every render.
  *
- * IDEMPOTENT AND SELF-LIMITING. Only products whose `colors` is empty are
- * considered, so once a product has been filled in it is never looked at again
- * and an admin who deliberately clears a colour list only gets it back if the
- * description still names one — which is the same thing they would get from the
- * read-time fallback anyway.
+ * PAGES THROUGH THE WHOLE CATALOGUE. It used to read one page of 200 and stop,
+ * which quietly meant a 201st product could never be filled in no matter how
+ * many times the cron ran.
+ *
+ * IDEMPOTENT AND NON-DESTRUCTIVE. Only products whose `colors` is empty are
+ * considered, so a product that has been filled in is never looked at again and
+ * an admin's hand-edited list is never overwritten. Clearing a colour list by
+ * hand only gets it back if the description still names one — which is what the
+ * read-time fallback would show anyway.
+ *
+ * `limit` caps WRITES, not reads: the cron passes a small number to stay well
+ * inside its time budget, while the admin button passes Infinity to do the lot
+ * in one go.
  */
 export async function syncProductColors(
   admin: Admin,
-  opts: { limit?: number } = {}
-): Promise<{ scanned: number; updated: number }> {
+  opts: { limit?: number; pageSize?: number } = {}
+): Promise<ColorSyncResult> {
   const limit = opts.limit ?? 25;
+  const pageSize = Math.max(1, Math.min(opts.pageSize ?? COLOR_SYNC_PAGE, 1000));
 
-  const { data, error } = await admin
-    .from("products")
-    .select("id, colors, description")
-    .not("description", "is", null)
-    .limit(200);
-
-  if (error) {
-    // Most likely migration 0012 has not run, in which case there is no column
-    // to write to and the read-time fallback is doing the work regardless.
-    console.error("[orders] colour sync query failed:", error.message);
-    return { scanned: 0, updated: 0 };
-  }
-
-  const rows = (data ?? []) as { id: string; colors: unknown; description: string | null }[];
   let scanned = 0;
   let updated = 0;
+  let alreadyHad = 0;
+  const missing: string[] = [];
 
-  for (const row of rows) {
-    if (updated >= limit) break;
-    // Already has colours — nothing to do, and nothing to overwrite.
-    if (productColors(row.colors).length > 0) continue;
-    scanned++;
-
-    const derived = colorsFromDescription(row.description);
-    if (derived.length === 0) continue;
-
-    const { error: writeError } = await admin
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await admin
       .from("products")
-      .update({ colors: derived })
-      .eq("id", row.id);
-    if (writeError) {
-      console.error(`[orders] colour sync failed for ${row.id}:`, writeError.message);
-      continue;
+      .select("id, name, colors, description")
+      // By id, not created_at: paging needs a total order, and two products
+      // created in the same millisecond would otherwise shuffle between pages
+      // and let one slip through unread.
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      // Most likely migration 0012 has not run, in which case there is no
+      // column to write to and the read-time fallback is doing the work.
+      console.error("[orders] colour sync query failed:", error.message);
+      break;
     }
-    updated++;
+
+    const rows = (data ?? []) as {
+      id: string;
+      name: string | null;
+      colors: unknown;
+      description: string | null;
+    }[];
+
+    for (const row of rows) {
+      if (productColors(row.colors).length > 0) {
+        alreadyHad++;
+        continue;
+      }
+      scanned++;
+
+      const derived = colorsFromDescription(row.description);
+      if (derived.length === 0) {
+        // Worth naming: the owner can only fix what they can see.
+        if (missing.length < 50) missing.push(row.name?.trim() || row.id);
+        continue;
+      }
+
+      // The write cap stops the loop, but only AFTER everything has been
+      // counted — a truncated report would misreport the catalogue.
+      if (updated >= limit) continue;
+
+      const { error: writeError } = await admin
+        .from("products")
+        .update({ colors: derived })
+        .eq("id", row.id);
+      if (writeError) {
+        console.error(`[orders] colour sync failed for ${row.id}:`, writeError.message);
+        continue;
+      }
+      updated++;
+    }
+
+    // A short page is the last page.
+    if (rows.length < pageSize) break;
   }
 
-  return { scanned, updated };
+  return { scanned, updated, alreadyHad, missing };
 }
