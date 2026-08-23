@@ -10,6 +10,8 @@ import {
   parseColors,
   productColors,
   requiresColorChoice,
+  colorsFromDescription,
+  descriptionBody,
 } from "../lib/colors";
 
 /**
@@ -326,5 +328,86 @@ describe("the description shown to buyers", () => {
   test("is empty when the description was only a colour list", () => {
     assert.equal(descriptionBody("Colour options: Gunmetal, Arctic White"), "");
     assert.equal(descriptionBody(null), "");
+  });
+});
+
+describe("the headings a real product sheet actually uses", () => {
+  /**
+   * The bug this covers: the importer and the description reader kept their
+   * own separate lists of colour headings. A sheet saying "Colour Options:"
+   * imported perfectly and then showed no swatches — the colours were in the
+   * database with nothing willing to read them. They share one list now.
+   */
+
+  test("finds colours under every heading an admin plausibly writes", () => {
+    const sheets: [string, string[]][] = [
+      ["Colors: Black, Red", ["Black", "Red"]],
+      ["Colours: Black, Red", ["Black", "Red"]],
+      ["Color: Black, Red", ["Black", "Red"]],
+      ["Available Colors: Black, Red", ["Black", "Red"]],
+      ["Available Colours: Black, Red", ["Black", "Red"]],
+      ["Colors Available: Black, Red", ["Black", "Red"]],
+      ["Colours Available: Black, Red", ["Black", "Red"]],
+      ["Color Options: Black, Red", ["Black", "Red"]],
+      ["Colour Options: Black, Red", ["Black", "Red"]],
+      ["Colour Choices: Black, Red", ["Black", "Red"]],
+      ["Color Variants: Black, Red", ["Black", "Red"]],
+      ["Colorways: Black, Red", ["Black", "Red"]],
+      ["Frame Colours: Black, Red", ["Black", "Red"]],
+      ["Finish Options: Black, Red", ["Black", "Red"]],
+      ["Finishes: Black, Red", ["Black", "Red"]],
+      ["Shades: Black, Red", ["Black", "Red"]],
+    ];
+    for (const [line, expected] of sheets) {
+      const found = colorsFromDescription(`A trike.\n\n${line}\n\nShips flat.`);
+      assert.deepEqual(found.map((c) => c.name), expected, `"${line}" found nothing`);
+    }
+  });
+
+  test("reads a heading on its own line with the colours beneath it", () => {
+    // The commonest layout in a real sheet, and the one a colon-only match
+    // dropped silently.
+    for (const heading of ["Colours", "COLORS", "Colour Options:", "- Colors"]) {
+      const found = colorsFromDescription(
+        `Spec text.\n\n${heading}\n- Midnight Black\n- Voltage Blue\n\nShips flat.`
+      );
+      assert.deepEqual(
+        found.map((c) => c.name),
+        ["Midnight Black", "Voltage Blue"],
+        `heading "${heading}" found nothing`
+      );
+    }
+  });
+
+  test("takes it from an underscored or hyphenated key too", () => {
+    assert.deepEqual(
+      colorsFromDescription("Spec.\n\ncolor_options: Black, Red").map((c) => c.name),
+      ["Black", "Red"]
+    );
+    assert.deepEqual(
+      colorsFromDescription("Spec.\n\nframe-colours: Black, Red").map((c) => c.name),
+      ["Black", "Red"]
+    );
+  });
+
+  test("PROSE that merely mentions colour is not a colour list", () => {
+    // The cost of getting this wrong is a sentence appearing as a swatch on
+    // the shop, which looks broken to every buyer who sees it.
+    for (const prose of [
+      "The frame comes in a colour that suits the rider. It weighs 42kg.",
+      "Choose the colour of your wheels when you order.",
+      "A 3000W hub motor with a 30-mile range.",
+    ]) {
+      assert.deepEqual(colorsFromDescription(prose), [], `matched: ${prose}`);
+    }
+  });
+
+  test("strips a bare heading and its list out of the displayed description", () => {
+    // The swatches say it already; leaving the list in the prose says it
+    // twice, and says it worse.
+    assert.equal(
+      descriptionBody("Spec text.\n\nColours\n- Midnight Black\n- Voltage Blue\n\nShips flat."),
+      "Spec text.\n\nShips flat."
+    );
   });
 });

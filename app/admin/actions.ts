@@ -347,12 +347,15 @@ export async function refreshProductColors(): Promise<ColorRefreshState> {
     return { error: `Could not refresh colours: ${message}` };
   }
 
-  // Product pages are cached under the catalog tag; without this the new
-  // swatches would not appear until the TTL happened to expire.
-  if (result.updated > 0) {
-    revalidateTag(CATALOG_TAG);
-    revalidatePath("/admin/products");
-  }
+  // ALWAYS, not only when something changed. A run that found nothing still
+  // has to leave the admin looking at fresh data — an owner who presses the
+  // button and sees the old screen concludes it did nothing, whatever the
+  // message underneath says.
+  revalidateTag(CATALOG_TAG);
+  // "layout" so the product EDIT pages refresh too, not just the list: the
+  // colour field on those is what the owner opens next to check the result.
+  revalidatePath("/admin/products", "layout");
+  revalidatePath("/shop");
 
   const parts = [
     `${result.updated} product${result.updated === 1 ? "" : "s"} filled in`,

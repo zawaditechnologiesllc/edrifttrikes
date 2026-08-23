@@ -15,7 +15,11 @@
  * against it — all from the same definition.
  */
 
-import { parseProductText } from "@/lib/product-import";
+import {
+  COLOR_HEADINGS,
+  isBareColorHeading,
+  parseProductText,
+} from "@/lib/product-import";
 
 export type ProductColor = {
   /** What the buyer picks and what is stored on the order line. */
@@ -166,13 +170,33 @@ export function requiresColorChoice(colors: ProductColor[]): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Keys an admin writes when listing colours in a product sheet. Kept in step
- * with KEY_MAP in lib/product-import.ts.
+ * Does this line introduce a colour list?
+ *
+ * BUILT FROM THE IMPORTER'S OWN HEADING LIST rather than a regex written here.
+ * When the two were maintained separately they drifted, and a sheet that said
+ * "Colour Options:" imported perfectly and then showed no swatches — the
+ * colours were sitting in the database with nothing willing to read them.
+ *
+ * Two shapes count: `Heading: value` and a heading alone on its line with the
+ * colours beneath it.
  */
 // `m` matters: the heading is almost never the first line of a description.
 // No `g` flag — .test() would then carry lastIndex between calls and start
 // missing every other match.
-const COLOR_KEY = /^\s*(colou?rs?|available\s+colou?rs?|colou?r\s+options)\s*[:=]/im;
+const COLOR_KEY = new RegExp(
+  `^\\s*(?:${COLOR_HEADINGS.map((h) => h.replace(/ /g, "[\\s_-]+")).join("|")})\\s*[:=]`,
+  "im"
+);
+
+/** True for either shape, on a single line. */
+function isColorHeadingLine(line: string): boolean {
+  return COLOR_KEY.test(line) || isBareColorHeading(line);
+}
+
+/** True when a whole description contains a colour list anywhere in it. */
+function hasColorHeading(text: string): boolean {
+  return text.split(/\r?\n/).some(isColorHeadingLine);
+}
 
 /**
  * A colour name a person would actually write.
@@ -211,7 +235,7 @@ export function colorsFromDescription(
   description: string | null | undefined
 ): ProductColor[] {
   const text = String(description ?? "");
-  if (!text.trim() || !COLOR_KEY.test(text)) return [];
+  if (!text.trim() || !hasColorHeading(text)) return [];
   return parseColors(parseProductText(text).fields.colors).filter((c) =>
     plausibleColorName(c.name)
   );
@@ -247,7 +271,7 @@ export function descriptionBody(description: string | null | undefined): string 
   const out: string[] = [];
   let skipping = false;
   for (const line of text.split(/\r?\n/)) {
-    if (COLOR_KEY.test(line)) {
+    if (isColorHeadingLine(line)) {
       skipping = true;
       continue;
     }
