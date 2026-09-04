@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/format";
 import { OrderManageForm } from "../OrderStatusForm";
 import ConnectAccountForm from "../ConnectAccountForm";
 import { OriginPanel } from "../OrderOrigin";
+import StageLadder from "../StageLadder";
 import { loadOrderEvents } from "@/lib/orders";
 import {
   STAGE_COPY,
@@ -146,22 +147,12 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               {order.courier && <p className="text-on-surface-variant text-xs">{order.courier}</p>}
             </div>
           )}
-          {events.length > 0 && (
-            <div>
-              <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-2">Timeline</h3>
-              <ol className="space-y-2">
-                {events.map((e) => (
-                  <li key={e.id} className="text-sm">
-                    <span className="text-white">{e.title}</span>
-                    <span className="block text-on-surface-variant text-xs">
-                      {new Date(e.created_at).toLocaleString()}
-                      {e.email_sent ? " · emailed" : ""}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
+          {/* The whole rail, not just the steps already taken — the admin and
+              the customer look at the same journey, and "what happens next and
+              when" is the question this page is usually open to answer. */}
+          <div className="border-t border-white/10 pt-4">
+            <StageLadder order={order} events={events} />
+          </div>
         </div>
       </div>
 

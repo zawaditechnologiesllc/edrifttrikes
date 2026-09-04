@@ -537,7 +537,8 @@ export async function sendAbandonedReminderEmail(order: Order, step: ReminderSte
 
 /**
  * A staged delivery-journey email — sent when an order reaches a new
- * fulfillment stage, whether that came from the scheduler (day 3 / 25 / 28),
+ * fulfillment stage, whether that came from the scheduler (day 1 / 3 / 10 / 25
+ * / 27 / 28),
  * the payment webhook, or an admin moving the order by hand.
  *
  * The subject and body come from STAGE_COPY in lib/fulfillment.ts, so the

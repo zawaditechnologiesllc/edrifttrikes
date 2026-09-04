@@ -1,8 +1,7 @@
 import {
-  SCHEDULED_STAGES,
   STAGE_COPY,
+  TRACKER_STAGES,
   formatDeliveryDate,
-  stageIndex,
   stageMessage,
   type FulfillmentStage,
 } from "@/lib/fulfillment";
@@ -60,7 +59,11 @@ function StageRow({
         )}
       </div>
 
-      <div className="pb-6 last:pb-0">
+      {/* Row spacing, from the same prop the connector uses. NOT a `last:`
+          variant: this div is always the last child of its own <li>, so
+          `last:pb-0` would zero the padding on every row and collapse the rail
+          into a cramped stack. */}
+      <div className={isLast ? "" : "pb-6"}>
         <p
           className={`font-label-bold uppercase tracking-widest text-sm ${
             done || current ? "text-white" : "text-on-surface-variant"
@@ -119,7 +122,11 @@ export default function OrderTracker({ order }: { order: Order }) {
   }
 
   const isDelivered = stage === "delivered";
-  const currentIndex = isDelivered ? SCHEDULED_STAGES.length - 1 : stageIndex(stage);
+  // Indexed against the RAIL, not the schedule: the rail ends with `delivered`,
+  // which is not on the schedule because a clock cannot know a parcel arrived.
+  // A stage missing from the rail (only `cancelled`, handled above) would give
+  // -1, which would light nothing — so it falls back to the first node.
+  const currentIndex = Math.max(0, TRACKER_STAGES.indexOf(stage));
 
   // When did each stage happen? From the event timeline where we have it.
   const eventAt = new Map(
@@ -168,17 +175,13 @@ export default function OrderTracker({ order }: { order: Order }) {
       )}
 
       <ol>
-        {SCHEDULED_STAGES.map((s, i) => (
+        {TRACKER_STAGES.map((s, i) => (
           <StageRow
             key={s}
             stage={s}
-            isLast={i === SCHEDULED_STAGES.length - 1}
+            isLast={i === TRACKER_STAGES.length - 1}
             state={
-              isDelivered || i < currentIndex
-                ? "done"
-                : i === currentIndex
-                  ? "current"
-                  : "upcoming"
+              i < currentIndex ? "done" : i === currentIndex ? "current" : "upcoming"
             }
             at={eventAt.get(s) ?? null}
           />
