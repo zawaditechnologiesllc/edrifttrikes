@@ -8,12 +8,33 @@ and can watch the same timeline live on their dashboard.
 | Day after payment | Stage | Email subject | What the customer is told |
 | --- | --- | --- | --- |
 | **0** | `confirmed` | Order confirmed — preparing your shipment | Payment cleared; the crew is preparing the build. Quotes the delivery date. |
-| **3** | `shipped` | Your order has shipped | Left the garage, now with the shipping partner. Quotes the delivery date. |
+| **1** | `preparing` | Your order is being prepared | On the bench: assembly, pre-dispatch checks, crating. Quotes the delivery date. |
+| **3** | `shipped` | Your order has shipped | Left the garage, now with the shipping partner. Quotes the delivery date, and explains the 7-day buffer in it. |
+| **10** | `in_transit` | Your order is on its way | Left the origin facility, on the long leg. Says freight goes quiet between hubs, so the silence is expected. Quotes the delivery date. |
 | **25** | `arriving` | Shipping complete — your package is arriving | Shipping complete, reached the destination hub. **Quotes the date they'll receive it.** |
+| **27** | `out_for_delivery` | Out for delivery | With the local courier. Someone has to receive it — it is crated and cannot go through a door; otherwise it goes to the depot. |
 | **28** | `ready_for_collection` | Your package is ready for collection | *"Your package is ready for collection. Kindly wait for a courier email or call to collect, or to confirm door delivery."* |
 
-Two stages exist outside the schedule and are admin-only: `delivered` and
-`cancelled`. The scheduler never touches an order in either.
+`delivered` closes the journey. It is on the customer's tracker as the final
+rung but **not** on the schedule: a clock has no way of knowing a parcel
+arrived, so only an admin (or a courier confirmation) sets it. `cancelled` is
+the other admin-only stage. The scheduler never touches an order in either.
+
+### Why seven steps and not four
+
+The schedule used to be four: confirmed, shipped, arriving, ready. It ended on
+the same day it does now — day 28 — but it said **nothing at all between day 3
+and day 25**. Three silent weeks is the window in which a buyer starts
+wondering whether the order exists, and support tickets are cheaper to prevent
+than to answer. `preparing`, `in_transit` and `out_for_delivery` fill that gap
+with things that are actually true of a crated freight shipment; they add
+visibility, not delay.
+
+Each of them is a full stage, not a decoration: it is emailed, it is written to
+`order_events`, it appears on the customer's tracker, and an admin can set it by
+hand. There is no such thing as a silent step here — see
+`tests/order-journey.test.ts`, which walks a simulated order through all
+twenty-eight days and asserts one email per stage, in order, with no duplicates.
 
 **All of this lives in one file: [`lib/fulfillment.ts`](../lib/fulfillment.ts).**
 Change a number in `FULFILLMENT_SCHEDULE` or a sentence in `STAGE_COPY` and the
@@ -395,7 +416,8 @@ update public.orders
 -- Let it re-send stages you want to see again.
 delete from public.order_events
  where order_id = (select id from public.orders where order_number = 'EDT-XXXXXXXX')
-   and stage in ('shipped', 'arriving', 'ready_for_collection');
+   and stage in ('preparing', 'shipped', 'in_transit', 'arriving',
+                  'out_for_delivery', 'ready_for_collection');
 ```
 
 Then trigger a sweep:
@@ -415,7 +437,8 @@ Until then the order sits `pending` and the buyer has only the cart-recovery
 email.
 
 From that moment the cron takes over and no further admin action is needed. It
-advances the order through `shipped` (day 3), `arriving` (day 25) and
+advances the order through `preparing` (day 1), `shipped` (day 3),
+`in_transit` (day 10), `arriving` (day 25), `out_for_delivery` (day 27) and
 `ready_for_collection` (day 28), emailing at each step. Every one of those
 writes `fulfillment_stage` on the order row, which is the single column both the
 admin order list and the rider dashboard render from — so a stage the cron sets

@@ -226,7 +226,24 @@ Everything is server-rendered with `unstable_cache` + tags (`catalog`,
   every surface reads it: product pages, cart, checkout, the payment page, the
   PDF, and every email.
 - **The internal stage schedule**: when each tracking email fires. Day 0
-  confirmed, day 3 shipped, day 25 arriving, day 28 ready for collection.
+  confirmed, day 1 preparing, day 3 shipped, day 10 in transit, day 25 arriving,
+  day 27 out for delivery, day 28 ready for collection. `delivered` closes the
+  journey but is **not** on the schedule — a clock cannot know a parcel arrived,
+  so only an admin sets it.
+
+  Seven steps, not four, and they still land on the same final day: the extra
+  ones are visibility, not delay. Four steps left a **three-week silence**
+  between "shipped" and "arriving", which is precisely the window in which a
+  buyer starts wondering whether the order is real. Fill it with things that are
+  actually true of a crated freight shipment — on the bench, on the long leg,
+  with the local courier — and say something honest about each. "There is not
+  much to see at this stage, freight goes quiet between hubs" is worth more than
+  silence.
+
+  **A step with no confirmation is not a step.** Every stage on the ladder must
+  email, write an event row, appear on the customer's tracker and be settable by
+  hand in the admin. A stage that only moves a badge is a stage the customer
+  never learns about.
 
 Put a **deliberate buffer** in the quote and *say so* in the shipped email —
 "we add a 7-day buffer so a hold-up at the courier's end doesn't become a broken
@@ -252,7 +269,9 @@ and top up product colours.
 2. **Payment confirmed** → the complete receipt: order number, dates, every line
    with its colour and quantity, the money broken down, free shipping stated
    outright when it applies, the delivery address, and who to contact.
-3. **Shipped / arriving / ready** → the itemised list plus tracking.
+3. **Every delivery stage** → the itemised list plus tracking. One email per
+   stage, exactly once, from the same copy table the tracker renders — so the
+   inbox and the dashboard cannot tell two different stories.
 4. **Refund initiated** → the amount, that refunds are processed by hand within
    `{{REFUND_DAYS}}` days, and that a credit not yet visible is usually the bank
    rather than the shop. From a `no-reply@` address on the same verified domain.
@@ -281,6 +300,13 @@ Gate on `profiles.role = 'admin'` in a shared `requireAdmin()`.
 - **Orders**: list with status, stage and origin; a detail page to change payment
   status, jump the delivery stage, set tracking, and connect a guest order to an
   account by emailing a signup link.
+- **The same ladder the customer sees**, on the order detail page — every step,
+  not just the ones already taken, because the question being asked when someone
+  opens an order is "where is this and what happens next". Add the two things
+  only this side needs: whether each completed step actually **emailed** (a step
+  recorded but not emailed is the signature of a failed send) and the **due
+  date** of each remaining step, projected from the payment date, so "should
+  this have moved by now?" needs no arithmetic.
 - **Tracking**: a courier **dropdown** (~100 carriers, grouped by region, plus
   "Other — type it in") and a **Generate** button producing an internal
   reference (`XXX-2608-G625N2-C`: prefix, year+month, random body from an

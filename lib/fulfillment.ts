@@ -19,8 +19,11 @@
 export type FulfillmentStage =
   | "awaiting_payment"
   | "confirmed"
+  | "preparing"
   | "shipped"
+  | "in_transit"
   | "arriving"
+  | "out_for_delivery"
   | "ready_for_collection"
   | "delivered"
   | "cancelled";
@@ -35,8 +38,11 @@ export type FulfillmentStage =
  */
 export const FULFILLMENT_SCHEDULE = [
   { stage: "confirmed", afterDays: 0 },
+  { stage: "preparing", afterDays: 1 },
   { stage: "shipped", afterDays: 3 },
+  { stage: "in_transit", afterDays: 10 },
   { stage: "arriving", afterDays: 25 },
+  { stage: "out_for_delivery", afterDays: 27 },
   { stage: "ready_for_collection", afterDays: 28 },
 ] as const satisfies readonly { stage: FulfillmentStage; afterDays: number }[];
 
@@ -54,6 +60,20 @@ export const SCHEDULE_SPAN_DAYS = 28;
 export const SCHEDULED_STAGES: FulfillmentStage[] = FULFILLMENT_SCHEDULE.map(
   (s) => s.stage
 );
+
+/**
+ * The ladder shown to the customer, end to end.
+ *
+ * The scheduled stages PLUS `delivered`. Delivery is the step everyone is
+ * actually waiting for, so a rail that stops at "ready for collection" reads as
+ * though the story has no ending. It is not on the schedule because a clock
+ * cannot know a parcel arrived — only an admin or a courier does — so it sits
+ * on the rail as the final, unreached node until someone confirms it.
+ */
+export const TRACKER_STAGES: FulfillmentStage[] = [
+  ...FULFILLMENT_SCHEDULE.map((s) => s.stage),
+  "delivered",
+];
 
 /**
  * Terminal stages the scheduler must never touch. Once an order is delivered
@@ -94,6 +114,12 @@ export const STAGE_COPY: Record<FulfillmentStage, StageCopy> = {
     message:
       "Payment cleared and your order is confirmed. Our garage crew is preparing your build for dispatch, and we'll email you the moment it leaves the workshop. Estimated delivery: {date}.",
   },
+  preparing: {
+    label: "Preparing",
+    title: "Your order is being prepared",
+    message:
+      "Your build is on the bench. We're assembling it, running it through its pre-dispatch checks and crating it for the journey. The next email you get from us is the one that says it has left the workshop. Estimated delivery: {date}.",
+  },
   shipped: {
     label: "Shipped",
     title: "Your order has shipped",
@@ -105,11 +131,23 @@ export const STAGE_COPY: Record<FulfillmentStage, StageCopy> = {
     message:
       "Your order has left the garage and is now with our shipping partner. It's on its way to you — estimated delivery: {date}. That date is deliberately generous: we add a 7-day buffer to every quote so a hold-up at the courier's end doesn't turn into a broken promise at ours. Most orders arrive ahead of it, often by about a week.",
   },
+  in_transit: {
+    label: "In transit",
+    title: "Your order is on its way",
+    message:
+      "Your order is moving. It has left our shipping partner's origin facility and is on the long leg of its journey to your country. There is not much to see at this stage — freight goes quiet between hubs — so we'll come back to you when it reaches the destination side. Estimated delivery: {date}.",
+  },
   arriving: {
     label: "Arriving",
     title: "Shipping complete — your package is arriving",
     message:
       "Shipping is complete. Your package has reached the destination hub and is being prepared for handover to your local courier. You should receive it by {date}.",
+  },
+  out_for_delivery: {
+    label: "Out for delivery",
+    title: "Out for delivery",
+    message:
+      "Your order is with the local courier and out for delivery. Someone should be there to receive it — it is a crated item and cannot be posted through a door. If nobody is available, the courier will leave it at their depot and we'll email you again with how to collect it.",
   },
   ready_for_collection: {
     label: "Ready for collection",

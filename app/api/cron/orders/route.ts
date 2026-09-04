@@ -14,9 +14,15 @@ export const dynamic = "force-dynamic";
  * the customer at each step.
  *
  *   day 0   confirmed            (sent by markOrderPaid, not here)
+ *   day 1   preparing            (on the bench: assembly, checks, crating)
  *   day 3   shipped
+ *   day 10  in_transit           (the long leg, where freight goes quiet)
  *   day 25  arriving  ("shipping complete", quotes the arrival date)
- *   day 28  ready_for_collection (final)
+ *   day 27  out_for_delivery     (with the local courier)
+ *   day 28  ready_for_collection (last scheduled stage)
+ *
+ * `delivered` is the final rung of the customer's tracker but is NOT here: a
+ * clock cannot know a parcel arrived, so an admin sets it.
  *
  * The timings live in lib/fulfillment.ts. This route is only the engine.
  *

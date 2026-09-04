@@ -6,6 +6,7 @@ import {
   FULFILLMENT_SCHEDULE,
   SCHEDULED_STAGES,
   STAGE_COPY,
+  TRACKER_STAGES,
   addDays,
   dueStage,
   estimatedDeliveryAt,
@@ -26,16 +27,28 @@ const PAID = new Date("2026-01-01T12:00:00Z");
 const at = (days: number) => addDays(PAID, days);
 
 describe("the schedule itself", () => {
-  test("matches the agreed timings: day 0, 3, 25, 28", () => {
+  test("matches the agreed timings: day 0, 1, 3, 10, 25, 27, 28", () => {
     assert.deepEqual(
       FULFILLMENT_SCHEDULE.map((s) => [s.stage, s.afterDays]),
       [
         ["confirmed", 0],
+        ["preparing", 1],
         ["shipped", 3],
+        ["in_transit", 10],
         ["arriving", 25],
+        ["out_for_delivery", 27],
         ["ready_for_collection", 28],
       ]
     );
+  });
+
+  test("still ends on the same day the old four-step schedule did", () => {
+    // The extra steps are visibility, not delay. If adding them had pushed the
+    // final stage past day 28 every delivery quote on the site would be wrong.
+    const last = FULFILLMENT_SCHEDULE[FULFILLMENT_SCHEDULE.length - 1];
+    assert.equal(last.stage, "ready_for_collection");
+    assert.equal(last.afterDays, 28);
+    assert.equal(SCHEDULE_SPAN_DAYS, 28);
   });
 
   test("is strictly increasing — a later stage can never come due first", () => {
@@ -55,6 +68,14 @@ describe("the schedule itself", () => {
     }
   });
 
+  test("every scheduled stage is a stage the admin can also pick by hand", () => {
+    // A stage the scheduler can reach but an admin cannot is a stage nobody can
+    // correct when the courier is ahead of, or behind, the clock.
+    for (const stage of SCHEDULED_STAGES) {
+      assert.ok(ALL_STAGES.includes(stage), `${stage} is missing from ALL_STAGES`);
+    }
+  });
+
   test("the final stage tells the customer to await the courier", () => {
     // This is the wording the store owner specified; it must survive edits.
     const message = STAGE_COPY.ready_for_collection.message.toLowerCase();
@@ -65,20 +86,119 @@ describe("the schedule itself", () => {
   });
 });
 
+describe("the tracker rail", () => {
+  /**
+   * What the customer sees on their dashboard. It is the schedule plus
+   * `delivered`, because a rail that stops at "ready for collection" reads like
+   * a story with no ending — but `delivered` cannot be on the schedule, since a
+   * clock has no way of knowing a parcel actually arrived.
+   */
+  test("is the schedule, in order, then delivered", () => {
+    assert.deepEqual(TRACKER_STAGES, [...SCHEDULED_STAGES, "delivered"]);
+  });
+
+  test("ends at delivered", () => {
+    assert.equal(TRACKER_STAGES[TRACKER_STAGES.length - 1], "delivered");
+  });
+
+  test("has no dead ends — every rung has copy to render", () => {
+    for (const stage of TRACKER_STAGES) {
+      assert.ok(STAGE_COPY[stage]?.label, `${stage} has no label for the rail`);
+    }
+  });
+
+  test("carries no closed stages", () => {
+    // `cancelled` and `awaiting_payment` are rendered as their own panels, not
+    // as rungs; putting either on the rail would light a step that never fires.
+    assert.ok(!TRACKER_STAGES.includes("cancelled"));
+    assert.ok(!TRACKER_STAGES.includes("awaiting_payment"));
+  });
+
+  test("every rung is findable — the tracker indexes against this list", () => {
+    // OrderTracker does TRACKER_STAGES.indexOf(stage); a stage the customer can
+    // actually be in but that is absent here would light the wrong marker.
+    for (const stage of SCHEDULED_STAGES) {
+      assert.ok(TRACKER_STAGES.indexOf(stage) >= 0, `${stage} is not on the rail`);
+    }
+    assert.ok(TRACKER_STAGES.indexOf("delivered") >= 0);
+  });
+});
+
+describe("the steps added to fill the silent weeks", () => {
+  /**
+   * Between "shipped" on day 3 and "arriving" on day 25 the old schedule said
+   * nothing for three weeks, which is exactly the window a buyer starts
+   * wondering whether the order exists. These three stages are what that gap
+   * was replaced with, so their wording is worth pinning.
+   */
+  test("preparing says the build is being worked on, not merely queued", () => {
+    const m = STAGE_COPY.preparing.message.toLowerCase();
+    assert.match(m, /bench|assembl/);
+    assert.match(m, /crat/);
+  });
+
+  test("in transit explains the quiet rather than leaving it unexplained", () => {
+    const m = STAGE_COPY.in_transit.message.toLowerCase();
+    assert.match(m, /on the long leg|left our shipping partner/);
+    assert.match(m, /quiet/);
+  });
+
+  test("out for delivery tells the buyer somebody has to receive it", () => {
+    const m = STAGE_COPY.out_for_delivery.message.toLowerCase();
+    assert.match(m, /local courier/);
+    assert.match(m, /receive it/);
+    assert.match(m, /depot/);
+  });
+
+  test("each new stage carries a delivery date where one still helps", () => {
+    // Out for delivery deliberately does not: quoting a date to somebody whose
+    // parcel is on a van today reads as a delay, not an estimate.
+    assert.ok(STAGE_COPY.preparing.message.includes("{date}"));
+    assert.ok(STAGE_COPY.in_transit.message.includes("{date}"));
+    assert.ok(!STAGE_COPY.out_for_delivery.message.includes("{date}"));
+  });
+
+  test("none of them promise a date they cannot keep", () => {
+    for (const stage of ["preparing", "in_transit", "out_for_delivery"] as const) {
+      const m = STAGE_COPY[stage].message.toLowerCase();
+      for (const claim of ["guarantee", "will arrive", "no later than"]) {
+        assert.ok(!m.includes(claim), `${stage} promises "${claim}"`);
+      }
+    }
+  });
+});
+
 describe("dueStage", () => {
   test("a fresh payment is confirmed, not shipped", () => {
     assert.equal(dueStage(PAID, PAID), "confirmed");
-    assert.equal(dueStage(PAID, at(2.9)), "confirmed");
+    assert.equal(dueStage(PAID, at(0.9)), "confirmed");
+  });
+
+  test("day 1 is on the bench", () => {
+    assert.equal(dueStage(PAID, at(1)), "preparing");
+    assert.equal(dueStage(PAID, at(2.9)), "preparing");
   });
 
   test("day 3 ships", () => {
     assert.equal(dueStage(PAID, at(3)), "shipped");
-    assert.equal(dueStage(PAID, at(24.9)), "shipped");
+    assert.equal(dueStage(PAID, at(9.9)), "shipped");
+  });
+
+  test("day 10 is the long leg", () => {
+    // The gap this stage exists to fill: without it the customer sees nothing
+    // between day 3 and day 25.
+    assert.equal(dueStage(PAID, at(10)), "in_transit");
+    assert.equal(dueStage(PAID, at(24.9)), "in_transit");
   });
 
   test("day 25 is 'shipping complete / arriving'", () => {
     assert.equal(dueStage(PAID, at(25)), "arriving");
-    assert.equal(dueStage(PAID, at(27.9)), "arriving");
+    assert.equal(dueStage(PAID, at(26.9)), "arriving");
+  });
+
+  test("day 27 is with the local courier", () => {
+    assert.equal(dueStage(PAID, at(27)), "out_for_delivery");
+    assert.equal(dueStage(PAID, at(27.9)), "out_for_delivery");
   });
 
   test("day 28 is ready for collection, and stays there", () => {
@@ -100,8 +220,11 @@ describe("dueStage", () => {
 describe("stagesBetween", () => {
   test("returns the stages crossed, in order", () => {
     assert.deepEqual(stagesBetween("confirmed", "ready_for_collection"), [
+      "preparing",
       "shipped",
+      "in_transit",
       "arriving",
+      "out_for_delivery",
       "ready_for_collection",
     ]);
   });
@@ -117,7 +240,10 @@ describe("stagesBetween", () => {
   });
 
   test("a single hop is a single stage", () => {
-    assert.deepEqual(stagesBetween("confirmed", "shipped"), ["shipped"]);
+    assert.deepEqual(stagesBetween("confirmed", "preparing"), ["preparing"]);
+    assert.deepEqual(stagesBetween("arriving", "out_for_delivery"), [
+      "out_for_delivery",
+    ]);
   });
 });
 
