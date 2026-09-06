@@ -158,6 +158,11 @@ export type SiteSettings = {
   tax_rate_bps?: number;
   /** Store logo, drawn on the PDF product sheets. Null until one is uploaded. */
   logo_url?: string | null;
+  /**
+   * Trading name on the buyer's bank statement. Null uses the Stripe account
+   * default. Sanitised at send time — see lib/stripe-fulfillment.ts.
+   */
+  statement_descriptor?: string | null;
   updated_at?: string;
 };
 

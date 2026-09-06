@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { stripeCompanyContent } from "@/lib/stripe-branding";
+import {
+  stripeShipping,
+  statementDescriptorSuffix,
+} from "@/lib/stripe-fulfillment";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
@@ -358,6 +362,21 @@ export async function POST(request: Request) {
 
   // Stripe path — real payment (default when configured).
   if (stripe) {
+    // Sanitised here rather than trusted from the database: a descriptor with a
+    // character Stripe refuses would fail the session create, and losing the
+    // sale is a far worse outcome than falling back to the account default.
+    const descriptor = statementDescriptorSuffix(
+      (settingsRow as { statement_descriptor?: string | null } | null)
+        ?.statement_descriptor
+    );
+    // The buyer typed this on OUR form a moment ago. Null when it cannot be
+    // rendered into Stripe's shape — see below.
+    const shipTo = stripeShipping(shipping);
+    const company = stripeCompanyContent(
+      order.order_number,
+      shipping.country,
+      totals.total
+    );
     try {
     const params = {
       mode: "payment" as const,
@@ -401,11 +420,50 @@ export async function POST(request: Request) {
       success_url: `${siteUrl}/order-confirmation?order=${order.order_number}`,
       cancel_url: `${siteUrl}/checkout`,
       metadata: { order_id: order.id, order_number: order.order_number },
+      /**
+       * Link repeat buyers to one Stripe customer.
+       *
+       * The default for a one-off payment is to create nothing, which leaves a
+       * returning customer looking like a stranger every time — both to us when
+       * reconciling and to Stripe's own risk model, for which a repeat-purchase
+       * history is one of the few unambiguously good signals a young account
+       * can accumulate.
+       */
+      customer_creation: "always" as const,
       // Our own copy on Stripe's hosted page — who is charging and the delivery
       // window, derived from the same constants as our checkout and emails so
       // the three cannot disagree.
       // See lib/stripe-branding.ts. Logo and colours are Dashboard settings.
-      ...stripeCompanyContent(order.order_number, shipping.country, totals.total),
+      ...company,
+      payment_intent_data: {
+        // The charge description, from the same place the hosted page's copy
+        // comes from.
+        ...company.payment_intent_data,
+        /**
+         * WHERE IT IS ACTUALLY GOING.
+         *
+         * Without this, every charge we make looks — to Stripe's risk model —
+         * like a payment with no destination, which is the profile of digital
+         * goods or of a business that cannot say what it fulfilled. We sell
+         * crated trikes to named addresses, so the payment record should say
+         * so. It is also half the evidence in any "goods not received" dispute.
+         *
+         * Omitted rather than sent broken when the address cannot be rendered
+         * into Stripe's shape: a rejected session is a lost sale, and a missing
+         * shipping block only leaves us where we already were.
+         */
+        ...(shipTo ? { shipping: shipTo } : {}),
+        /**
+         * Metadata does NOT flow from the session down to the PaymentIntent, so
+         * the order number has to be set here as well. It is what makes a charge
+         * in the dashboard traceable to an order, and it is the key the shipping
+         * write-back uses later to attach tracking to this payment.
+         */
+        metadata: { order_id: order.id, order_number: order.order_number },
+        // The name on the buyer's bank statement. Unset in admin leaves the
+        // Stripe account's own default in place.
+        ...(descriptor ? { statement_descriptor_suffix: descriptor } : {}),
+      },
     };
 
     let session;

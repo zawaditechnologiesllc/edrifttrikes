@@ -16,6 +16,7 @@ import { sendAccountInviteEmail, sendRefundEmail, resendFailureHint } from "@/li
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
 import { looksInternal, trackingUrlFor } from "@/lib/couriers";
+import { attachFulfillmentToPayment } from "@/lib/stripe";
 import { probeImage } from "@/lib/pdf";
 import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 import { parseColors } from "@/lib/colors";
@@ -415,7 +416,9 @@ export async function updateOrderStatus(
   // --- status -------------------------------------------------------------
   const { data: current, error: readErr } = await admin
     .from("orders")
-    .select("id, status, fulfillment_stage, order_number, tracking_number, courier")
+    .select(
+      "id, status, fulfillment_stage, order_number, tracking_number, courier, stripe_session_id, stage_updated_at"
+    )
     .eq("id", id)
     .maybeSingle();
   if (readErr) return { error: `Could not read the order: ${readErr.message}` };
@@ -543,6 +546,38 @@ export async function updateOrderStatus(
     if (moved.warning) notes.push(moved.warning);
   }
 
+  // --- proof of shipment, onto the payment itself --------------------------
+  //
+  // Runs LAST, and only when something about the shipment actually changed, so
+  // it costs at most one Stripe round-trip per real edit. Everything above is
+  // already committed by this point: this is a record attached to the charge,
+  // not part of saving the order, and a failure here must never look like the
+  // tracking number failing to save.
+  //
+  // Why it is worth a network call at all: a "goods not received" dispute is
+  // answered with a carrier and a tracking number. Having them already on the
+  // PaymentIntent, under the field names Stripe's evidence object uses, is the
+  // difference between replying in one step and reconstructing the shipment
+  // from two systems months later.
+  if (notes.length > 0) {
+    const shipment = await loadOrder(admin, { id });
+    if (shipment?.tracking_number) {
+      const attached = await attachFulfillmentToPayment(shipment);
+      // Only worth telling the admin when it worked, or when it failed for a
+      // reason they could act on. "This was a PayPal order" is neither.
+      if (attached.ok) {
+        notes.push("tracking attached to the Stripe payment");
+      } else if (
+        attached.reason &&
+        !["not_a_stripe_payment", "stripe_not_configured", "no_payment_intent"].includes(
+          attached.reason
+        )
+      ) {
+        notes.push(`saved, but Stripe did not accept the tracking: ${attached.reason}`);
+      }
+    }
+  }
+
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
 
@@ -630,6 +665,9 @@ export async function saveSiteSettings(
     shipping_cents: dollarsToCents(formData.get("shipping_fee")),
     free_shipping: formData.get("free_shipping") === "on",
     tax_rate_bps: percentToBps(formData.get("tax_rate")),
+    // Stored as typed; sanitised at send time (lib/stripe-fulfillment.ts) so a
+    // value Stripe would reject can never take the whole checkout down.
+    statement_descriptor: trimmed("statement_descriptor"),
     updated_at: new Date().toISOString(),
   };
 
@@ -649,19 +687,20 @@ export async function saveSiteSettings(
     delete row.free_shipping;
     delete row.tax_rate_bps;
     delete row.logo_url;
+    delete row.statement_descriptor;
     ({ error } = await admin.from("site_settings").upsert(row, { onConflict: "id" }));
     if (!error) {
       revalidateTag(SETTINGS_TAG);
       return {
         error:
-          "Contact info saved, but the shipping, tax and logo settings need migrations supabase/migrations/0004_shipping_and_articles.sql, 0006_fulfillment_tracking.sql and 0013_store_logo.sql — run them in the Supabase SQL Editor, then save again.",
+          "Contact info saved, but the shipping, tax, logo and statement-descriptor settings need migrations supabase/migrations/0004_shipping_and_articles.sql, 0006_fulfillment_tracking.sql, 0013_store_logo.sql and 0016_statement_descriptor.sql — run them in the Supabase SQL Editor, then save again.",
       };
     }
   }
   if (error) {
     return {
       error:
-        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003, 0004, 0006 and 0013) first.",
+        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003, 0004, 0006, 0013 and 0016) first.",
     };
   }
   revalidateTag(SETTINGS_TAG);

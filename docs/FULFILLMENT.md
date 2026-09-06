@@ -583,3 +583,82 @@ the picker appears either way — this makes it permanent, which means the admin
 sees and can edit the colours in the product form. It only ever touches products
 with no colours set, so it can never overwrite an admin's choice, and it
 revalidates the catalog cache when it writes anything.
+
+
+---
+
+## What the payment processor is told
+
+A card charge with no destination and no proof of shipment is, to a risk model,
+indistinguishable from a charge for nothing. We sell crated trikes to named
+addresses and track them end to end, so the payment record says so.
+
+### At checkout — `app/api/checkout/route.ts`
+
+Every Stripe Checkout Session carries, on the **PaymentIntent** (not just the
+session — session metadata does *not* flow down to the charge):
+
+| Field | Why |
+| --- | --- |
+| `shipping` | The address the buyer already typed. Without it every charge looks like it has no destination, which is the profile of digital goods or of a shop that cannot say what it fulfilled. It is also half the evidence in any "goods not received" dispute. |
+| `metadata.order_number` / `order_id` | Makes a charge in the dashboard traceable to an order, and is the key the shipping write-back uses later. |
+| `statement_descriptor_suffix` | The name on the buyer's bank statement. |
+| `description` | Follows the charge into Stripe's own receipt. |
+
+The session also sets `customer_creation: "always"`, so a returning buyer is one
+Stripe customer rather than a series of strangers.
+
+**Everything degrades rather than failing.** An address that cannot be rendered
+into Stripe's shape is omitted; a descriptor Stripe would reject falls back to
+the account default. A rejected session is a lost sale — a missing optional
+field is only a missing field. `lib/stripe-fulfillment.ts` owns that shaping and
+is dependency-free, so it is unit-tested directly.
+
+### The statement descriptor
+
+Set it in **Admin → Settings → Card payments**. It is a setting rather than a
+constant because it has to match the trading name the cardholder remembers, and
+that is a business decision.
+
+It matters more than it looks: a cardholder who does not recognise a line on
+their statement disputes it as fraud, and that kind of dispute counts against the
+account's fraud rate **whether or not you win it**. Stripe prepends the account's
+own prefix and caps the total at 22 characters, so the value is sanitised and cut
+at a word boundary before it is sent — "E-DRIFT" rather than "E-DRIFT TRIK",
+which would itself look like a broken charge.
+
+### When it ships — the write-back
+
+When an admin saves a courier and tracking number, `attachFulfillmentToPayment`
+(`lib/stripe.ts`) puts them back onto the PaymentIntent as metadata, under the
+same field names Stripe's dispute-evidence object uses:
+
+```
+shipping_carrier          DHL Express
+shipping_tracking_number  1234567890
+shipping_tracking_url     https://…          (only when it would actually resolve)
+shipping_date             2026-03-04
+fulfillment_stage         shipped
+```
+
+Nothing about the charge changes — it is purely a record. The point is that when
+a dispute arrives months later, responding is a copy rather than an archaeology
+exercise across two systems. Merchants who can produce a carrier and a tracking
+number win "goods not received" disputes; the ones who cannot, do not.
+
+Two things it deliberately will not do:
+
+- **It never links out for one of our own internal references.** A reviewer sent
+  to a courier's "not found" page reads that as evidence nothing shipped —
+  worse than no link at all.
+- **It never throws.** The order row is already saved and correct by the time
+  this runs; a slow Stripe must not make a tracking number that saved fine look
+  like a failure. It reports back into the admin's save message instead.
+
+### A note on where reputation lives
+
+All of this accrues **per Stripe account** — dispute history, fulfillment
+evidence, the customer graph, the descriptor buyers have learned to recognise.
+It is the argument that a new merchant is a real one, and it is built by
+accumulating a record in one place. Moving to a different account starts that
+argument again from zero.
