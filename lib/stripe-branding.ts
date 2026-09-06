@@ -1,6 +1,7 @@
 import { COMPANY } from "@/lib/company";
 import { normalizeCountry } from "@/lib/countries";
 import { formatDeliveryWindow } from "@/lib/delivery";
+import { STAGE_COPY, TRACKER_STAGES } from "@/lib/fulfillment";
 
 /**
  * Company content for the Stripe-hosted Checkout page.
@@ -109,9 +110,17 @@ export function submitMessage(
  * worded to match the emails that follow so the two never disagree.
  */
 export function afterSubmitMessage(): string {
+  // DERIVED, not written out. This list was hard-coded once and immediately went
+  // stale when the journey grew from four steps to seven — leaving Stripe's page
+  // promising a shorter journey than the emails delivered. Reading the rail means
+  // it cannot happen twice.
+  const steps = TRACKER_STAGES.map((s) => STAGE_COPY[s].label.toLowerCase()).join(
+    ", "
+  );
   return clampCustomText(
-    `Thank you. ${COMPANY.name} will email you as soon as your payment is confirmed, then again when your order ships. ` +
-      `You can follow every step — confirmed, shipped, arriving, ready for collection — on your rider dashboard. ` +
+    `Thank you. ${COMPANY.name} will email you as soon as your payment is confirmed, then at every step after that — ` +
+      `${steps}. ` +
+      `You can follow the same timeline live on your rider dashboard. ` +
       `Need help with this order? Email ${COMPANY.supportEmail} and quote your order number.`
   );
 }

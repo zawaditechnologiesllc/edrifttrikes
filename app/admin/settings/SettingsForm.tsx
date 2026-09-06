@@ -200,6 +200,28 @@ export default function SettingsForm({ settings }: { settings: SiteSettings }) {
         </p>
       </div>
 
+      <div className="border-t border-white/10 pt-6">
+        <p className="font-label-bold text-label-bold text-white uppercase tracking-widest text-xs mb-4">
+          Card payments
+        </p>
+        <label className={lbl}>Statement descriptor</label>
+        <input
+          name="statement_descriptor"
+          defaultValue={settings.statement_descriptor ?? ""}
+          placeholder="EDRIFTTRIKES"
+          maxLength={22}
+          className={`${input} max-w-[20rem]`}
+        />
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-2">
+          The name next to the charge on your buyer&apos;s bank statement. Use
+          the trading name they will recognise — a cardholder who does not
+          recognise a line on their statement disputes it as fraud, and that
+          kind of dispute counts against you whether you win it or not. Letters
+          and numbers only, kept short because Stripe adds your account prefix
+          in front of it. Leave empty to use your Stripe account default.
+        </p>
+      </div>
+
       {state.error && <p className="text-error font-body-md">{state.error}</p>}
       {state.ok && (
         <p className="text-secondary font-label-bold uppercase text-xs tracking-widest">
