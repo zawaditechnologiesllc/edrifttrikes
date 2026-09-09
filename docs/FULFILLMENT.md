@@ -685,9 +685,10 @@ than a button that refuses to work.
 
 ### What is on them
 
-Both carry: invoice number and date, **order number and the date the order was
-placed** (a different date, and conflating the two is how an invoice stops
-matching the gateway record it exists to corroborate), the seller's trading name
+Both carry: invoice number, the **invoice date — which is the day the order was
+placed**, not the day the PDF was generated (an August order downloaded in
+September is an August invoice; one dated "today" would not line up with the
+gateway record it exists to corroborate), the order number, the seller's trading name
 / registered entity / tax number / address, the **customer's email** and full
 delivery address, every line item with its colour and its own arithmetic,
 subtotal / shipping / tax / total with the currency named outright, and the
@@ -695,29 +696,37 @@ delivery status, courier and tracking number.
 
 The paid one adds the payment method, timestamp and the processor's own
 reference, so the document and the gateway record can actually be reconciled
-against each other.
+against each other. The payment date is **not** re-dated to the order — it is a
+different fact, and it is the field that does the reconciling.
+
+Dating to the order makes the document deterministic: the same order always
+produces a byte-identical invoice, so two downloads can never disagree about
+their own date. There is no "generated on" stamp in the footer for the same
+reason — a second date saying otherwise is the contradiction that dating to the
+order was meant to remove.
 
 Nothing is invented and no placeholder is ever printed: a shop that has not
 filled in its address gets an invoice with less on it, rather than one
 advertising "100 Drift Lane", which tells a reviewer the document came off an
 unfinished template. `isReal()` in `lib/seo.ts` is the single guard for that.
 
-### Who the seller is — and why the DBA is frozen per order
+### Who the seller is
 
-Set the trading name, registered entity, tax number and footer note in
-**Admin → Settings → Invoice identity**. They are settings rather than
-constants because a trading name changes, and when it does every document has to
-follow.
+Set the trading name (DBA), registered entity, tax number and footer note in
+**Admin → Settings → Invoice identity**. Invoices print those **current**
+values: the shop trades under one name at a time and every document follows it.
 
-**But changing them affects new orders only.** Each order stores its own
-`seller_snapshot` at checkout. An invoice records a transaction that already
-happened, so it has to name the entity that made it — and without a snapshot,
-editing the trading name would silently rewrite the seller on every invoice
-already issued. Two copies of the same invoice, downloaded a month apart and
-naming different companies, is precisely what makes a document set look
-manufactured to anyone checking it. Orders placed before migration 0017 have no
-snapshot and fall back to current settings, which is the best available answer
-for them.
+⚠️ **That applies to orders already placed, too.** Changing the trading name
+changes it on every invoice, so a copy already sent to a customer will not match
+the copy downloaded for the same order afterwards. This is deliberate — the
+store owner asked for one current name across all documents — but it is worth
+knowing before renaming.
+
+Each order still records a `seller_snapshot` at checkout. It is an audit trail
+of what the shop was called on the day, and a fallback for a field the settings
+do not have (a tax number cleared in admin, say, still prints from the snapshot).
+It is not what the document normally says. Orders placed before migration 0017
+have no snapshot and need none.
 
 ### The route is gated by itself
 

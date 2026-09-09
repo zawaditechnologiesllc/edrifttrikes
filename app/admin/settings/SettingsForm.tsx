@@ -246,10 +246,10 @@ export default function SettingsForm({ settings }: { settings: SiteSettings }) {
         <p className="text-[10px] text-outline uppercase tracking-widest mt-3">
           Printed at the top of every invoice. The trading name is what customers
           see; the registered entity appears beneath it as &ldquo;a trading name
-          of&hellip;&rdquo; when the two differ. Changing these affects invoices
-          for NEW orders only — an order already placed keeps the identity that
-          was true when it was placed, so an invoice you have already sent
-          somebody never changes underneath them.
+          of&hellip;&rdquo; when the two differ. Changing these updates{" "}
+          <strong className="text-white">every</strong> invoice, including ones
+          for orders already placed — so an invoice you have already sent
+          somebody will not match the copy you download after a change.
         </p>
       </div>
 

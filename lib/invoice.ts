@@ -17,11 +17,17 @@
  * a receipt for money nobody sent is a fabricated record, and it is exactly the
  * document that turns a routine review into a closed account.
  *
- * WHO THE SELLER IS comes from the order's own `seller_snapshot` where it has
- * one, and only falls back to current settings for orders that predate it. A
- * trading name that changes must not silently rewrite the seller on invoices
- * already issued: two copies of the same invoice naming different companies is
- * what makes a document set look manufactured.
+ * WHO THE SELLER IS comes from the settings the admin edits, so changing the
+ * trading name changes it on every invoice — including ones for orders already
+ * placed. That is a deliberate choice by the store owner: the shop trades under
+ * one current name and every document should say so.
+ *
+ * ⚠️ THE CONSEQUENCE, so nobody rediscovers it by surprise: an invoice already
+ * sent to somebody will not match the one downloaded for the same order after
+ * the name changes. The per-order `seller_snapshot` is still written at
+ * checkout and still readable, both as an audit trail of what the shop was
+ * called at the time and as the fallback below — it is simply no longer what
+ * the document prints.
  *
  * The PDF is written by lib/pdf.ts — no dependencies, so this runs unchanged on
  * Cloudflare Workers.
@@ -69,8 +75,6 @@ export type InvoiceOptions = {
   /** Raw logo bytes (PNG or JPEG). Omitted or undecodable → text watermark. */
   logo?: Uint8Array | null;
   siteUrl?: string | null;
-  /** Injected in tests so the "issued" date is stable. */
-  now?: Date;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -91,16 +95,18 @@ export type ResolvedSeller = {
   email: string | null;
   phone: string | null;
   addressLines: string[];
-  /** True when the identity came off the order rather than today's settings. */
+  /** True when any of it fell back to the order's stored snapshot. */
   fromSnapshot: boolean;
 };
 
 /**
- * Who the seller was for THIS order.
+ * Who the seller is on this order's invoice.
  *
- * Snapshot first — that is the whole reason the column exists. Current settings
- * only fill in for orders placed before snapshots existed, and the company
- * constants only fill in for a field nobody has set anywhere.
+ * CURRENT SETTINGS FIRST. The trading name is edited in admin and every
+ * document follows it, which is what the store owner asked for. The order's own
+ * `seller_snapshot` is the fallback — it covers a field the settings do not
+ * have, and it keeps a record of what the shop was called when the order was
+ * placed. The company constants fill in for a field set nowhere at all.
  */
 export function sellerFor(
   order: Pick<Order, "seller_snapshot">,
@@ -109,15 +115,15 @@ export function sellerFor(
   const snap = (order.seller_snapshot ?? null) as SellerSnapshot | null;
   const fromSnapshot = Boolean(snap && Object.keys(snap).length > 0);
 
-  const dba = text(snap?.dbaName) ?? text(settings?.dba_name);
-  const legal = text(snap?.legalName) ?? text(settings?.legal_name);
+  const dba = text(settings?.dba_name) ?? text(snap?.dbaName);
+  const legal = text(settings?.legal_name) ?? text(snap?.legalName);
   const display = dba ?? legal ?? COMPANY.name;
 
   // An address is a unit, not two independent lines: with no real street line
   // there is no address, and printing the city on its own would leave a legal
   // document claiming a location it cannot support.
-  const line1 = text(snap?.addressLine1) ?? text(settings?.address_line1);
-  const line2 = text(snap?.addressLine2) ?? text(settings?.address_line2);
+  const line1 = text(settings?.address_line1) ?? text(snap?.addressLine1);
+  const line2 = text(settings?.address_line2) ?? text(snap?.addressLine2);
   const addressLines = isReal(line1)
     ? [line1, isReal(line2) ? line2 : null].filter((l): l is string => Boolean(l))
     : [];
@@ -125,10 +131,10 @@ export function sellerFor(
   // The first REAL candidate, not the first non-empty one: a settings email
   // still holding the shipped placeholder should fall through to the support
   // address rather than leaving the invoice with no way to contact the seller.
-  const email = [snap?.email, settings?.company_email, COMPANY.supportEmail].find(
+  const email = [settings?.company_email, snap?.email, COMPANY.supportEmail].find(
     (candidate) => isReal(text(candidate))
   );
-  const phone = [snap?.phone, settings?.company_phone].find((candidate) =>
+  const phone = [settings?.company_phone, snap?.phone].find((candidate) =>
     isReal(text(candidate))
   );
 
@@ -136,7 +142,7 @@ export function sellerFor(
     display,
     // Only worth a second line when it actually says something different.
     legalName: legal && legal !== display ? legal : null,
-    taxId: text(snap?.taxId) ?? text(settings?.tax_id),
+    taxId: text(settings?.tax_id) ?? text(snap?.taxId),
     email: text(email),
     phone: text(phone),
     addressLines,
@@ -274,8 +280,20 @@ export async function buildInvoice(
 ): Promise<Uint8Array<ArrayBuffer>> {
   const { order, variant } = opts;
   const settings = opts.settings ?? DEFAULT_SITE_SETTINGS;
-  const now = opts.now ?? new Date();
   const paid = variant === "paid";
+
+  /**
+   * THE INVOICE IS DATED TO THE DAY THE ORDER WAS PLACED, not the day the PDF
+   * happened to be generated. An invoice records a transaction, so it carries
+   * the date of that transaction — an August order downloaded in September is
+   * an August invoice, and one dated "today" would not line up with the
+   * gateway record it exists to corroborate.
+   *
+   * It also makes the document deterministic: the same order always produces
+   * the same invoice, so downloading it twice cannot yield two documents that
+   * disagree about their own date.
+   */
+  const issuedAt = order.created_at;
 
   if (paid && !isPayable(order)) {
     // The one hard refusal in this module. A document that says "PAID" for an
@@ -304,7 +322,7 @@ export async function buildInvoice(
     doc.addPage();
     drawWatermark(doc, logo, seller.display, paid);
     y = first
-      ? drawMasthead(doc, logo, seller, title, number, now)
+      ? drawMasthead(doc, logo, seller, title, number, issuedAt)
       : drawContinuation(doc, number, order.order_number);
   };
 
@@ -325,7 +343,7 @@ export async function buildInvoice(
   startPage(true);
 
   y = drawStatusBar(doc, y, order, paid);
-  y = drawMeta(doc, y, order, variant, now);
+  y = drawMeta(doc, y, order, variant, issuedAt);
   y = drawParties(doc, y, order, seller);
   y = drawItems(doc, y, order, need);
   y = drawTotals(doc, need(130, y), order, paid);
@@ -333,7 +351,7 @@ export async function buildInvoice(
   y = drawFulfillment(doc, need(80, y), order);
   y = drawNotes(doc, need(70, y), settings, paid);
 
-  drawFooters(doc, seller, number, order, now);
+  drawFooters(doc, seller, number, order);
   return doc.toBytes();
 }
 
@@ -372,7 +390,7 @@ function drawMasthead(
   seller: ResolvedSeller,
   title: string,
   number: string,
-  now: Date
+  issuedAt: string
 ): number {
   let left = MARGIN + 4;
   if (logo) {
@@ -401,7 +419,7 @@ function drawMasthead(
     align: "right",
     tracking: 0.6,
   });
-  doc.drawText(`Issued ${formatDate(now)}`, {
+  doc.drawText(`Issued ${formatDate(issuedAt)}`, {
     x: A4.width - MARGIN,
     y: MARGIN + 38,
     size: 8,
@@ -474,16 +492,19 @@ function drawMeta(
   top: number,
   order: Order,
   variant: InvoiceVariant,
-  now: Date
+  issuedAt: string
 ): number {
   const rows: [string, string][] = [
     ["Invoice number", invoiceNumber(order.order_number, variant)],
-    ["Invoice date", formatDate(now)],
+    // Invoice date IS the order date — see issuedAt in buildInvoice. There is
+    // deliberately no separate "order placed" cell any more: two cells showing
+    // the same date read as a template bug rather than as corroboration.
+    ["Invoice date", formatDate(issuedAt)],
     ["Order number", order.order_number],
-    // The date the customer placed the order — distinct from the date this
-    // document was generated, and the one that has to match the gateway record.
-    ["Order placed", formatDate(order.created_at)],
     [
+      // The payment date is NOT re-dated to the order: it is a different fact,
+      // and it is the field that reconciles this document against the gateway's
+      // own record of the charge.
       variant === "paid" ? "Payment received" : "Payment terms",
       variant === "paid" ? formatDate(order.paid_at) : "Due on receipt",
     ],
@@ -859,8 +880,7 @@ function drawFooters(
   doc: PdfDocument,
   seller: ResolvedSeller,
   number: string,
-  order: Order,
-  now: Date
+  order: Order
 ): void {
   const identity = [seller.display, seller.legalName, seller.taxId]
     .filter(Boolean)
@@ -871,9 +891,15 @@ function drawFooters(
       width: 0.6,
     });
     doc.drawText(identity, { x: MARGIN, y: A4.height - 34, size: 7, color: MUTED });
-    doc.drawText(
-      `${number} · order ${order.order_number} · generated ${formatDate(now)} · page ${page} of ${total}`,
-      { x: A4.width - MARGIN, y: A4.height - 34, size: 7, color: MUTED, align: "right" }
-    );
+    // No "generated on" stamp. The document is dated to the order, and a second
+    // date in the footer saying otherwise is exactly the contradiction that
+    // dating it to the order was meant to remove.
+    doc.drawText(`${number} · order ${order.order_number} · page ${page} of ${total}`, {
+      x: A4.width - MARGIN,
+      y: A4.height - 34,
+      size: 7,
+      color: MUTED,
+      align: "right",
+    });
   });
 }
