@@ -41,7 +41,6 @@ import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 // printing nothing: it tells a reviewer the document came off an unfinished
 // template. One list, so the two can never disagree about what is real.
 import { isReal } from "@/lib/seo";
-import { trackingUrlFor } from "@/lib/couriers";
 import { encodeQr } from "@/lib/qr";
 import type { Order, OrderItem, SellerSnapshot, SiteSettings } from "@/lib/types";
 
@@ -922,7 +921,6 @@ function drawPayment(doc: PdfDocument, top: number, order: Order, paid: boolean)
  */
 function drawFulfillment(doc: PdfDocument, top: number, order: Order): number {
   const stage = (order.fulfillment_stage ?? "awaiting_payment") as FulfillmentStage;
-  const link = trackingUrlFor(order.courier, order.tracking_number);
 
   const rows: [string, string][] = [
     ["Status", STAGE_COPY[stage]?.label ?? "—"],
@@ -954,14 +952,9 @@ function drawFulfillment(doc: PdfDocument, top: number, order: Order): number {
     }
   });
 
-  let y = top + 56;
-  if (link) {
-    for (const line of doc.wrap(`Track this shipment: ${link}`, CONTENT_WIDTH, "regular", 7.5)) {
-      doc.drawText(line, { x: MARGIN, y, size: 7.5, color: MUTED });
-      y += 9;
-    }
-  }
-  return y + 10;
+  // No tracking link. The courier and the number are the facts; a web address
+  // is not one of them, and this document carries only what it states.
+  return top + 56 + 10;
 }
 
 /**
