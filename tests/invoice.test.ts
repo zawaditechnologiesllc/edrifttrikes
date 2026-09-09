@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   buildInvoice,
   documentRecord,
-  verifyUrl,
   invoiceFilename,
   invoiceMoney,
   invoiceNumber,
@@ -613,41 +612,31 @@ describe("the record the code carries", () => {
     }
   });
 
-  test("points at this order's verification page", () => {
-    assert.equal(
-      verifyUrl("EDT-7A3F91C2", "https://edrifttrikes.shop"),
-      "https://edrifttrikes.shop/verify/EDT-7A3F91C2"
-    );
-  });
-
-  test("tolerates a trailing slash on the site URL", () => {
-    assert.equal(
-      verifyUrl("EDT-1", "https://edrifttrikes.shop/"),
-      "https://edrifttrikes.shop/verify/EDT-1"
-    );
-  });
-
-  test("escapes an order number rather than building a broken address", () => {
-    assert.equal(
-      verifyUrl("EDT 1/2?x", "https://x.co"),
-      "https://x.co/verify/EDT%201%2F2%3Fx"
-    );
-  });
-
-  test("falls back to the company URL when none is passed", () => {
-    assert.match(verifyUrl("EDT-1"), /^https:\/\/[^/]+\/verify\/EDT-1$/);
-  });
-
-  test("the live-check address is still printed, as readable text", async () => {
-    // A separate thing from the code: the code says what the paper says, this
-    // says what our records say. A reviewer on a screen will not scan anything.
+  test("prints no web address on the document at all", async () => {
+    /**
+     * The store's domain is deliberately not on the invoice as a link. The code
+     * carries the record itself, so there is nothing to visit — and a document
+     * that advertises a URL is a document that invites somebody to mistype it.
+     *
+     * The courier's own tracking link is a different thing and is allowed: it
+     * points at DHL, not at us.
+     */
     for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
       const text = pdfText(
-        await buildInvoice({ order, settings: SETTINGS, variant, siteUrl: "https://edrifttrikes.shop" })
+        await buildInvoice({
+          order,
+          settings: SETTINGS,
+          variant,
+          siteUrl: "https://edrifttrikes.shop",
+        })
       );
       assert.ok(
-        text.includes("https://edrifttrikes.shop/verify/EDT-7A3F91C2"),
-        `${variant}: the verification URL is not on the page as text`
+        !text.includes("edrifttrikes.shop/verify"),
+        `${variant} still prints the verification address`
+      );
+      assert.ok(
+        !text.includes("https://edrifttrikes.shop"),
+        `${variant} still prints the store URL`
       );
     }
   });

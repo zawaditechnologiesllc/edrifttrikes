@@ -347,9 +347,10 @@ Gate on `profiles.role = 'admin'` in a shared `requireAdmin()`.
   page if that is what it takes, and verify by decoding it off the rendered PDF
   at print resolutions rather than trusting the encoder.
 - **A `/verify/<order>` page** stating checkable facts read live, with personal
-  details redacted for anyone who has not proved the order is theirs — printed
-  on the document as an address, a separate job from the code. **The page must
-  certify nothing** — no badge, no score, no "verified merchant" mark. A shop
+  details redacted for anyone who has not proved the order is theirs. Do **not**
+  print its address on the invoice: the code already carries the record, so
+  there is nothing to visit, and a URL on a document is an invitation to mistype
+  it. **The page must certify nothing** — no badge, no score, no "verified merchant" mark. A shop
   awarding itself one is worth nothing and reads as though it knows. The value
   is that the page and the document agree, which the reader establishes.
 - **Messages** from the contact form, with replies sent by email.
