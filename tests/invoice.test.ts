@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildInvoice,
+  documentRecord,
   verifyUrl,
   invoiceFilename,
   invoiceMoney,
@@ -309,8 +310,9 @@ describe("the facts every invoice has to carry", () => {
 
   test("the page count, on every page", async () => {
     const bytes = await build(PAID, "paid");
-    assert.match(pdfText(bytes), /page 1 of 1/);
-    assert.equal(pageCount(bytes), 1);
+    assert.equal(pageCount(bytes), 2, "invoice page plus the machine-readable one");
+    assert.match(pdfText(bytes), /page 1 of 2/);
+    assert.match(pdfText(bytes), /page 2 of 2/);
   });
 });
 
@@ -492,10 +494,30 @@ describe("documents that are awkward rather than typical", () => {
     assert.match(text, /No line items recorded/);
   });
 
-  test("a typical order fits on one page", async () => {
-    // A near-empty second page reads as a broken template.
-    assert.equal(pageCount(await build(PAID, "paid")), 1);
-    assert.equal(pageCount(await build(UNPAID, "proforma")), 1);
+  test("the invoice itself is one page; the record gets the second", async () => {
+    /**
+     * TWO PAGES ON PURPOSE, and this is the test that pins it.
+     *
+     * The machine-readable record needs a physically large code — carrying a
+     * whole document takes several hundred bytes, and squeezed into the gutter
+     * beside the totals the modules came out around a third of a millimetre:
+     * fine on a screen, gone after one photocopy. A code too dense to scan is
+     * not a smaller feature, it is no feature.
+     *
+     * So the invoice proper still ends on page one — nothing about the document
+     * a person reads has moved — and page two is the record, in both forms.
+     */
+    for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
+      const bytes = await build(order, variant);
+      assert.equal(pageCount(bytes), 2, `${variant} is not two pages`);
+    }
+    // Everything a person reads is on page one: the totals are the last thing
+    // before the record section.
+    const text = pdfText(await build(PAID, "paid"));
+    assert.ok(
+      text.indexOf("Balance due") < text.indexOf("THIS DOCUMENT, MACHINE-READABLE"),
+      "the invoice content ran past the record section"
+    );
   });
 
   test("a missing address does not take the document down", async () => {
@@ -506,14 +528,91 @@ describe("documents that are awkward rather than typical", () => {
   });
 });
 
-describe("the verification code", () => {
+describe("the record the code carries", () => {
   /**
-   * The QR is on the invoice so a reader can check the document against live
-   * data. Its whole value is that the destination resolves and matches — a
-   * square that goes nowhere corroborates nothing — so what is tested here is
-   * the address, not the picture. That the picture actually scans is verified
-   * by decoding it off the rendered page; see docs/FULFILLMENT.md.
+   * The code holds the DOCUMENT, not a link to it: scanning shows the invoice's
+   * own contents with no network round trip. So what is tested here is that
+   * every fact on the paper is in the record. That the code actually scans is
+   * verified by decoding it off the rendered page — see docs/FULFILLMENT.md.
    */
+  const record = (order: Order, variant: "proforma" | "paid") =>
+    documentRecord(order, sellerFor(order, SETTINGS), variant);
+
+  test("carries no URL — it is the document, not a pointer to it", () => {
+    for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
+      assert.ok(!/https?:\/\//.test(record(order, variant)), `${variant} embeds a link`);
+    }
+  });
+
+  test("identifies the seller, the entity behind it, and the tax number", () => {
+    const r = record(PAID, "paid");
+    assert.match(r, /E-Drift Trikes & Go Carts/);
+    assert.match(r, /Zawadi Technologies LLC/);
+    assert.match(r, /EIN 88-1234567/);
+  });
+
+  test("identifies the buyer and where it went", () => {
+    const r = record(PAID, "paid");
+    assert.match(r, /ada\.lovelace@example\.net/);
+    assert.match(r, /Austin, TX, United States/);
+  });
+
+  test("carries every line item with its own arithmetic", () => {
+    const r = record(PAID, "paid");
+    assert.match(r, /2 x 60V 5000W High-Speed Electric Drift Kart \(Voltage Blue\) @ 1899\.00 = 3798\.00/);
+    assert.match(r, /1 x Slide-Sleeve Set @ 100\.00 = 100\.00/);
+  });
+
+  test("carries the money, and it agrees with the printed document", () => {
+    const r = record(PAID, "paid");
+    assert.match(r, /Subtotal: 3898\.00 USD/);
+    assert.match(r, /Shipping: 50\.00 USD/);
+    assert.match(r, /Tax: 315\.84 USD/);
+    assert.match(r, /TOTAL: 4263\.84 USD/);
+  });
+
+  test("the paid record states the payment and its gateway reference", () => {
+    const r = record(PAID, "paid");
+    assert.match(r, /^INVOICE$/m);
+    assert.match(r, /PAID IN FULL 15 Aug 2026/);
+    assert.match(r, /Method: Card \(Stripe\)/);
+    assert.match(r, /Ref: cs_live_a1b2c3d4e5f6/);
+    assert.match(r, /Balance due: 0\.00 USD/);
+  });
+
+  test("the proforma record says outright that nothing was paid", () => {
+    // The record must not be mistakable for a receipt when read on its own,
+    // away from the document it came off.
+    const r = record(UNPAID, "proforma");
+    assert.match(r, /PROFORMA INVOICE - UNPAID/);
+    assert.match(r, /AMOUNT DUE: 4263\.84 USD/);
+    assert.match(r, /No payment received\./);
+    assert.ok(!r.includes("PAID IN FULL"));
+    assert.ok(!r.includes("Balance due"));
+  });
+
+  test("the printed copy on the page is the SAME string the code encodes", async () => {
+    // Rendered from one string, so the two cannot drift into disagreeing —
+    // which is exactly what a reader compares them for.
+    const text = pdfText(await build(PAID, "paid"));
+    for (const line of record(PAID, "paid").split("\n")) {
+      if (!line.trim()) continue;
+      assert.ok(
+        text.includes(line),
+        `the page does not print the record line: ${line}`
+      );
+    }
+  });
+
+  test("stays small enough to stay scannable", () => {
+    // Every byte pushes the symbol denser, and past roughly 900 the modules get
+    // too fine to survive print at the size the page allows.
+    for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
+      const bytes = new TextEncoder().encode(record(order, variant)).length;
+      assert.ok(bytes < 900, `${variant} record is ${bytes} bytes`);
+    }
+  });
+
   test("points at this order's verification page", () => {
     assert.equal(
       verifyUrl("EDT-7A3F91C2", "https://edrifttrikes.shop"),
@@ -539,13 +638,13 @@ describe("the verification code", () => {
     assert.match(verifyUrl("EDT-1"), /^https:\/\/[^/]+\/verify\/EDT-1$/);
   });
 
-  test("the address is printed as readable text, not only as a code", async () => {
-    // A reviewer reading the PDF on a screen will not scan anything.
+  test("the live-check address is still printed, as readable text", async () => {
+    // A separate thing from the code: the code says what the paper says, this
+    // says what our records say. A reviewer on a screen will not scan anything.
     for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
       const text = pdfText(
         await buildInvoice({ order, settings: SETTINGS, variant, siteUrl: "https://edrifttrikes.shop" })
       );
-      assert.match(text, /VERIFY THIS DOCUMENT/);
       assert.ok(
         text.includes("https://edrifttrikes.shop/verify/EDT-7A3F91C2"),
         `${variant}: the verification URL is not on the page as text`
@@ -553,17 +652,11 @@ describe("the verification code", () => {
     }
   });
 
-  test("appears on both documents", async () => {
+  test("the machine-readable section appears on both documents", async () => {
     for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
       const text = pdfText(await buildInvoice({ order, settings: SETTINGS, variant }));
-      assert.match(text, /VERIFY THIS DOCUMENT/, `missing from the ${variant}`);
+      assert.match(text, /THIS DOCUMENT, MACHINE-READABLE/, `missing from the ${variant}`);
+      assert.match(text, /WHAT THE CODE CONTAINS/, `missing from the ${variant}`);
     }
-  });
-
-  test("does not push a normal order onto a second page", async () => {
-    // It sits in the column the totals leave empty, so it costs no height. When
-    // it was a block of its own, every invoice spilled over.
-    assert.equal(pageCount(await build(PAID, "paid")), 1);
-    assert.equal(pageCount(await build(UNPAID, "proforma")), 1);
   });
 });

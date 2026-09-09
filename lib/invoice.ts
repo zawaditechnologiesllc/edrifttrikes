@@ -70,16 +70,111 @@ const BOTTOM = A4.height - 64;
 export type InvoiceVariant = "proforma" | "paid";
 
 /**
- * The address the invoice's QR code points at.
+ * The address the /verify page lives at, printed on the document as text.
  *
- * A page that states the order's number, date, total and payment status, read
- * live — so somebody holding the printed document can check it against the
- * record rather than take it on trust. That is the whole value of the code: a
- * square that resolves to nothing corroborates nothing.
+ * NOT what the QR code carries — that holds the record itself (see
+ * documentRecord). This is the separate line for a reader who wants to check
+ * the paper against live data rather than read what the paper already says.
  */
 export function verifyUrl(orderNumber: string, siteUrl?: string | null): string {
   const base = String(siteUrl || COMPANY.siteUrl).replace(/\/+$/, "");
   return `${base}/verify/${encodeURIComponent(orderNumber)}`;
+}
+
+/**
+ * THE DOCUMENT, AS THE QR CODE CARRIES IT.
+ *
+ * The code holds the record rather than a link to it: scanning it shows the
+ * invoice's own contents — who sold, who bought, what, when, how much, and
+ * whether it was paid — with no network round trip and nothing to go stale or
+ * go down. A reader can check every figure on the paper against the code
+ * without leaving the page they are holding.
+ *
+ * PLAIN TEXT, LABELLED, ONE FACT PER LINE, because that is what a phone camera
+ * puts on screen. A structured format nobody's scanner renders would be a wall
+ * of punctuation; this reads as a document.
+ *
+ * COMPACTNESS IS CORRECTNESS HERE. Every byte pushes the symbol to a higher
+ * version, and a higher version at the same printed size means smaller modules
+ * — past a point, a code nobody can scan. So the labels are short, the amounts
+ * carry no thousands separators, and anything the reader can already see twice
+ * is written once.
+ */
+export function documentRecord(
+  order: Order,
+  seller: ResolvedSeller,
+  variant: InvoiceVariant
+): string {
+  const paid = variant === "paid";
+  // No thousands separators and no currency symbol per line: the currency is
+  // named once beside each total, and every character saved here is a character
+  // that does not push the symbol to a denser version.
+  const money = (cents: number) =>
+    ((Number.isFinite(cents) ? cents : 0) / 100).toFixed(2);
+  const cur = (order.currency || "usd").toUpperCase();
+  const a = (order.shipping_address ?? {}) as Record<string, unknown>;
+  const place = [text(a.city), text(a.state), text(a.country)]
+    .filter(Boolean)
+    .join(", ");
+
+  const lines: string[] = [
+    paid ? "INVOICE" : "PROFORMA INVOICE - UNPAID",
+    invoiceNumber(order.order_number, variant),
+    "",
+    `Seller: ${seller.display}`,
+  ];
+  if (seller.legalName) lines.push(`Entity: ${seller.legalName}`);
+  if (seller.taxId) lines.push(`Tax ID: ${seller.taxId}`);
+  if (seller.email) lines.push(`Contact: ${seller.email}`);
+
+  lines.push(
+    "",
+    `Order: ${order.order_number}`,
+    `Placed: ${formatDate(order.created_at)}`,
+    `Buyer: ${order.email}`
+  );
+  if (place) lines.push(`Ship to: ${place}`);
+
+  lines.push("");
+  for (const item of (order.items ?? []) as OrderItem[]) {
+    const qty = Number(item.qty) || 0;
+    const each = Number(item.price_cents) || 0;
+    lines.push(
+      `${qty} x ${item.name}${item.color ? ` (${item.color})` : ""} @ ${money(each)} = ${money(each * qty)}`
+    );
+  }
+
+  lines.push(
+    "",
+    `Subtotal: ${money(order.subtotal_cents)} ${cur}`,
+    `Shipping: ${money(order.shipping_cents)} ${cur}`,
+    `Tax: ${money(order.tax_cents)} ${cur}`,
+    `TOTAL: ${money(order.total_cents)} ${cur}`
+  );
+
+  if (paid) {
+    lines.push(
+      "",
+      `PAID IN FULL ${formatDate(order.paid_at)}`,
+      `Method: ${PAYMENT_METHODS[String(order.paid_via ?? "")] ?? "Not recorded"}`
+    );
+    // The gateway's own reference, so the record and the processor's record can
+    // be tied together from the code alone.
+    if (order.stripe_session_id) lines.push(`Ref: ${order.stripe_session_id}`);
+    lines.push(`Balance due: 0.00 ${cur}`);
+  } else {
+    lines.push("", `AMOUNT DUE: ${money(order.total_cents)} ${cur}`, "No payment received.");
+  }
+
+  const stage = (order.fulfillment_stage ?? "awaiting_payment") as FulfillmentStage;
+  lines.push("", `Status: ${STAGE_COPY[stage]?.label ?? "-"}`);
+  if (order.courier || order.tracking_number) {
+    lines.push(
+      `Shipment: ${[order.courier, order.tracking_number].filter(Boolean).join(" ")}`
+    );
+  }
+
+  return lines.join("\n");
 }
 
 export type InvoiceOptions = {
@@ -366,18 +461,30 @@ export async function buildInvoice(
    * there: it costs no vertical space at all, and it sits beside the figure a
    * reader is most likely to be checking.
    */
-  const totalsTop = need(130, y);
-  const afterTotals = drawTotals(doc, totalsTop, order, paid);
-  const afterVerify = drawVerification(
-    doc,
-    totalsTop,
-    verifyUrl(order.order_number, opts.siteUrl)
-  );
-  y = Math.max(afterTotals, afterVerify);
-
+  y = drawTotals(doc, need(130, y), order, paid);
   y = drawPayment(doc, need(90, y), order, paid);
   y = drawFulfillment(doc, need(80, y), order);
   y = drawNotes(doc, need(60, y), settings, paid);
+
+  /**
+   * The machine-readable record, in a band of its own.
+   *
+   * It USED to live in the column the totals leave empty, which cost no height
+   * — but that only worked while the code held a short URL. Carrying the whole
+   * document takes several hundred bytes, and at the size that gutter allows
+   * the modules came out around a third of a millimetre: fine on a screen,
+   * gone after one photocopy. A code too dense to scan is not a smaller
+   * feature, it is no feature.
+   *
+   * So it gets the room it needs. On a full invoice that means a second page —
+   * a deliberate trade, because the code's whole purpose is to be read.
+   */
+  y = drawVerification(
+    doc,
+    need(180, y),
+    documentRecord(order, seller, variant),
+    verifyUrl(order.order_number, opts.siteUrl)
+  );
 
   drawFooters(doc, seller, number, order);
   return doc.toBytes();
@@ -887,34 +994,66 @@ function drawFulfillment(doc: PdfDocument, top: number, order: Order): number {
  * Returns the bottom of what it drew, so the caller can carry on below whichever
  * of this and the totals runs longer.
  */
-function drawVerification(doc: PdfDocument, top: number, url: string): number {
-  // Level Q survives roughly a quarter of the symbol being lost, which is the
-  // right trade for something that will be photocopied, faxed and photographed
-  // off a screen at an angle.
-  let matrix: ReturnType<typeof encodeQr>;
-  try {
-    matrix = encodeQr(url, "Q");
-  } catch (e) {
+function drawVerification(
+  doc: PdfDocument,
+  top: number,
+  record: string,
+  url: string
+): number {
+  /**
+   * ERROR CORRECTION IS CHOSEN, NOT FIXED.
+   *
+   * A whole invoice is a few hundred bytes, and every level of redundancy costs
+   * capacity — which costs a denser symbol at the same printed size, which
+   * eventually costs scannability altogether. So take the most robust level the
+   * payload still fits comfortably into, and step down only as far as needed.
+   * Q first: it survives about a quarter of the symbol being lost, which is the
+   * right trade for something photocopied, faxed and photographed off a screen.
+   */
+  let matrix: ReturnType<typeof encodeQr> | null = null;
+  for (const level of ["Q", "M", "L"] as const) {
+    try {
+      const candidate = encodeQr(record, level);
+      // The cap is a PHYSICAL limit, not an arbitrary one: at the box size
+      // below, version 20 puts a module at about half a millimetre, which a
+      // phone reads off paper. Denser than that and the redundancy stops
+      // buying anything, because the reader cannot resolve the modules to
+      // correct in the first place.
+      if (candidate.version <= 20 || level === "L") {
+        matrix = candidate;
+        break;
+      }
+    } catch {
+      // Too long for this level; the next one down has more room.
+    }
+  }
+  if (!matrix) {
     // A code that cannot be built is left out entirely. The invoice is complete
     // without it, and half a QR is worse than none.
-    console.error("[invoice] could not build the verification code:", e);
+    console.error("[invoice] the document record will not fit in a QR code");
     return top;
   }
 
-  const box = 72;
-  const colW = CONTENT_WIDTH - 250 - 24; // whatever the totals block leaves
+  // Sized so the modules stay coarse enough to survive print. At this box a
+  // version-18 symbol lands near 0.55mm per module, which a phone reads off
+  // paper and a photocopy does not destroy.
+  const box = 152;
   const quiet = 4; // modules of clear margin; a scanner needs it to lock on
   const unit = box / (matrix.size + quiet * 2);
 
-  doc.drawText("VERIFY THIS DOCUMENT", {
+  doc.drawText("THIS DOCUMENT, MACHINE-READABLE", {
     x: MARGIN,
     y: top,
     size: 6.5,
     color: MUTED,
     tracking: 1.1,
   });
+  doc.drawLine(MARGIN, top + 6, MARGIN + CONTENT_WIDTH, top + 6, {
+    color: HAIRLINE,
+    width: 0.6,
+  });
 
-  const qrTop = top + 8;
+  const qrTop = top + 16;
   // White ground under the whole symbol, quiet zone included: a QR printed onto
   // a tinted panel does not scan.
   doc.drawRect(MARGIN, qrTop, box, box, { color: "#ffffff" });
@@ -933,29 +1072,94 @@ function drawVerification(doc: PdfDocument, top: number, url: string): number {
     }
   }
 
-  // The sentence sits beside the code; the URL goes underneath, across the whole
-  // column. Squeezed into the narrow strip next to the code it wrapped
-  // mid-token — "…/verify/EDT-7A3F91C" then "2" — which makes an address look
-  // like two broken ones.
-  const textX = MARGIN + box + 12;
-  let y = qrTop + 10;
+  // The explanation sits to the right of the code, across the rest of the width.
+  const textX = MARGIN + box + 22;
+  const textW = CONTENT_WIDTH - box - 22;
+  let y = qrTop + 12;
+
+  doc.drawText("The whole invoice, in one scan", {
+    x: textX,
+    y,
+    size: 10,
+    font: "bold",
+    color: INK,
+  });
+  y += 15;
+
   for (const line of doc.wrap(
-    "Scan, or open the address below, to check this invoice against our records.",
-    colW - box - 12,
+    "This code carries the document itself — seller and registered entity, tax " +
+      "number, buyer, every line item, the totals, and the payment with its " +
+      "gateway reference. It is read straight from the code: there is no link to " +
+      "follow, nothing to load, and nothing that can go out of date or go down.",
+    textW,
     "regular",
-    7.5
+    8.5
   )) {
-    doc.drawText(line, { x: textX, y, size: 7.5, color: INK });
-    y += 9.5;
+    doc.drawText(line, { x: textX, y, size: 8.5, color: INK });
+    y += 11;
   }
 
-  y = Math.max(y, qrTop + box) + 10;
-  for (const line of doc.wrap(url, colW, "bold", 7.5)) {
-    doc.drawText(line, { x: MARGIN, y, size: 7.5, font: "bold", color: INK });
-    y += 9.5;
+  // The live check, as a separate line. The code says what the paper says; this
+  // address says what our records say — which is the other half of confirming a
+  // document, and the half a printed page cannot do on its own.
+  y += 6;
+  doc.drawText("To check it against our records instead:", {
+    x: textX,
+    y,
+    size: 8,
+    color: MUTED,
+  });
+  y += 11;
+  for (const line of doc.wrap(url, textW, "bold", 8)) {
+    doc.drawText(line, { x: textX, y, size: 8, font: "bold", color: INK });
+    y += 10;
   }
 
-  return y + 8;
+  /**
+   * The same record, printed.
+   *
+   * From the SAME string the code encodes — not a second rendering of the same
+   * facts, which could drift. So a reader can confirm the code and the words
+   * agree without scanning anything, and a reader whose scanner fails still has
+   * every field. It also stops this page being a mostly-blank sheet with one
+   * square on it.
+   */
+  y = Math.max(y, qrTop + box) + 20;
+  doc.drawText("WHAT THE CODE CONTAINS", {
+    x: MARGIN,
+    y,
+    size: 6.5,
+    color: MUTED,
+    tracking: 1.1,
+  });
+  doc.drawLine(MARGIN, y + 6, MARGIN + CONTENT_WIDTH, y + 6, {
+    color: HAIRLINE,
+    width: 0.6,
+  });
+  y += 18;
+
+  for (const raw of record.split("\n")) {
+    if (!raw) {
+      // Blank lines are the record's own paragraph breaks; keep them, at half
+      // height so the block stays compact.
+      y += 5;
+      continue;
+    }
+    // Headings in the record are the lines with no label before a colon.
+    const isHeading = !raw.includes(":") && raw === raw.toUpperCase();
+    for (const line of doc.wrap(raw, CONTENT_WIDTH, isHeading ? "bold" : "regular", 8)) {
+      doc.drawText(line, {
+        x: MARGIN,
+        y,
+        size: 8,
+        font: isHeading ? "bold" : "regular",
+        color: isHeading ? INK : MUTED,
+      });
+      y += 10;
+    }
+  }
+
+  return y + 10;
 }
 
 /** Terms, the admin's own footer note, and the returns policy. */

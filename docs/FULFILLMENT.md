@@ -742,8 +742,19 @@ call.
 
 ## The verification code on invoices
 
-Both invoices carry a QR code, and the same address written out beside it in
-plain text. It points at **`/verify/<order number>`**.
+Both invoices carry a QR code that holds **the document itself**, not a link to
+it — seller and registered entity, tax number, buyer, ship-to, every line item
+with its own arithmetic, the totals, the payment with its gateway reference, and
+the delivery status. Scanning shows all of it with no network round trip: nothing
+to load, nothing that can go stale or go down.
+
+The **same string** is also printed underneath the code, so a reader can confirm
+the two agree without scanning, and a reader whose scanner fails still has every
+field. One string renders both, so they cannot drift.
+
+Separately, the page prints the address of **`/verify/<order number>`** as text.
+That is a different job: the code says what the paper says, the address says what
+our records say.
 
 ### What that page does, and does not, do
 
@@ -764,24 +775,29 @@ entirely. So an order number is enough to confirm a document and not enough to
 learn who bought what or where it went. The signed-in owner sees their order in
 full.
 
-### Why both the code and the text
+### Why the invoice is two pages
 
-Someone reading the PDF on a screen will not scan anything, so the URL has to be
-legible as text. Someone holding the paper will not type it, so the code has to
-be scannable. And an unlabelled QR on an invoice is precisely what a phishing
-document looks like — saying where it goes, in words, is what makes it a feature
-rather than a request for trust.
+**Deliberate, and the trade is size for scannability.** A whole document is
+several hundred bytes; at level M that is around a version-20 symbol. Squeezed
+into the gutter beside the totals — where it lived while it held only a short
+URL — the modules came out near a third of a millimetre: readable on a screen,
+gone after one photocopy. A code too dense to scan is not a smaller feature, it
+is no feature.
 
-It sits in the column the totals block leaves empty, so it costs no vertical
-space; as a block of its own it pushed every invoice onto a second page.
+So the record gets a band of its own, with a 152pt code. That puts a module at
+roughly **0.5mm**, which decodes cleanly off a 200dpi scan. The invoice a person
+reads still ends on page one; page two is the record, in both forms.
+
+Error correction is **chosen, not fixed**: Q first, stepping down through M to L,
+taking the most robust level whose symbol still lands at version 20 or below. The
+cap is physical rather than arbitrary — past it the reader cannot resolve the
+modules well enough for the redundancy to buy anything.
 
 ### The encoder
 
 `lib/qr.ts`, written out rather than depended upon, because `lib/pdf.ts` is
-dependency-free so the documents render unchanged on Workers. Byte mode,
-versions 1–10, all four error-correction levels. Invoices use **level Q**, which
-survives roughly a quarter of the symbol being lost — the right trade for
-something that will be photocopied, faxed and photographed off a screen.
+dependency-free so the documents render unchanged on Workers. Byte mode, **all
+forty versions**, all four error-correction levels — up to 2953 bytes.
 
 ⚠️ **The failure mode is silent.** An encoder with a wrong format bit or a
 mis-shifted BCH generator produces a tidy, plausible square that decodes to
@@ -797,9 +813,16 @@ differ — the two implementations score the symbol slightly differently, both
 readings of the spec are defensible, and both scan — but everything upstream of
 it must be identical.
 
-**Beyond the unit tests**, the code was decoded off the rendered PDF with
-OpenCV's QR detector to confirm the whole pipeline works: 24 combinations across
-every supported version and ECC level, then both finished invoices. Worth
-repeating if `lib/qr.ts` is ever touched — note that OpenCV's basic
-`QRCodeDetector` fails on valid version-10 codes (it fails on the reference
-implementation's output too); use `cv2.QRCodeDetectorAruco()`.
+A version-1 test proves nothing about version 27 — each version has its own
+block structure and alignment layout, and from version 7 its own
+version-information block — so the suite also fills **every one of the forty
+versions at every level** to capacity and checks it round-trips.
+
+**Beyond the unit tests**, codes were decoded off rendered images with OpenCV:
+**160 combinations** (all 40 versions × 4 levels, each filled to full capacity),
+then both finished invoices scanned off the rendered PDF at 600, 400, 300 and
+200 dpi — exact match every time. Worth repeating if `lib/qr.ts` is ever touched.
+
+Note that OpenCV's basic `QRCodeDetector` fails on valid version-10-and-up codes
+— it fails on a reference implementation's output too — so use
+`cv2.QRCodeDetectorAruco()`.

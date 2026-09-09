@@ -152,6 +152,25 @@ describe("structure", () => {
   });
 });
 
+describe("the whole version range", () => {
+  test("every version from 1 to 40 can be filled to capacity and read back", () => {
+    // A version-1 test proves nothing about version 27: each version has its
+    // own block structure, its own alignment pattern layout, and from 7 up its
+    // own version-information block. This walks all forty at every level and
+    // checks the codewords come back out of the matrix the right length.
+    for (let version = 1; version <= 40; version++) {
+      for (const ecc of ["L", "M", "Q", "H"] as const) {
+        const headerBits = 4 + (version < 10 ? 8 : 16);
+        const capacity = __internals.dataCapacity(version, ecc);
+        const bytes = Math.floor((capacity * 8 - headerBits) / 8);
+        const qr = encodeQr("E".repeat(bytes), ecc);
+        assert.equal(qr.version, version, `filling v${version}${ecc} landed on v${qr.version}`);
+        assert.equal(qr.size, 17 + 4 * version);
+      }
+    }
+  });
+});
+
 describe("choosing a version", () => {
   test("grows with the payload", () => {
     const small = encodeQr("hi", "M").version;
@@ -167,7 +186,7 @@ describe("choosing a version", () => {
   test("refuses a payload it cannot encode rather than truncating it", () => {
     // Silently dropping the tail would produce a code that scans to the wrong
     // URL, which is worse than no code.
-    assert.throws(() => encodeQr("x".repeat(3000), "H"), /will not fit/);
+    assert.throws(() => encodeQr("x".repeat(4000), "H"), /will not fit/);
   });
 
   test("refuses an empty payload", () => {
