@@ -70,18 +70,6 @@ const BOTTOM = A4.height - 64;
 export type InvoiceVariant = "proforma" | "paid";
 
 /**
- * The address the /verify page lives at, printed on the document as text.
- *
- * NOT what the QR code carries — that holds the record itself (see
- * documentRecord). This is the separate line for a reader who wants to check
- * the paper against live data rather than read what the paper already says.
- */
-export function verifyUrl(orderNumber: string, siteUrl?: string | null): string {
-  const base = String(siteUrl || COMPANY.siteUrl).replace(/\/+$/, "");
-  return `${base}/verify/${encodeURIComponent(orderNumber)}`;
-}
-
-/**
  * THE DOCUMENT, AS THE QR CODE CARRIES IT.
  *
  * The code holds the record rather than a link to it: scanning it shows the
@@ -479,12 +467,7 @@ export async function buildInvoice(
    * So it gets the room it needs. On a full invoice that means a second page —
    * a deliberate trade, because the code's whole purpose is to be read.
    */
-  y = drawVerification(
-    doc,
-    need(180, y),
-    documentRecord(order, seller, variant),
-    verifyUrl(order.order_number, opts.siteUrl)
-  );
+  y = drawVerification(doc, need(180, y), documentRecord(order, seller, variant));
 
   drawFooters(doc, seller, number, order);
   return doc.toBytes();
@@ -994,12 +977,7 @@ function drawFulfillment(doc: PdfDocument, top: number, order: Order): number {
  * Returns the bottom of what it drew, so the caller can carry on below whichever
  * of this and the totals runs longer.
  */
-function drawVerification(
-  doc: PdfDocument,
-  top: number,
-  record: string,
-  url: string
-): number {
+function drawVerification(doc: PdfDocument, top: number, record: string): number {
   /**
    * ERROR CORRECTION IS CHOSEN, NOT FIXED.
    *
@@ -1089,30 +1067,14 @@ function drawVerification(
   for (const line of doc.wrap(
     "This code carries the document itself — seller and registered entity, tax " +
       "number, buyer, every line item, the totals, and the payment with its " +
-      "gateway reference. It is read straight from the code: there is no link to " +
-      "follow, nothing to load, and nothing that can go out of date or go down.",
+      "gateway reference. Every field below is inside it. Nothing is fetched and " +
+      "no address is visited: the record is read straight off the page.",
     textW,
     "regular",
     8.5
   )) {
     doc.drawText(line, { x: textX, y, size: 8.5, color: INK });
     y += 11;
-  }
-
-  // The live check, as a separate line. The code says what the paper says; this
-  // address says what our records say — which is the other half of confirming a
-  // document, and the half a printed page cannot do on its own.
-  y += 6;
-  doc.drawText("To check it against our records instead:", {
-    x: textX,
-    y,
-    size: 8,
-    color: MUTED,
-  });
-  y += 11;
-  for (const line of doc.wrap(url, textW, "bold", 8)) {
-    doc.drawText(line, { x: textX, y, size: 8, font: "bold", color: INK });
-    y += 10;
   }
 
   /**

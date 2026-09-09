@@ -752,9 +752,22 @@ The **same string** is also printed underneath the code, so a reader can confirm
 the two agree without scanning, and a reader whose scanner fails still has every
 field. One string renders both, so they cannot drift.
 
-Separately, the page prints the address of **`/verify/<order number>`** as text.
-That is a different job: the code says what the paper says, the address says what
-our records say.
+### No web address is printed on the document
+
+Not the store's, anyway — deliberately. The code carries the record itself, so
+there is nothing to visit, and a document advertising a URL is a document
+inviting somebody to mistype it. A test asserts the store URL does not appear.
+
+The courier's tracking link is a different thing and stays: it points at DHL, not
+at us.
+
+⚠️ The **seller's contact email** does still carry the domain, on both pages — it
+is the address a buyer needs to reach us, and an invoice without one is a worse
+document. If the domain is to be off the page entirely, that is the other place
+it lives.
+
+The page is still there and still works; it is simply not advertised on the
+document.
 
 ### What that page does, and does not, do
 
