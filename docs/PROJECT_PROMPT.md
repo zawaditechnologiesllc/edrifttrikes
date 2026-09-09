@@ -314,11 +314,32 @@ Gate on `profiles.role = 'admin'` in a shared `requireAdmin()`.
   whether the customer will get a clickable link — and only link out when the
   courier has a known tracking URL **and** the number is not one you generated.
   A link that lands on "not found" makes the customer think nothing shipped.
+- **Invoices**: a PDF per order, downloadable from the order page, in two
+  variants — a **proforma** (any time; states what is owed and that it is not a
+  tax invoice) and a **paid invoice** (once payment clears; states method, date,
+  gateway reference and a nil balance). The paid one must **refuse to render for
+  an unpaid order**: a document headed "PAID IN FULL" for money nobody sent is a
+  fabricated record. Carry the order number, the date the order was *placed*
+  (not just the date the PDF was made), the customer's email and address, every
+  line with its own arithmetic, the currency named outright, and the delivery
+  and tracking detail — that last part is what makes an invoice evidence rather
+  than a summary. Print no placeholder, ever.
+- **Invoice identity**: trading name (DBA), registered legal entity, tax number
+  and a footer note, all admin-editable because a trading name changes. **Freeze
+  a copy onto each order at checkout.** An invoice names the entity that
+  transacted; without a snapshot, editing the name silently rewrites the seller
+  on invoices already issued, and two copies of one invoice naming different
+  companies is what makes a document set look manufactured.
 - **Messages** from the contact form, with replies sent by email.
 - **Announcements**: create, edit, delete, schedule.
 - **Settings**: contact details, shipping fee, tax rate, logo upload.
 - **System status**: which env vars and migrations are live, recent orders, and a
   trust checklist (§10).
+
+⚠️ **Anything under the admin path that is a route handler must gate itself.**
+Route handlers do not run layouts, so the layout that protects every admin page
+does nothing for a `route.ts` beside it — leaving a document full of customer
+names, addresses and payment references served to anyone who guesses the URL.
 
 **Every admin control must report what it did.** A save that reports "no changes"
 over a write that succeeded is indistinguishable from a broken button — compare

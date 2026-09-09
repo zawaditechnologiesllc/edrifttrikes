@@ -662,3 +662,68 @@ evidence, the customer graph, the descriptor buyers have learned to recognise.
 It is the argument that a new merchant is a real one, and it is built by
 accumulating a record in one place. Moving to a different account starts that
 argument again from zero.
+
+
+---
+
+## Invoices
+
+Every order can be downloaded as a PDF from **Admin → Orders → (an order)**.
+Two documents, because an order has two states and they are not the same claim:
+
+| | When | What it asserts |
+| --- | --- | --- |
+| **Proforma invoice** (`PRO-<order>`) | Any time | What is owed. Says on its face that it is *not* a tax invoice and that no payment has been received. |
+| **Invoice** (`INV-<order>`) | Once payment clears | What was paid, when, by what method, against which gateway reference, and that the balance is nil. |
+
+### The paid invoice will not render for an unpaid order
+
+`buildInvoice` throws and the route answers 409; the admin button is not even a
+link until the order is payable. A document headed "PAID IN FULL" for an order
+nobody paid for is a fabricated record, and issuing one does far more damage
+than a button that refuses to work.
+
+### What is on them
+
+Both carry: invoice number and date, **order number and the date the order was
+placed** (a different date, and conflating the two is how an invoice stops
+matching the gateway record it exists to corroborate), the seller's trading name
+/ registered entity / tax number / address, the **customer's email** and full
+delivery address, every line item with its colour and its own arithmetic,
+subtotal / shipping / tax / total with the currency named outright, and the
+delivery status, courier and tracking number.
+
+The paid one adds the payment method, timestamp and the processor's own
+reference, so the document and the gateway record can actually be reconciled
+against each other.
+
+Nothing is invented and no placeholder is ever printed: a shop that has not
+filled in its address gets an invoice with less on it, rather than one
+advertising "100 Drift Lane", which tells a reviewer the document came off an
+unfinished template. `isReal()` in `lib/seo.ts` is the single guard for that.
+
+### Who the seller is — and why the DBA is frozen per order
+
+Set the trading name, registered entity, tax number and footer note in
+**Admin → Settings → Invoice identity**. They are settings rather than
+constants because a trading name changes, and when it does every document has to
+follow.
+
+**But changing them affects new orders only.** Each order stores its own
+`seller_snapshot` at checkout. An invoice records a transaction that already
+happened, so it has to name the entity that made it — and without a snapshot,
+editing the trading name would silently rewrite the seller on every invoice
+already issued. Two copies of the same invoice, downloaded a month apart and
+naming different companies, is precisely what makes a document set look
+manufactured to anyone checking it. Orders placed before migration 0017 have no
+snapshot and fall back to current settings, which is the best available answer
+for them.
+
+### The route is gated by itself
+
+`app/admin/orders/[id]/invoice/route.ts` calls `isAdmin()` directly. **Route
+handlers do not run layouts**, so `app/admin/layout.tsx` — which protects every
+admin *page* — does nothing for it. Without that check the invoice (customer
+name, email, full address, payment reference) would be served to anyone who
+guessed the URL. Anything added under `/admin` as a `route.ts` needs the same
+call.

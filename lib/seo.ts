@@ -231,8 +231,20 @@ export function trustGaps(settings: SiteSettings | null | undefined): TrustGap[]
     {
       key: "legalName",
       label: "The registered legal entity name",
-      why: "It has to match your company registration and your payment processor, or the three disagree.",
-      done: isReal(COMPANY.legalName) && COMPANY.legalName !== COMPANY.name,
+      why: "It has to match your company registration and your payment processor, or the three disagree. Set it in Settings → Invoice identity; it is printed on every invoice.",
+      // Settings first, because that is where it is edited now and where the
+      // invoices read it from. The constant only counts when it has actually
+      // been customised: it ships equal to the trading name, which means
+      // "nobody has filled this in" rather than "the entity has that name".
+      done:
+        isReal(settings?.legal_name) ||
+        (isReal(COMPANY.legalName) && COMPANY.legalName !== COMPANY.name),
+    },
+    {
+      key: "taxId",
+      label: "A tax or business registration number",
+      why: "The first thing a payment processor asks for when it wants to confirm a business exists. Printed on every invoice.",
+      done: isReal(settings?.tax_id),
     },
     {
       key: "governingLaw",

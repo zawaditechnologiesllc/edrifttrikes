@@ -9,6 +9,8 @@ import ConnectAccountForm from "../ConnectAccountForm";
 import { OriginPanel } from "../OrderOrigin";
 import StageLadder from "../StageLadder";
 import { loadOrderEvents } from "@/lib/orders";
+import { isPayable } from "@/lib/invoice";
+import { Icon } from "@/components/Icon";
 import {
   STAGE_COPY,
   formatDeliveryDate,
@@ -54,6 +56,56 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
         <div className="text-right">
           <p className="font-label-bold text-[10px] uppercase tracking-widest text-on-surface-variant">Delivery stage</p>
           <p className="font-headline-md text-secondary text-lg">{STAGE_COPY[stage].label}</p>
+        </div>
+      </div>
+
+      {/* Invoices sit ABOVE the controls: reaching for one is the commonest
+          reason to open a specific order, and it should not need a scroll. */}
+      <div className="mb-6 bg-surface-container border border-white/10 rounded-lg p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="font-headline-md text-headline-md text-white uppercase">
+              Invoices
+            </h2>
+            <p className="text-on-surface-variant text-sm mt-1 max-w-lg">
+              Generated fresh each time, so they always match the order as it
+              stands now. The trading name, registered entity and tax number come
+              from{" "}
+              <Link href="/admin/settings" className="text-secondary hover:underline">
+                Settings → Invoice identity
+              </Link>
+              .
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <a
+              href={`/admin/orders/${order.id}/invoice?variant=proforma`}
+              className="inline-flex items-center gap-2 border border-white/20 text-white px-4 py-2.5 rounded font-label-bold uppercase tracking-widest text-xs hover:border-secondary hover:text-secondary transition-colors"
+            >
+              <Icon name="download" className="w-4 h-4" />
+              Proforma (unpaid)
+            </a>
+            {isPayable(order) ? (
+              <a
+                href={`/admin/orders/${order.id}/invoice?variant=paid`}
+                className="inline-flex items-center gap-2 bg-secondary text-on-secondary-fixed px-4 py-2.5 rounded font-label-bold uppercase tracking-widest text-xs hover:brightness-105 active:scale-95 transition-all"
+              >
+                <Icon name="download" className="w-4 h-4" />
+                Invoice (paid)
+              </a>
+            ) : (
+              // Not a link. An invoice headed "PAID IN FULL" for an order nobody
+              // paid for is a fabricated record, so the button that would
+              // produce one does not exist until the payment does.
+              <span
+                className="inline-flex items-center gap-2 border border-white/10 text-on-surface-variant px-4 py-2.5 rounded font-label-bold uppercase tracking-widest text-xs cursor-not-allowed"
+                title="Available once the order is marked paid."
+              >
+                <Icon name="lock" className="w-4 h-4" />
+                Invoice (paid)
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

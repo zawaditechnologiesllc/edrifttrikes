@@ -14,6 +14,7 @@ import { sendAbandonedCartEmail } from "@/lib/email";
 import { matchColor, productColorOptions, defaultColor } from "@/lib/colors";
 import { publicSiteUrl } from "@/lib/env";
 import { originFromRequest } from "@/lib/request-origin";
+import { sellerSnapshot } from "@/lib/invoice";
 import { assessOrigin } from "@/lib/risk";
 import { countryCode } from "@/lib/countries";
 import type { Order } from "@/lib/types";
@@ -239,6 +240,17 @@ export async function POST(request: Request) {
     total_cents: totals.total,
     shipping_address: shipping,
   };
+  /**
+   * Freeze who the seller is, right now.
+   *
+   * An invoice records a transaction that already happened, so it has to name
+   * the entity that made it. Without this, editing the trading name in admin
+   * would silently rewrite the seller on every invoice already issued — and two
+   * copies of the same invoice naming different companies is exactly what makes
+   * a document set look manufactured to anyone checking it.
+   */
+  const sellerRow = { seller_snapshot: sellerSnapshot(settingsRow ?? undefined) };
+
   const originRow = {
     origin_country: origin.country,
     origin_region: origin.region,
@@ -254,13 +266,15 @@ export async function POST(request: Request) {
 
   // Create the order.
   //
-  // Two attempts, on purpose: on a database that hasn't run migration 0015 the
-  // origin columns don't exist and the insert fails outright. Losing the
-  // fraud-review data is a shame; losing the ORDER is a lost sale, so the
-  // retry drops the columns and keeps the customer.
+  // Two attempts, on purpose: on a database that hasn't run migrations 0015 and
+  // 0017 the origin and seller columns don't exist and the insert fails
+  // outright. Losing the fraud-review data or the seller snapshot is a shame;
+  // losing the ORDER is a lost sale, so the retry drops both and keeps the
+  // customer. An order without a snapshot still invoices — it just falls back
+  // to whatever the settings say (see sellerFor in lib/invoice.ts).
   let { data: order, error: orderErr } = await admin
     .from("orders")
-    .insert({ ...orderRow, ...originRow })
+    .insert({ ...orderRow, ...originRow, ...sellerRow })
     .select()
     .single();
 

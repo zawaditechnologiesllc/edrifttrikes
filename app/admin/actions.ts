@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { ANNOUNCEMENTS_TAG, CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
 import {
@@ -17,25 +16,19 @@ import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
 import { looksInternal, trackingUrlFor } from "@/lib/couriers";
 import { attachFulfillmentToPayment } from "@/lib/stripe";
+import { isAdmin } from "@/lib/admin-auth";
 import { probeImage } from "@/lib/pdf";
 import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 import { parseColors } from "@/lib/colors";
 import { normalizeHref, normalizeMessage } from "@/lib/announcements";
 
+/**
+ * Gate a server action. Same check as lib/admin-auth.ts — which the invoice
+ * route handler uses, because route handlers do not run the admin layout —
+ * but redirecting, since a form post wants to land back on the login page.
+ */
 async function requireAdmin() {
-  if (!adminConfigured()) redirect("/login");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") redirect("/login");
-  return user;
+  if (!(await isAdmin())) redirect("/login");
 }
 
 function dollarsToCents(v: FormDataEntryValue | null): number {
@@ -668,6 +661,10 @@ export async function saveSiteSettings(
     // Stored as typed; sanitised at send time (lib/stripe-fulfillment.ts) so a
     // value Stripe would reject can never take the whole checkout down.
     statement_descriptor: trimmed("statement_descriptor"),
+    legal_name: trimmed("legal_name"),
+    dba_name: trimmed("dba_name"),
+    tax_id: trimmed("tax_id"),
+    invoice_footer: trimmed("invoice_footer"),
     updated_at: new Date().toISOString(),
   };
 
@@ -688,19 +685,23 @@ export async function saveSiteSettings(
     delete row.tax_rate_bps;
     delete row.logo_url;
     delete row.statement_descriptor;
+    delete row.legal_name;
+    delete row.dba_name;
+    delete row.tax_id;
+    delete row.invoice_footer;
     ({ error } = await admin.from("site_settings").upsert(row, { onConflict: "id" }));
     if (!error) {
       revalidateTag(SETTINGS_TAG);
       return {
         error:
-          "Contact info saved, but the shipping, tax, logo and statement-descriptor settings need migrations supabase/migrations/0004_shipping_and_articles.sql, 0006_fulfillment_tracking.sql, 0013_store_logo.sql and 0016_statement_descriptor.sql — run them in the Supabase SQL Editor, then save again.",
+          "Contact info saved, but the shipping, tax, logo, statement-descriptor and invoice-identity settings need migrations supabase/migrations/0004_shipping_and_articles.sql, 0006_fulfillment_tracking.sql, 0013_store_logo.sql, 0016_statement_descriptor.sql and 0017_invoice_identity.sql — run them in the Supabase SQL Editor, then save again.",
       };
     }
   }
   if (error) {
     return {
       error:
-        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003, 0004, 0006, 0013 and 0016) first.",
+        "Could not save. If this is a fresh database, run the SQL files in supabase/migrations (0003, 0004, 0006, 0013, 0016 and 0017) first.",
     };
   }
   revalidateTag(SETTINGS_TAG);
