@@ -42,6 +42,7 @@ import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 // template. One list, so the two can never disagree about what is real.
 import { isReal } from "@/lib/seo";
 import { trackingUrlFor } from "@/lib/couriers";
+import { encodeQr } from "@/lib/qr";
 import type { Order, OrderItem, SellerSnapshot, SiteSettings } from "@/lib/types";
 
 /* -------------------------------------------------------------------------- */
@@ -67,6 +68,19 @@ const BOTTOM = A4.height - 64;
 /* -------------------------------------------------------------------------- */
 
 export type InvoiceVariant = "proforma" | "paid";
+
+/**
+ * The address the invoice's QR code points at.
+ *
+ * A page that states the order's number, date, total and payment status, read
+ * live — so somebody holding the printed document can check it against the
+ * record rather than take it on trust. That is the whole value of the code: a
+ * square that resolves to nothing corroborates nothing.
+ */
+export function verifyUrl(orderNumber: string, siteUrl?: string | null): string {
+  const base = String(siteUrl || COMPANY.siteUrl).replace(/\/+$/, "");
+  return `${base}/verify/${encodeURIComponent(orderNumber)}`;
+}
 
 export type InvoiceOptions = {
   order: Order;
@@ -346,10 +360,24 @@ export async function buildInvoice(
   y = drawMeta(doc, y, order, variant, issuedAt);
   y = drawParties(doc, y, order, seller);
   y = drawItems(doc, y, order, need);
-  y = drawTotals(doc, need(130, y), order, paid);
+  /**
+   * The totals occupy the right-hand column only, which used to leave a tall
+   * empty band down the left of every invoice. The verification code goes
+   * there: it costs no vertical space at all, and it sits beside the figure a
+   * reader is most likely to be checking.
+   */
+  const totalsTop = need(130, y);
+  const afterTotals = drawTotals(doc, totalsTop, order, paid);
+  const afterVerify = drawVerification(
+    doc,
+    totalsTop,
+    verifyUrl(order.order_number, opts.siteUrl)
+  );
+  y = Math.max(afterTotals, afterVerify);
+
   y = drawPayment(doc, need(90, y), order, paid);
   y = drawFulfillment(doc, need(80, y), order);
-  y = drawNotes(doc, need(70, y), settings, paid);
+  y = drawNotes(doc, need(60, y), settings, paid);
 
   drawFooters(doc, seller, number, order);
   return doc.toBytes();
@@ -844,6 +872,90 @@ function drawFulfillment(doc: PdfDocument, top: number, order: Order): number {
     }
   }
   return y + 10;
+}
+
+/**
+ * The verification code, in the empty column beside the totals.
+ *
+ * THE CODE AND THE ADDRESS BOTH APPEAR, deliberately. Somebody reading the PDF
+ * on a screen will not scan anything, so the URL has to be legible as text;
+ * somebody holding the paper will not type it, so the code has to be scannable.
+ * And an unlabelled QR on an invoice is exactly what a phishing document looks
+ * like — saying where it goes, in words, is what makes it a feature rather than
+ * a request for trust.
+ *
+ * Returns the bottom of what it drew, so the caller can carry on below whichever
+ * of this and the totals runs longer.
+ */
+function drawVerification(doc: PdfDocument, top: number, url: string): number {
+  // Level Q survives roughly a quarter of the symbol being lost, which is the
+  // right trade for something that will be photocopied, faxed and photographed
+  // off a screen at an angle.
+  let matrix: ReturnType<typeof encodeQr>;
+  try {
+    matrix = encodeQr(url, "Q");
+  } catch (e) {
+    // A code that cannot be built is left out entirely. The invoice is complete
+    // without it, and half a QR is worse than none.
+    console.error("[invoice] could not build the verification code:", e);
+    return top;
+  }
+
+  const box = 72;
+  const colW = CONTENT_WIDTH - 250 - 24; // whatever the totals block leaves
+  const quiet = 4; // modules of clear margin; a scanner needs it to lock on
+  const unit = box / (matrix.size + quiet * 2);
+
+  doc.drawText("VERIFY THIS DOCUMENT", {
+    x: MARGIN,
+    y: top,
+    size: 6.5,
+    color: MUTED,
+    tracking: 1.1,
+  });
+
+  const qrTop = top + 8;
+  // White ground under the whole symbol, quiet zone included: a QR printed onto
+  // a tinted panel does not scan.
+  doc.drawRect(MARGIN, qrTop, box, box, { color: "#ffffff" });
+  for (let r = 0; r < matrix.size; r++) {
+    for (let c = 0; c < matrix.size; c++) {
+      if (!matrix.modules[r][c]) continue;
+      doc.drawRect(
+        MARGIN + (c + quiet) * unit,
+        qrTop + (r + quiet) * unit,
+        // A hair of overlap, so neighbouring dark modules meet cleanly rather
+        // than showing hairlines where the renderer rounds them apart.
+        unit + 0.05,
+        unit + 0.05,
+        { color: INK }
+      );
+    }
+  }
+
+  // The sentence sits beside the code; the URL goes underneath, across the whole
+  // column. Squeezed into the narrow strip next to the code it wrapped
+  // mid-token — "…/verify/EDT-7A3F91C" then "2" — which makes an address look
+  // like two broken ones.
+  const textX = MARGIN + box + 12;
+  let y = qrTop + 10;
+  for (const line of doc.wrap(
+    "Scan, or open the address below, to check this invoice against our records.",
+    colW - box - 12,
+    "regular",
+    7.5
+  )) {
+    doc.drawText(line, { x: textX, y, size: 7.5, color: INK });
+    y += 9.5;
+  }
+
+  y = Math.max(y, qrTop + box) + 10;
+  for (const line of doc.wrap(url, colW, "bold", 7.5)) {
+    doc.drawText(line, { x: MARGIN, y, size: 7.5, font: "bold", color: INK });
+    y += 9.5;
+  }
+
+  return y + 8;
 }
 
 /** Terms, the admin's own footer note, and the returns policy. */

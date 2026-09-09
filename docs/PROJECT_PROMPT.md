@@ -336,6 +336,15 @@ Gate on `profiles.role = 'admin'` in a shared `requireAdmin()`.
   already sent), or freeze a per-order snapshot and invoices already issued
   never move. Record the snapshot either way — it costs one column and it is the
   audit trail of what the shop traded as on the day.
+- **A verification code on each invoice**, pointing at a public page that states
+  checkable facts about that order — number, date, total, paid or not, status —
+  read live, with personal details redacted for anyone who has not proved the
+  order is theirs. Print the address as text beside the code: a reader on a
+  screen will not scan, a reader holding paper will not type, and an unlabelled
+  QR on an invoice is what phishing looks like. **The page must certify
+  nothing** — no badge, no score, no "verified merchant" mark. A shop awarding
+  itself one is worth nothing and reads as though it knows. The value is that
+  the page and the document agree, which the reader establishes.
 - **Messages** from the contact form, with replies sent by email.
 - **Announcements**: create, edit, delete, schedule.
 - **Settings**: contact details, shipping fee, tax rate, logo upload.

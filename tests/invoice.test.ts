@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildInvoice,
+  verifyUrl,
   invoiceFilename,
   invoiceMoney,
   invoiceNumber,
@@ -502,5 +503,67 @@ describe("documents that are awkward rather than typical", () => {
       await build({ ...PAID, shipping_address: null } as Order, "paid")
     );
     assert.match(text, /ada\.lovelace@example\.net/);
+  });
+});
+
+describe("the verification code", () => {
+  /**
+   * The QR is on the invoice so a reader can check the document against live
+   * data. Its whole value is that the destination resolves and matches — a
+   * square that goes nowhere corroborates nothing — so what is tested here is
+   * the address, not the picture. That the picture actually scans is verified
+   * by decoding it off the rendered page; see docs/FULFILLMENT.md.
+   */
+  test("points at this order's verification page", () => {
+    assert.equal(
+      verifyUrl("EDT-7A3F91C2", "https://edrifttrikes.shop"),
+      "https://edrifttrikes.shop/verify/EDT-7A3F91C2"
+    );
+  });
+
+  test("tolerates a trailing slash on the site URL", () => {
+    assert.equal(
+      verifyUrl("EDT-1", "https://edrifttrikes.shop/"),
+      "https://edrifttrikes.shop/verify/EDT-1"
+    );
+  });
+
+  test("escapes an order number rather than building a broken address", () => {
+    assert.equal(
+      verifyUrl("EDT 1/2?x", "https://x.co"),
+      "https://x.co/verify/EDT%201%2F2%3Fx"
+    );
+  });
+
+  test("falls back to the company URL when none is passed", () => {
+    assert.match(verifyUrl("EDT-1"), /^https:\/\/[^/]+\/verify\/EDT-1$/);
+  });
+
+  test("the address is printed as readable text, not only as a code", async () => {
+    // A reviewer reading the PDF on a screen will not scan anything.
+    for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
+      const text = pdfText(
+        await buildInvoice({ order, settings: SETTINGS, variant, siteUrl: "https://edrifttrikes.shop" })
+      );
+      assert.match(text, /VERIFY THIS DOCUMENT/);
+      assert.ok(
+        text.includes("https://edrifttrikes.shop/verify/EDT-7A3F91C2"),
+        `${variant}: the verification URL is not on the page as text`
+      );
+    }
+  });
+
+  test("appears on both documents", async () => {
+    for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
+      const text = pdfText(await buildInvoice({ order, settings: SETTINGS, variant }));
+      assert.match(text, /VERIFY THIS DOCUMENT/, `missing from the ${variant}`);
+    }
+  });
+
+  test("does not push a normal order onto a second page", async () => {
+    // It sits in the column the totals leave empty, so it costs no height. When
+    // it was a block of its own, every invoice spilled over.
+    assert.equal(pageCount(await build(PAID, "paid")), 1);
+    assert.equal(pageCount(await build(UNPAID, "proforma")), 1);
   });
 });
