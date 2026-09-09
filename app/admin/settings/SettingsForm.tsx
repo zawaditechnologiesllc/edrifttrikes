@@ -202,6 +202,59 @@ export default function SettingsForm({ settings }: { settings: SiteSettings }) {
 
       <div className="border-t border-white/10 pt-6">
         <p className="font-label-bold text-label-bold text-white uppercase tracking-widest text-xs mb-4">
+          Invoice identity
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className={lbl}>Trading name (DBA)</label>
+            <input
+              name="dba_name"
+              defaultValue={settings.dba_name ?? ""}
+              placeholder="E-Drift Trikes &amp; Go Carts"
+              className={`${input} w-full`}
+            />
+          </div>
+          <div>
+            <label className={lbl}>Registered legal entity</label>
+            <input
+              name="legal_name"
+              defaultValue={settings.legal_name ?? ""}
+              placeholder="Zawadi Technologies LLC"
+              className={`${input} w-full`}
+            />
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className={lbl}>Tax / business registration number</label>
+          <input
+            name="tax_id"
+            defaultValue={settings.tax_id ?? ""}
+            placeholder="EIN 88-1234567"
+            className={`${input} max-w-[20rem]`}
+          />
+        </div>
+        <div className="mt-4">
+          <label className={lbl}>Invoice footer note (optional)</label>
+          <textarea
+            name="invoice_footer"
+            defaultValue={settings.invoice_footer ?? ""}
+            rows={2}
+            placeholder="Payment terms, bank details, anything that should appear at the foot of every invoice."
+            className={`${input} w-full`}
+          />
+        </div>
+        <p className="text-[10px] text-outline uppercase tracking-widest mt-3">
+          Printed at the top of every invoice. The trading name is what customers
+          see; the registered entity appears beneath it as &ldquo;a trading name
+          of&hellip;&rdquo; when the two differ. Changing these affects invoices
+          for NEW orders only — an order already placed keeps the identity that
+          was true when it was placed, so an invoice you have already sent
+          somebody never changes underneath them.
+        </p>
+      </div>
+
+      <div className="border-t border-white/10 pt-6">
+        <p className="font-label-bold text-label-bold text-white uppercase tracking-widest text-xs mb-4">
           Card payments
         </p>
         <label className={lbl}>Statement descriptor</label>

@@ -114,6 +114,11 @@ export type Order = {
   risk_level?: "clear" | "review" | "high" | null;
   risk_score?: number | null;
   risk_flags?: string[] | null;
+  /**
+   * Who the seller was when this order was placed. Absent on orders predating
+   * migration 0017, which fall back to the current settings.
+   */
+  seller_snapshot?: SellerSnapshot | null;
   /** Timeline rows, newest last. Loaded on the account + confirmation pages. */
   events?: OrderEvent[];
   created_at: string;
@@ -163,7 +168,34 @@ export type SiteSettings = {
    * default. Sanitised at send time — see lib/stripe-fulfillment.ts.
    */
   statement_descriptor?: string | null;
+  /** Registered legal entity name, as on the company registration. */
+  legal_name?: string | null;
+  /** Trading / "doing business as" name shown on invoices. */
+  dba_name?: string | null;
+  /** Tax or business registration number printed on invoices. */
+  tax_id?: string | null;
+  /** Optional note at the foot of every invoice — terms, bank details. */
+  invoice_footer?: string | null;
   updated_at?: string;
+};
+
+/**
+ * The seller, frozen at the moment an order was placed.
+ *
+ * An invoice records a transaction that already happened, so it has to name the
+ * entity that made it — not whichever trading name the settings hold today.
+ * Stored on the order (`orders.seller_snapshot`) rather than looked up.
+ */
+export type SellerSnapshot = {
+  legalName?: string | null;
+  dbaName?: string | null;
+  taxId?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  /** ISO timestamp the snapshot was taken, for auditing. */
+  capturedAt?: string | null;
 };
 
 export type OrderEvent = {
