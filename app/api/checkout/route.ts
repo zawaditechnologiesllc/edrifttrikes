@@ -241,13 +241,11 @@ export async function POST(request: Request) {
     shipping_address: shipping,
   };
   /**
-   * Freeze who the seller is, right now.
+   * Record what the shop is called right now.
    *
-   * An invoice records a transaction that already happened, so it has to name
-   * the entity that made it. Without this, editing the trading name in admin
-   * would silently rewrite the seller on every invoice already issued — and two
-   * copies of the same invoice naming different companies is exactly what makes
-   * a document set look manufactured to anyone checking it.
+   * Invoices print the CURRENT settings, so this is not what the document says.
+   * It is kept as an audit trail — what the shop traded as on the day of this
+   * order — and as a fallback for a field the settings later lose.
    */
   const sellerRow = { seller_snapshot: sellerSnapshot(settingsRow ?? undefined) };
 
@@ -270,8 +268,8 @@ export async function POST(request: Request) {
   // 0017 the origin and seller columns don't exist and the insert fails
   // outright. Losing the fraud-review data or the seller snapshot is a shame;
   // losing the ORDER is a lost sale, so the retry drops both and keeps the
-  // customer. An order without a snapshot still invoices — it just falls back
-  // to whatever the settings say (see sellerFor in lib/invoice.ts).
+  // customer. An order without a snapshot still invoices normally — the
+  // document reads the settings anyway (see sellerFor in lib/invoice.ts).
   let { data: order, error: orderErr } = await admin
     .from("orders")
     .insert({ ...orderRow, ...originRow, ...sellerRow })

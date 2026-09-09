@@ -9,15 +9,13 @@
 -- does every document has to follow — including the ones a payment processor
 -- asks for when it wants to confirm the business is real.
 --
--- WHY THE ORDER CARRIES ITS OWN COPY (`seller_snapshot`): an invoice is a record
--- of a transaction that already happened, so it must state the identity that was
--- true THEN. Without a snapshot, editing the DBA would silently rewrite the
--- seller on every historical invoice — and two copies of "the same" invoice,
--- downloaded a month apart and naming different companies, is precisely what
--- makes a document set look fabricated to anyone checking it.
+-- WHY THE ORDER ALSO CARRIES A COPY (`seller_snapshot`): a record of what the
+-- shop was called when the order was placed. Invoices PRINT the current
+-- settings — the store trades under one name at a time and every document
+-- follows it — so this is an audit trail and a fallback for a field the
+-- settings do not have, not what the document says.
 --
--- Orders placed before this migration have no snapshot and fall back to the
--- current settings, which is the best available answer for them.
+-- Orders placed before this migration have no snapshot; nothing depends on one.
 --
 -- Safe to re-run.
 -- ---------------------------------------------------------------------------
@@ -41,4 +39,4 @@ alter table public.orders
   add column if not exists seller_snapshot jsonb;
 
 comment on column public.orders.seller_snapshot is
-  'Seller identity as it stood when this order was placed. Frozen on purpose: an invoice must name the entity that transacted, not whatever the settings say today. See lib/invoice.ts.';
+  'What the shop was called when this order was placed. An audit trail and a fallback; invoices print the current site_settings values. See lib/invoice.ts.';

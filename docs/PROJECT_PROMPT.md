@@ -319,17 +319,23 @@ Gate on `profiles.role = 'admin'` in a shared `requireAdmin()`.
   tax invoice) and a **paid invoice** (once payment clears; states method, date,
   gateway reference and a nil balance). The paid one must **refuse to render for
   an unpaid order**: a document headed "PAID IN FULL" for money nobody sent is a
-  fabricated record. Carry the order number, the date the order was *placed*
-  (not just the date the PDF was made), the customer's email and address, every
-  line with its own arithmetic, the currency named outright, and the delivery
-  and tracking detail — that last part is what makes an invoice evidence rather
-  than a summary. Print no placeholder, ever.
+  fabricated record. **Date the invoice to the day the order was placed**, not
+  the day the PDF was generated — an invoice records a transaction and carries
+  that transaction's date, and it makes the document deterministic, so two
+  downloads can never disagree about their own date. (Keep the *payment* date
+  as the real payment date: different fact, and the one that reconciles against
+  the gateway.) Carry the customer's email and address, every line with its own
+  arithmetic, the currency named outright, and the delivery and tracking detail
+  — that last part is what makes an invoice evidence rather than a summary.
+  Print no placeholder, ever.
 - **Invoice identity**: trading name (DBA), registered legal entity, tax number
-  and a footer note, all admin-editable because a trading name changes. **Freeze
-  a copy onto each order at checkout.** An invoice names the entity that
-  transacted; without a snapshot, editing the name silently rewrites the seller
-  on invoices already issued, and two copies of one invoice naming different
-  companies is what makes a document set look manufactured.
+  and a footer note, all admin-editable because a trading name changes. Decide
+  deliberately which way it propagates and say so in the UI, because both are
+  defensible and the difference is invisible until somebody compares two copies:
+  print the CURRENT values and every document follows a rename (including ones
+  already sent), or freeze a per-order snapshot and invoices already issued
+  never move. Record the snapshot either way — it costs one column and it is the
+  audit trail of what the shop traded as on the day.
 - **Messages** from the contact form, with replies sent by email.
 - **Announcements**: create, edit, delete, schedule.
 - **Settings**: contact details, shipping fee, tax rate, logo upload.

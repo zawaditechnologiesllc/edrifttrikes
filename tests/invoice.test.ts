@@ -46,7 +46,12 @@ function pageCount(bytes: Uint8Array): number {
   return Number(/\/Type \/Pages \/Count (\d+)/.exec(asText(bytes))?.[1] ?? 0);
 }
 
-const NOW = new Date("2026-09-09T12:00:00Z");
+/**
+ * The invoice is dated to the order, not to the day it was generated — so
+ * there is no "now" to inject any more, and this is the date the documents
+ * below should carry.
+ */
+const ORDER_PLACED = "2026-08-14T10:22:00Z";
 
 const SETTINGS: SiteSettings = {
   ...DEFAULT_SITE_SETTINGS,
@@ -78,7 +83,7 @@ const BASE = {
     zip: "78701",
     country: "United States",
   },
-  created_at: "2026-08-14T10:22:00Z",
+  created_at: ORDER_PLACED,
   updated_at: "2026-09-01T08:00:00Z",
   items: [
     { id: "i1", name: "60V 5000W High-Speed Electric Drift Kart", price_cents: 189900, qty: 2, color: "Voltage Blue" },
@@ -108,7 +113,7 @@ const PAID = {
 } as unknown as Order;
 
 const build = (order: Order, variant: "proforma" | "paid", settings = SETTINGS) =>
-  buildInvoice({ order, settings, variant, now: NOW });
+  buildInvoice({ order, settings, variant });
 
 describe("no invoice claims a payment that did not happen", () => {
   /**
@@ -206,14 +211,41 @@ describe("what a paid invoice says", () => {
 });
 
 describe("the facts every invoice has to carry", () => {
-  test("both dates: when the order was placed, and when this was issued", async () => {
-    // Not the same date, and conflating them is how an invoice stops matching
-    // the gateway record it is supposed to corroborate.
+  test("is dated to the day the order was placed", async () => {
+    // NOT the day the PDF was generated. An invoice records a transaction, so
+    // it carries that transaction's date — an August order downloaded in
+    // September is an August invoice, and one dated "today" would not line up
+    // with the gateway record it exists to corroborate.
     const text = pdfText(await build(PAID, "paid"));
-    assert.match(text, /ORDER PLACED/);
-    assert.match(text, /14 Aug 2026/, "the order date is missing");
     assert.match(text, /INVOICE DATE/);
-    assert.match(text, /09 Sept 2026/, "the issue date is missing");
+    assert.match(text, /14 Aug 2026/, "the invoice is not dated to the order");
+    assert.match(text, /Issued 14 Aug 2026/, "the masthead is not dated to the order");
+  });
+
+  test("carries no second date that contradicts the first", async () => {
+    // The footer used to stamp "generated <today>", which reintroduced exactly
+    // the discrepancy that dating to the order removes.
+    const text = pdfText(await build(PAID, "paid"));
+    assert.ok(!/generated/i.test(text), "the footer still stamps a generation date");
+    // And no separate "order placed" cell: two cells showing one date read as a
+    // template bug rather than as corroboration.
+    assert.ok(!text.includes("ORDER PLACED"));
+  });
+
+  test("the same order always produces the same document", async () => {
+    // Determinism follows from dating to the order, and it matters: two
+    // downloads of one invoice must not disagree about their own date.
+    const a = await build(PAID, "paid");
+    const b = await build(PAID, "paid");
+    assert.deepEqual(Array.from(a), Array.from(b));
+  });
+
+  test("the payment date is still the payment date", async () => {
+    // Not re-dated to the order: it is a different fact, and the one that
+    // reconciles this document against the gateway's record of the charge.
+    const text = pdfText(await build(PAID, "paid"));
+    assert.match(text, /PAYMENT RECEIVED/);
+    assert.match(text, /15 Aug 2026/);
   });
 
   test("the order number and an invoice number derived from it", async () => {
@@ -302,25 +334,36 @@ describe("money on an invoice", () => {
 });
 
 describe("who the seller is", () => {
-  test("the snapshot on the order beats today's settings", async () => {
-    // The whole reason the column exists: an invoice records a transaction that
-    // already happened, so editing the trading name must not rewrite it.
+  test("the trading name the admin edits wins, on every order", async () => {
+    // The store trades under one current name and every document says so —
+    // including documents for orders placed under an older name.
     const order = {
       ...PAID,
       seller_snapshot: {
         dbaName: "Old Trading Name",
-        legalName: "Zawadi Technologies LLC",
-        addressLine1: "Unit 1, Old Road",
+        legalName: "Old Holdings LLC",
         taxId: "EIN 88-0000000",
       },
     } as unknown as Order;
     const text = pdfText(await build(order, "paid"));
-    assert.match(text, /Old Trading Name/);
-    assert.match(text, /EIN 88-0000000/);
-    assert.ok(!text.includes("E-Drift Trikes & Go Carts"), "current settings leaked in");
+    assert.match(text, /E-Drift Trikes & Go Carts/);
+    assert.match(text, /EIN 88-1234567/);
+    assert.ok(!text.includes("Old Trading Name"), "the stale snapshot was printed");
+    assert.ok(!text.includes("EIN 88-0000000"));
   });
 
-  test("falls back to settings for an order placed before snapshots existed", async () => {
+  test("the snapshot fills in only what the settings do not have", async () => {
+    // It stays useful as a fallback and as a record of what the shop was called
+    // at the time, without being what the document prints.
+    const seller = sellerFor(
+      { seller_snapshot: { taxId: "EIN 88-0000000", dbaName: "Old Trading Name" } } as unknown as Order,
+      { ...SETTINGS, tax_id: null }
+    );
+    assert.equal(seller.display, "E-Drift Trikes & Go Carts", "settings should still win");
+    assert.equal(seller.taxId, "EIN 88-0000000", "the snapshot should have filled the gap");
+  });
+
+  test("works for an order that never stored a snapshot", async () => {
     const text = pdfText(await build({ ...PAID, seller_snapshot: null } as Order, "paid"));
     assert.match(text, /E-Drift Trikes & Go Carts/);
     assert.match(text, /EIN 88-1234567/);
@@ -367,8 +410,10 @@ describe("who the seller is", () => {
   });
 });
 
-describe("the snapshot taken at checkout", () => {
-  test("freezes what is set, and records when", () => {
+const NOW = new Date("2026-09-09T12:00:00Z");
+
+describe("the snapshot recorded at checkout", () => {
+  test("records what the shop was called, and when", () => {
     const snap = sellerSnapshot(SETTINGS, NOW);
     assert.equal(snap.dbaName, "E-Drift Trikes & Go Carts");
     assert.equal(snap.legalName, "Zawadi Technologies LLC");
