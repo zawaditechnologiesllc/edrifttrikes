@@ -752,19 +752,16 @@ The **same string** is also printed underneath the code, so a reader can confirm
 the two agree without scanning, and a reader whose scanner fails still has every
 field. One string renders both, so they cannot drift.
 
-### No web address is printed on the document
+### No web addresses on the document, at all
 
-Not the store's, anyway — deliberately. The code carries the record itself, so
-there is nothing to visit, and a document advertising a URL is a document
-inviting somebody to mistype it. A test asserts the store URL does not appear.
-
-The courier's tracking link is a different thing and stays: it points at DHL, not
-at us.
+Not the store's, not the courier's. The document carries only what it states:
+the code holds the record, and the courier and tracking number are printed as
+facts rather than as a link. A test asserts no `http(s)://` appears anywhere on
+either page.
 
 ⚠️ The **seller's contact email** does still carry the domain, on both pages — it
-is the address a buyer needs to reach us, and an invoice without one is a worse
-document. If the domain is to be off the page entirely, that is the other place
-it lives.
+is the address a buyer needs to reach us. If the domain is to be off the page
+entirely, that is the other place it lives.
 
 The page is still there and still works; it is simply not advertised on the
 document.

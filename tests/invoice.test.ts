@@ -614,12 +614,9 @@ describe("the record the code carries", () => {
 
   test("prints no web address on the document at all", async () => {
     /**
-     * The store's domain is deliberately not on the invoice as a link. The code
-     * carries the record itself, so there is nothing to visit — and a document
-     * that advertises a URL is a document that invites somebody to mistype it.
-     *
-     * The courier's own tracking link is a different thing and is allowed: it
-     * points at DHL, not at us.
+     * NO WEB ADDRESSES AT ALL — not the store's, not the courier's. The
+     * document carries only what it states: the code holds the record, and the
+     * courier and tracking number are printed as facts rather than as a link.
      */
     for (const [order, variant] of [[PAID, "paid"], [UNPAID, "proforma"]] as const) {
       const text = pdfText(
@@ -638,7 +635,13 @@ describe("the record the code carries", () => {
         !text.includes("https://edrifttrikes.shop"),
         `${variant} still prints the store URL`
       );
+      assert.ok(!/https?:\/\//.test(text), `${variant} still prints a web address`);
     }
+    // The courier and the number are still there — they are facts about the
+    // shipment, and only the link was removed.
+    const paidText = pdfText(await build(PAID, "paid"));
+    assert.match(paidText, /DHL Express/);
+    assert.match(paidText, /1234567890/);
   });
 
   test("the machine-readable section appears on both documents", async () => {
