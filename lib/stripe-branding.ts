@@ -25,6 +25,24 @@ import { STAGE_COPY, TRACKER_STAGES } from "@/lib/fulfillment";
  * send minutes later is how a store ends up arguing with its own customers.
  */
 
+/**
+ * The trading name shown on Stripe's checkout page and on the charge.
+ *
+ * SEPARATE FROM COMPANY.name ON PURPOSE. That constant names the business
+ * everywhere else — the site, the terms, the privacy policy, the robots
+ * statement, the structured data — and it has not changed. This is the one the
+ * payment processor is shown, so it matches the name the Stripe account trades
+ * under. A buyer who sees one name in the shop and a different one at the card
+ * form is a buyer who abandons, so keep them aligned unless there is a reason
+ * not to.
+ *
+ * Not to be confused with the STATEMENT DESCRIPTOR, which is what appears on
+ * the buyer's bank statement — that is an admin setting (Settings → Card
+ * payments) because it has to match whatever the Stripe account is registered
+ * as. See lib/stripe-fulfillment.ts.
+ */
+export const STRIPE_MERCHANT_NAME = "Ekarts shop";
+
 /** Stripe rejects any custom_text message longer than this. */
 export const STRIPE_CUSTOM_TEXT_LIMIT = 1200;
 
@@ -98,7 +116,7 @@ export function submitMessage(
       : "";
   const order = opts.orderNumber ? ` for order ${opts.orderNumber}` : "";
   return clampCustomText(
-    `You're paying ${COMPANY.name}${amount}${order}. ` +
+    `You're paying ${STRIPE_MERCHANT_NAME}${amount}${order}. ` +
       `Delivery to ${destination(country)} is tracked end to end and takes ${formatDeliveryWindow(country)}. ` +
       `Your card may be billed in your own currency at your bank's rate. ` +
       `Questions before you pay? ${COMPANY.supportEmail}`
@@ -118,7 +136,7 @@ export function afterSubmitMessage(): string {
     ", "
   );
   return clampCustomText(
-    `Thank you. ${COMPANY.name} will email you as soon as your payment is confirmed, then at every step after that — ` +
+    `Thank you. ${STRIPE_MERCHANT_NAME} will email you as soon as your payment is confirmed, then at every step after that — ` +
       `${steps}. ` +
       `You can follow the same timeline live on your rider dashboard. ` +
       `Need help with this order? Email ${COMPANY.supportEmail} and quote your order number.`
@@ -127,7 +145,7 @@ export function afterSubmitMessage(): string {
 
 /** Description attached to the charge; follows it into Stripe's own receipt. */
 export function paymentDescription(orderNumber: string): string {
-  return `${COMPANY.name} — order ${orderNumber}`;
+  return `${STRIPE_MERCHANT_NAME} — order ${orderNumber}`;
 }
 
 /**
