@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   STRIPE_CUSTOM_TEXT_LIMIT,
+  STRIPE_MERCHANT_NAME,
   afterSubmitMessage,
   clampCustomText,
   paymentDescription,
@@ -52,7 +53,7 @@ describe("custom_text messages", () => {
 
   test("the pay-button message names the company and how to reach it", () => {
     const m = submitMessage();
-    assert.ok(m.includes(COMPANY.name), "company name missing");
+    assert.ok(m.includes(STRIPE_MERCHANT_NAME), "merchant name missing");
     assert.ok(m.includes(COMPANY.supportEmail), "support address missing");
   });
 
@@ -111,7 +112,7 @@ describe("stripeCompanyContent", () => {
   test("the charge description carries the order number for reconciliation", () => {
     const d = paymentDescription("EDT-99887766");
     assert.ok(d.includes("EDT-99887766"));
-    assert.ok(d.includes(COMPANY.name));
+    assert.ok(d.includes(STRIPE_MERCHANT_NAME));
   });
 });
 
@@ -149,7 +150,7 @@ describe("the amount on Stripe's page", () => {
     const msg = submitMessage("Kenya", { totalCents: 144600, orderNumber: "ED-2026-0148" });
     assert.ok(msg.includes("US$1,446.00"), msg);
     assert.ok(msg.includes("ED-2026-0148"), msg);
-    assert.ok(msg.includes(COMPANY.name));
+    assert.ok(msg.includes(STRIPE_MERCHANT_NAME));
   });
 
   test("and still works when no total is passed", () => {
@@ -186,5 +187,31 @@ describe("showing the buyer their own currency", () => {
   test("the USD total reaches the page through the submit message", () => {
     const content = stripeCompanyContent("ED-1", "Kenya", 144600);
     assert.ok(content.custom_text.submit.message.includes("US$1,446.00"));
+  });
+});
+
+describe("the name the payment processor is shown", () => {
+  /**
+   * Deliberately NOT COMPANY.name. That constant names the business on the
+   * site, the terms, the privacy policy and the structured data; this one is
+   * what Stripe is shown, so it can match the name the Stripe account trades
+   * under without rebranding the whole shop.
+   */
+  test("is used on the pay button, the receipt line and the charge", () => {
+    assert.ok(submitMessage("US", { totalCents: 1000 }).includes(STRIPE_MERCHANT_NAME));
+    assert.ok(afterSubmitMessage().includes(STRIPE_MERCHANT_NAME));
+    assert.ok(paymentDescription("EDT-1").includes(STRIPE_MERCHANT_NAME));
+  });
+
+  test("the site's own name does not leak onto Stripe's page", () => {
+    // The whole point of the split: changing one must not change the other.
+    if (STRIPE_MERCHANT_NAME === COMPANY.name) return; // nothing to separate
+    for (const text of [
+      submitMessage("US", { totalCents: 1000 }),
+      afterSubmitMessage(),
+      paymentDescription("EDT-1"),
+    ]) {
+      assert.ok(!text.includes(COMPANY.name), `the site name appears: ${text}`);
+    }
   });
 });
