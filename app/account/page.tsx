@@ -11,6 +11,7 @@ import { signOut } from "@/app/login/actions";
 import OrderTracker from "@/components/storefront/OrderTracker";
 import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 import { COMPANY } from "@/lib/company";
+import { customerPaymentLine } from "@/lib/payment-display";
 
 export const metadata = { title: "Rider Dashboard" };
 
@@ -108,6 +109,12 @@ export default async function AccountPage() {
                     .map((i) => `${i.name}${i.color ? ` (${i.color})` : ""} × ${i.qty}`)
                     .join("  ·  ")}
                 </p>
+                {/* How and when it was paid. Gateway ids and merchant accounts
+                    deliberately stay out of this — they mean nothing to a rider
+                    and are the store's business, not the customer's. */}
+                {customerPaymentLine(o) && (
+                  <p className="text-outline text-xs mt-2">{customerPaymentLine(o)}</p>
+                )}
 
                 {/* Live delivery tracking, from payment through to collection. */}
                 <div className="mt-6">

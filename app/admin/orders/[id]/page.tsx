@@ -10,6 +10,7 @@ import { OriginPanel } from "../OrderOrigin";
 import StageLadder from "../StageLadder";
 import { loadOrderEvents } from "@/lib/orders";
 import { isPayable } from "@/lib/invoice";
+import { paymentRows } from "@/lib/payment-display";
 import { Icon } from "@/components/Icon";
 import {
   STAGE_COPY,
@@ -37,6 +38,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
   const addr = (order.shipping_address ?? {}) as Record<string, string>;
   const stage = (order.fulfillment_stage ?? "awaiting_payment") as FulfillmentStage;
   const events = await loadOrderEvents(admin, order.id);
+  const payment = paymentRows(order);
 
   // Who, if anyone, owns this order. Guest checkouts have no account behind
   // them until the buyer registers with the same email.
@@ -192,23 +194,32 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               </p>
             </div>
           )}
-          {/* How the money arrived. Which ACCOUNT matters with Authorize.Net:
-              credentials get swapped over time, and a refund has to go back
-              through the account that took this particular payment. */}
-          {(order.paid_via || order.gateway_reference || order.stripe_session_id) && (
+          {/* The full payment record, from lib/payment-display.ts so this panel,
+              the Paid Orders list and the invoice PDF cannot drift apart. Every
+              id is labelled with what it actually is — an unlabelled reference
+              gives an admin chasing a payment nowhere to go and look it up. */}
+          {payment.length > 0 && (
             <div>
               <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-1">Payment</h3>
-              {order.paid_via && (
-                <p className="text-white text-sm capitalize">{order.paid_via}</p>
-              )}
-              {order.gateway_account && (
-                <p className="text-on-surface-variant text-xs">
-                  account: {order.gateway_account}
-                </p>
-              )}
-              <p className="text-on-surface-variant text-xs break-all mt-1">
-                {order.gateway_reference ?? order.stripe_session_id}
-              </p>
+              <dl className="space-y-1.5">
+                {payment.map((row) => (
+                  <div key={row.label}>
+                    <dt className="text-[10px] uppercase tracking-widest text-outline">
+                      {row.label}
+                    </dt>
+                    <dd
+                      title={row.hint}
+                      className={
+                        row.mono
+                          ? "text-on-surface-variant text-xs break-all"
+                          : "text-white text-sm"
+                      }
+                    >
+                      {row.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           )}
           {order.tracking_number && (
