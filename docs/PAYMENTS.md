@@ -151,7 +151,7 @@ nowhere. Add a gateway there and all of this follows.
 | Surface | What it shows |
 | --- | --- |
 | **Admin → order detail** | Method · paid date **and time** · the gateway's reference, labelled for its provider · the merchant account that took it |
-| **Admin → Paid Orders** | Source badge · paid date and time · gateway reference in its own column · merchant account under the badge · filter tabs per provider |
+| **Admin → Paid Orders** | Source badge · paid date and time · merchant account under the badge · filter tabs per provider. No gateway reference — open the order for that |
 | **Admin → all orders** | Source badge beneath the total |
 | **Invoice PDF (paid)** | Method · date · reference — and the same three inside the QR record |
 | **Receipt email** | Payment received · **payment method** |

@@ -8,8 +8,6 @@ import {
   PAYMENT_SOURCES,
   SOURCE_LABEL,
   formatPaidAt,
-  gatewayReference,
-  referenceLabel,
   type PaymentSource,
 } from "@/lib/payment-display";
 import PaymentSourceBadge from "../PaymentSourceBadge";
@@ -134,9 +132,8 @@ export default async function AdminPaidOrders({
           </h1>
           <p className="text-on-surface-variant text-sm mt-1 max-w-xl">
             Orders payment has been received for — confirmed by Stripe, PayPal
-            or Authorize.Net, or marked paid by an admin. Each row carries the
-            gateway&apos;s own reference, so it can be matched against the
-            processor&apos;s dashboard without opening the order.
+            or Authorize.Net, or marked paid by an admin. Open an order for its
+            gateway reference and the rest of the payment record.
           </p>
         </div>
         <Link
@@ -192,14 +189,13 @@ export default async function AdminPaidOrders({
       </div>
 
       <div className="bg-surface-container border border-white/10 rounded-lg overflow-x-auto">
-        <table className="w-full text-left min-w-[1040px]">
+        <table className="w-full text-left min-w-[880px]">
           <thead className="bg-surface-container-high text-on-surface-variant text-xs uppercase tracking-widest font-label-bold">
             <tr>
               <th className="p-4">Order</th>
               <th className="p-4">Customer</th>
               <th className="p-4">Paid</th>
               <th className="p-4">Via</th>
-              <th className="p-4">Gateway reference</th>
               <th className="p-4">Delivery stage</th>
               <th className="p-4">Total</th>
             </tr>
@@ -241,18 +237,6 @@ export default async function AdminPaidOrders({
                     </span>
                   )}
                 </td>
-                <td className="p-4 text-xs text-on-surface-variant max-w-[15rem]">
-                  {gatewayReference(o) ? (
-                    <>
-                      <span className="block text-[10px] uppercase tracking-widest text-outline">
-                        {referenceLabel(o)}
-                      </span>
-                      <span className="break-all">{gatewayReference(o)}</span>
-                    </>
-                  ) : (
-                    <span className="text-outline">—</span>
-                  )}
-                </td>
                 <td className="p-4 text-on-surface-variant text-sm whitespace-nowrap">
                   {
                     STAGE_COPY[
@@ -267,7 +251,7 @@ export default async function AdminPaidOrders({
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-12 text-center text-on-surface-variant">
+                <td colSpan={6} className="p-12 text-center text-on-surface-variant">
                   {filter
                     ? `No orders paid via ${SOURCE_LABEL[filter]} yet.`
                     : "No paid orders yet."}
