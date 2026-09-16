@@ -9,10 +9,10 @@ import {
 } from "@/lib/stripe-fulfillment";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import {
+  apiLoginId,
   authorizeNetConfigured,
   createHostedPaymentToken,
   hostedFormUrl,
-  resolveAccount,
 } from "@/lib/authorize-net";
 import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
@@ -387,38 +387,28 @@ export async function POST(request: Request) {
   /**
    * Authorize.Net path — mint a hosted-page token and hand the browser the form
    * to post it to. The card is entered on Authorize.Net's page, never ours.
-   *
-   * WHICH ACCOUNT: an Authorize.Net gateway account is tied to one merchant
-   * account in one country, so a store with several picks one per order. The
-   * admin's choice lives in site_settings; resolveAccount falls back to the
-   * first configured one if that choice no longer names a real account.
    */
   if (method === "authorizenet" && authorizeNetConfigured()) {
-    const account = resolveAccount(
-      (settingsRow as { authorizenet_account?: string | null } | null)
-        ?.authorizenet_account
-    );
     try {
-      if (!account) throw new Error("no Authorize.Net account configured");
       const token = await createHostedPaymentToken({
-        account,
         amountCents: totals.total,
         orderNumber: order.order_number,
         returnUrl: `${siteUrl}/api/authorize-net/return?order=${order.order_number}`,
         cancelUrl: `${siteUrl}/checkout`,
         email,
       });
-      // Record which account is taking it BEFORE the buyer leaves: the return
-      // handler and the webhook both need to know which credentials can read
-      // the transaction back, and by then the settings may have changed.
+      // Record WHICH gateway account is taking it, before the buyer leaves. The
+      // API Login ID is not a secret (Accept.js ships it to the browser), and
+      // credentials get swapped over time — so without this, an order taken on
+      // a since-replaced account is a payment nobody can look up or refund.
       await admin
         .from("orders")
-        .update({ gateway_account: account.id })
+        .update({ gateway_account: apiLoginId() })
         .eq("id", order.id);
       // The browser POSTs the token to Authorize.Net — a redirect will not do,
       // because the token travels as a form field rather than a query string.
       return NextResponse.json({
-        postTo: hostedFormUrl(account),
+        postTo: hostedFormUrl(),
         token,
         orderNumber: order.order_number,
       });

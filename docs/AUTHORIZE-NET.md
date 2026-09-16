@@ -2,8 +2,8 @@
 
 **Implemented and wired end to end** — checkout, database, admin, invoices and
 webhooks. It is **dormant until credentials are set**: with no
-`AUTHORIZENET_ACCOUNTS` secret, the method simply is not offered, exactly as
-PayPal behaves without its keys.
+`AUTHORIZENET_API_LOGIN_ID` / `AUTHORIZENET_TRANSACTION_KEY`, the method simply
+is not offered, exactly as PayPal behaves without its keys.
 
 Research notes on the API, and the plan this was built from, follow the setup.
 
@@ -15,44 +15,53 @@ Read [`PAYMENTS.md`](PAYMENTS.md) first — it describes the two-host split
 ## Turning it on
 
 1. **Run the migrations**: `0018_gateway_reference.sql` and
-   `0019_authorizenet_account.sql`. Admin → System lists them.
-2. **Set `AUTHORIZENET_ACCOUNTS`** on Cloudflare *and* Render — a JSON array,
-   one entry per gateway account:
+   `0019_drop_authorizenet_account.sql`. Admin → System lists them.
+2. **Set the credentials on Cloudflare** (the storefront creates the payment;
+   Render only verifies webhooks, so it does not need these):
 
-   ```json
-   [
-     {"id":"us","label":"United States","loginId":"…","transactionKey":"…",
-      "env":"production","currencies":["USD"],"country":"US"},
-     {"id":"uk","label":"United Kingdom","loginId":"…","transactionKey":"…",
-      "env":"production","currencies":["GBP","EUR"],"country":"GB"}
-   ]
+   ```
+   AUTHORIZENET_API_LOGIN_ID=…
+   AUTHORIZENET_TRANSACTION_KEY=…
+   AUTHORIZENET_ENV=production      # or sandbox
    ```
 
 3. **Set `AUTHORIZENET_SIGNATURE_KEY`** on Render (webhooks only).
 4. **Point the webhook** at `https://<render-url>/authorizenet/webhook` and
    subscribe to `net.authorize.payment.authcapture.created`.
-5. **Pick the live account** in Admin → Settings → Authorize.Net.
 
-Check `/api/health` → `payments.authorizenet`: it reports **how many accounts
-parsed**, which is the actual question when the method is not appearing. `0`
-means the secret is missing or malformed — never the ids, never the keys.
+Check `/api/health` → `payments.authorizenet` (a boolean) or Admin → Settings →
+Authorize.Net, which names the live API Login ID and flags a sandbox
+environment. Admin → System shows the same as a config chip.
 
-### Several accounts, and why
+`AUTHORIZENET_ENV` must match the key type. Sandbox keys against the production
+endpoint fail outright; production keys against the sandbox endpoint is the
+worse one — it reports success and takes no money. The default when the variable
+is missing or misspelled is `sandbox`, so a typo fails safe.
+
+### One account at a time — and why the order records which
 
 An Authorize.Net gateway account is bound to **one** merchant account, with one
 acquirer, in one country, settling one set of currencies. **There is no key that
-fans out across processors.** Five accounts in five countries means five
-credential sets, which is why the secret is an array and why `orders`
-records which account took each payment.
+fans out across processors.** So the store runs one gateway account, configured
+in exactly the shape Stripe and PayPal already are, and switching to a different
+Authorize.Net account means changing these three variables — the same operation
+as rotating a Stripe key.
 
-That last part is not bookkeeping: **a refund has to go back through the account
-that took the money**, so an order paid on the UK account cannot be refunded
-from the US one. `gateway_account` on the order is what tells you which.
+What survives that switch is on the **order**. Every Authorize.Net payment
+records its API Login ID in `orders.gateway_account`, because **a refund has to
+go back through the account that took the money** — an order paid on a since-
+replaced account cannot be refunded from the new one, and without the record
+there is nothing to say which account to go and find it in. The API Login ID is
+not a secret (Accept.js integrations ship it to the browser); the transaction
+key never leaves the environment.
 
-Changing the live account applies to **new** payments only. Orders already paid
-keep the account that took them.
-
----
+One consequence is deliberate: if the credentials are swapped while a buyer is
+still on the hosted payment page, the return handler **refuses** the order
+rather than marking it paid. The new keys cannot read the old account's
+transaction, so nothing we can reach proves the money moved — the log names the
+recorded account, and an admin marks the order paid by hand after checking the
+Merchant Interface. Taking the buyer's word for it instead is exactly the
+attack the return handler exists to stop.
 
 ---
 
@@ -215,14 +224,18 @@ up by it; dropping a column live code reads is how a deploy takes checkout down.
 
 ### Where the credentials live
 
-**In the environment, never the database.** `site_settings.authorizenet_account`
-holds a short id (`"us"`, `"uk"`) naming an entry in the secret; the transaction
-keys stay in Cloudflare and Render. A transaction key is a bearer credential for
-moving money, and keeping it out of Postgres means a leaked service-role key, a
-bad RLS policy or a stray backup cannot reach it.
+**In the environment, never the database.** The transaction key is a bearer
+credential for moving money, and keeping it out of Postgres means a leaked
+service-role key, a bad RLS policy or a stray backup cannot reach it. That is
+why the admin panel reports the configuration rather than editing it, and why
+there is no `site_settings` row for any of this — an earlier build had one
+naming which of several accounts was live, and migration 0019 removes it.
 
-The admin dropdown is built from the ids and labels only — the keys never cross
-to the browser.
+The one thing that *is* stored is `orders.gateway_account`: the API Login ID
+that took each payment, which is not a secret (Accept.js ships it to the
+browser) and which a refund needs. The admin panel shows the same login id, so
+an admin can confirm a credential swap landed without opening Cloudflare; the
+transaction key never crosses to the browser.
 
 ---
 
@@ -292,13 +305,17 @@ and when the gateway approves. `fetchTransaction()` reports `paid` and
 
 | Variable | Cloudflare | Render | Purpose |
 | --- | :---: | :---: | --- |
-| `AUTHORIZENET_ACCOUNTS` | ✅ | ✅ | JSON array of accounts — login id, transaction key and `env` per account. One secret, however many accounts |
+| `AUTHORIZENET_API_LOGIN_ID` | ✅ | — | Names the gateway account |
+| `AUTHORIZENET_TRANSACTION_KEY` | ✅ | — | Authenticates every API call |
+| `AUTHORIZENET_ENV` | ✅ | — | `sandbox` or `production` |
 | `AUTHORIZENET_SIGNATURE_KEY` | — | ✅ | Render verifies webhook signatures |
 
-There is no separate `AUTHORIZENET_ENV`: each account carries its own, because
-nothing stops one account being live while another is still in sandbox. An
-unrecognised value falls back to **sandbox** — the safe failure is taking no
-real money, not taking it against the wrong endpoint.
+Cloudflare only for the first three: Render's job is verifying the webhook
+signature and handing the order to the app, which needs no API credentials.
+
+`AUTHORIZENET_ENV` must match the key type, and an unrecognised value falls back
+to **sandbox** — the safe failure is taking no real money, not taking it against
+the wrong endpoint while reporting success.
 
 ---
 

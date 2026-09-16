@@ -95,8 +95,10 @@ export type Order = {
    */
   gateway_reference?: string | null;
   /**
-   * Which configured gateway account took the payment. Only meaningful for a
-   * provider with several (Authorize.Net); null for Stripe and PayPal.
+   * Which gateway account took the payment — the Authorize.Net API Login ID
+   * (not a secret; Accept.js ships it to the browser). Credentials get swapped
+   * over time, and a refund has to go back through the account that was paid,
+   * so the order records its own. Null for Stripe and PayPal.
    */
   gateway_account?: string | null;
   /** When payment actually cleared — the anchor for the delivery schedule. */
@@ -187,11 +189,6 @@ export type SiteSettings = {
   tax_id?: string | null;
   /** Optional note at the foot of every invoice — terms, bank details. */
   invoice_footer?: string | null;
-  /**
-   * Which Authorize.Net account takes payments, by id. Names an entry in the
-   * AUTHORIZENET_ACCOUNTS secret — never holds credentials itself.
-   */
-  authorizenet_account?: string | null;
   updated_at?: string;
 };
 

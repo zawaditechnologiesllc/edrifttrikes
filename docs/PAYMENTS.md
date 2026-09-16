@@ -6,8 +6,8 @@ unavailable,"* the cause is almost always a variable in the wrong place or a
 `PAYPAL_ENV` that doesn't match the keys — this page is the fix.
 
 > **Authorize.Net is wired in** and dormant until credentials are set. See
-> [`AUTHORIZE-NET.md`](AUTHORIZE-NET.md) for how to turn it on, why it is
-> multi-account, and the eligibility gate that decides whether you can use it
+> [`AUTHORIZE-NET.md`](AUTHORIZE-NET.md) for how to turn it on, how to swap the
+> account later, and the eligibility gate that decides whether you can use it
 > at all.
 
 ---
@@ -38,7 +38,9 @@ same value** on both hosts.
 | `PAYPAL_SECRET` | ✅ | ✅ | same |
 | `PAYPAL_ENV` | ✅ | ✅ | `sandbox` or `live` — **must match the key type, same on both hosts** |
 | `PAYPAL_WEBHOOK_ID` | — | ✅ | Render verifies PayPal's webhook signature |
-| `AUTHORIZENET_ACCOUNTS` | ✅ | ✅ | JSON array of gateway accounts. Absent ⇒ the method is not offered |
+| `AUTHORIZENET_API_LOGIN_ID` | ✅ | — | Names the gateway account. Absent ⇒ the method is not offered |
+| `AUTHORIZENET_TRANSACTION_KEY` | ✅ | — | Authenticates the API calls. Absent ⇒ the method is not offered |
+| `AUTHORIZENET_ENV` | ✅ | — | `sandbox` or `production` — **must match the key type** |
 | `AUTHORIZENET_SIGNATURE_KEY` | — | ✅ | Render verifies the `X-ANET-Signature` header |
 | `RENDER_API_URL` | ✅ | — | CF → Render base URL (email/contact). Missing ⇒ **no receipts** |
 | `INTERNAL_API_KEY` | ✅ | ✅ | Shared secret; **identical** on both |

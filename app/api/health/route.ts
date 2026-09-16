@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey, serverEnv } from "@/lib/env";
-import { authorizeNetAccounts } from "@/lib/authorize-net";
+import { authorizeNetConfigured } from "@/lib/authorize-net";
 
 export const dynamic = "force-dynamic";
 
@@ -42,10 +42,9 @@ export async function GET() {
     payments: {
       stripe: has(serverEnv("STRIPE_SECRET_KEY")),
       paypal: has(serverEnv("PAYPAL_CLIENT_ID")) && has(serverEnv("PAYPAL_SECRET")),
-      // A COUNT, never the ids or the keys: enough to tell whether the secret
-      // parsed and how many accounts came out of it, which is the actual
+      // A boolean, never the login id or the key: enough to answer the actual
       // question when Authorize.Net is not appearing at checkout.
-      authorizenet: authorizeNetAccounts().length,
+      authorizenet: authorizeNetConfigured(),
     },
     turnstile: has(serverEnv("TURNSTILE_SECRET_KEY")),
   });

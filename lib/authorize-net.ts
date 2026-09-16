@@ -7,140 +7,76 @@
  * is a third instance of a pattern the codebase already runs twice — see
  * docs/AUTHORIZE-NET.md for why that shape was chosen over Accept.js.
  *
- * ═══ MULTI-ACCOUNT BY DESIGN ═══════════════════════════════════════════════
+ * ═══ ONE ACCOUNT, CONFIGURED LIKE THE OTHER TWO ════════════════════════════
  *
- * An Authorize.Net gateway account is bound to ONE merchant account, with one
- * acquirer, in one country, settling one set of currencies. There is no key
- * that fans out across processors: five accounts in five countries means five
- * sets of credentials, and the integration has to hold all of them and pick
- * one per order. That is what ACCOUNTS below is.
+ * One set of credentials, read from the environment, exactly as Stripe and
+ * PayPal are. An Authorize.Net gateway account is bound to one merchant
+ * account, with one acquirer, in one country — so swapping to a different
+ * account means swapping these three variables, the same operation as rotating
+ * a Stripe key. Orders record which login id took them (see gateway_account on
+ * the order), because a refund must go back through the account that was paid.
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * CREDENTIALS LIVE IN THE ENVIRONMENT, NOT THE DATABASE. A transaction key is
- * a bearer credential for moving money; the admin picks WHICH account is live
- * (a short id, stored in site_settings) but the keys themselves stay in
- * Cloudflare/Render secrets, where a database read cannot reach them.
+ * CREDENTIALS LIVE IN THE ENVIRONMENT, NOT THE DATABASE. A transaction key is a
+ * bearer credential for moving money; it stays in Cloudflare/Render secrets,
+ * where a database read cannot reach it.
  *
  * Plain fetch, no SDK: the official `authorizenet` package pulls in winston and
  * file-system logging and will not run on Workers.
  */
 
+// Read at CALL time, never at module scope: on Cloudflare, secrets are runtime
+// Worker bindings that aren't visible when the module is first evaluated, so a
+// module-scope read would silently disable the method.
 import { serverEnv } from "@/lib/env";
 
 /* -------------------------------------------------------------------------- */
-/* Accounts                                                                    */
+/* Configuration                                                               */
 /* -------------------------------------------------------------------------- */
-
-export type AuthorizeNetAccount = {
-  /** Short stable key the admin selects by, e.g. "us", "uk", "au". */
-  id: string;
-  /** Human label for the admin UI. */
-  label: string;
-  /** API Login ID. */
-  loginId: string;
-  /** Transaction Key. */
-  transactionKey: string;
-  /** `sandbox` or `production` — must match the key type. */
-  env: "sandbox" | "production";
-  /**
-   * Currencies this account's merchant account can settle. Informational: the
-   * store prices in USD, and this is what tells an admin which account can
-   * actually take that money.
-   */
-  currencies: string[];
-  /** ISO country of the merchant account, for the admin's benefit. */
-  country?: string;
-};
 
 const clean = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
 /**
- * Every configured account, from AUTHORIZENET_ACCOUNTS.
- *
- * A JSON array, so five accounts are one secret rather than twenty variables:
- *
- *   [{"id":"us","label":"United States","loginId":"…","transactionKey":"…",
- *     "env":"production","currencies":["USD"],"country":"US"}]
- *
- * Malformed JSON disables the method rather than throwing: a typo in a secret
- * must not take checkout down, it must take Authorize.Net off the page and
- * leave Stripe and PayPal working.
+ * API Login ID. Not a secret — it ships to the browser in Accept.js
+ * integrations — which is why it is safe to record on the order.
  */
-export function authorizeNetAccounts(): AuthorizeNetAccount[] {
-  const raw = clean(serverEnv("AUTHORIZENET_ACCOUNTS"));
-  if (!raw) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    console.error("[authorize-net] AUTHORIZENET_ACCOUNTS is not valid JSON");
-    return [];
-  }
-  if (!Array.isArray(parsed)) {
-    console.error("[authorize-net] AUTHORIZENET_ACCOUNTS must be a JSON array");
-    return [];
-  }
+export function apiLoginId(): string {
+  return clean(serverEnv("AUTHORIZENET_API_LOGIN_ID"));
+}
 
-  const seen = new Set<string>();
-  const out: AuthorizeNetAccount[] = [];
-  for (const entry of parsed) {
-    const a = (entry ?? {}) as Record<string, unknown>;
-    const id = clean(a.id).toLowerCase();
-    const loginId = clean(a.loginId);
-    const transactionKey = clean(a.transactionKey);
-    // An account missing any of the three is not an account. Skipping it beats
-    // offering a payment method that will fail at the gateway.
-    if (!id || !loginId || !transactionKey) continue;
-    if (seen.has(id)) continue; // first wins; a duplicate id is a config error
-    seen.add(id);
-    out.push({
-      id,
-      label: clean(a.label) || id.toUpperCase(),
-      loginId,
-      transactionKey,
-      env: clean(a.env).toLowerCase() === "production" ? "production" : "sandbox",
-      currencies: Array.isArray(a.currencies)
-        ? a.currencies.map((c) => clean(c).toUpperCase()).filter(Boolean)
-        : [],
-      country: clean(a.country).toUpperCase() || undefined,
-    });
-  }
-  return out;
+/** Transaction Key. A bearer credential: server-side only, always. */
+function transactionKey(): string {
+  return clean(serverEnv("AUTHORIZENET_TRANSACTION_KEY"));
+}
+
+/** `production` or `sandbox` — must match the key type the keys were issued as. */
+export function authorizeNetEnv(): "sandbox" | "production" {
+  return clean(serverEnv("AUTHORIZENET_ENV")).toLowerCase() === "production"
+    ? "production"
+    : "sandbox";
 }
 
 export function authorizeNetConfigured(): boolean {
-  return authorizeNetAccounts().length > 0;
+  return Boolean(apiLoginId() && transactionKey());
 }
 
-/**
- * The account an order should be charged against.
- *
- * `preferred` is the id the admin selected in settings. It wins when it names a
- * configured account; otherwise the first configured account is used, so a
- * setting left pointing at an account that has since been removed degrades to
- * taking the payment rather than refusing it.
- */
-export function resolveAccount(
-  preferred?: string | null
-): AuthorizeNetAccount | null {
-  const accounts = authorizeNetAccounts();
-  if (accounts.length === 0) return null;
-  const want = clean(preferred).toLowerCase();
-  return accounts.find((a) => a.id === want) ?? accounts[0];
-}
-
-/** API endpoint for an account's environment. */
-function apiUrl(account: AuthorizeNetAccount): string {
-  return account.env === "production"
+/** API endpoint for the configured environment. */
+function apiUrl(): string {
+  return authorizeNetEnv() === "production"
     ? "https://api.authorize.net/xml/v1/request.api"
     : "https://apitest.authorize.net/xml/v1/request.api";
 }
 
 /** Where the browser POSTs the form token. */
-export function hostedFormUrl(account: AuthorizeNetAccount): string {
-  return account.env === "production"
+export function hostedFormUrl(): string {
+  return authorizeNetEnv() === "production"
     ? "https://accept.authorize.net/payment/payment"
     : "https://test.authorize.net/payment/payment";
+}
+
+/** The credential block every request carries. */
+function merchantAuthentication() {
+  return { name: apiLoginId(), transactionKey: transactionKey() };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -160,11 +96,8 @@ type AnetMessages = {
  * too many integrations now depend on the workaround — so stripping it is
  * permanent, not a temporary shim.
  */
-async function call<T>(
-  account: AuthorizeNetAccount,
-  body: Record<string, unknown>
-): Promise<T> {
-  const res = await fetch(apiUrl(account), {
+async function call<T>(body: Record<string, unknown>): Promise<T> {
+  const res = await fetch(apiUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
@@ -207,7 +140,6 @@ function envelopeError(messages: AnetMessages | undefined): string | null {
  * instead of a card form.
  */
 export async function createHostedPaymentToken(params: {
-  account: AuthorizeNetAccount;
   amountCents: number;
   orderNumber: string;
   returnUrl: string;
@@ -243,10 +175,7 @@ export async function createHostedPaymentToken(params: {
 
   const body = {
     getHostedPaymentPageRequest: {
-      merchantAuthentication: {
-        name: params.account.loginId,
-        transactionKey: params.account.transactionKey,
-      },
+      merchantAuthentication: merchantAuthentication(),
       // Our order number travels with the transaction, so the gateway's record
       // and ours can be reconciled without guesswork.
       refId: params.orderNumber.slice(0, 20),
@@ -260,10 +189,7 @@ export async function createHostedPaymentToken(params: {
     },
   };
 
-  const data = await call<{ token?: string; messages?: AnetMessages }>(
-    params.account,
-    body
-  );
+  const data = await call<{ token?: string; messages?: AnetMessages }>(body);
   const failure = envelopeError(data.messages);
   if (failure) throw new Error(`Authorize.Net refused the payment page — ${failure}`);
   const token = clean(data.token);
@@ -319,7 +245,6 @@ function toCents(value: unknown): number {
  * establishes that money moved, for how much, and against which order.
  */
 export async function fetchTransaction(
-  account: AuthorizeNetAccount,
   transId: string
 ): Promise<AuthorizeNetTransaction> {
   const data = await call<{
@@ -333,12 +258,9 @@ export async function fetchTransaction(
       responseReasonDescription?: string;
     };
     messages?: AnetMessages;
-  }>(account, {
+  }>({
     getTransactionDetailsRequest: {
-      merchantAuthentication: {
-        name: account.loginId,
-        transactionKey: account.transactionKey,
-      },
+      merchantAuthentication: merchantAuthentication(),
       transId: clean(transId),
     },
   });

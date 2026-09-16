@@ -4,7 +4,11 @@ import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/company";
 import type { SiteSettings } from "@/lib/types";
 import SettingsForm from "./SettingsForm";
-import { authorizeNetAccounts } from "@/lib/authorize-net";
+import {
+  apiLoginId,
+  authorizeNetConfigured,
+  authorizeNetEnv,
+} from "@/lib/authorize-net";
 
 export const metadata = { title: "Site settings" };
 
@@ -29,15 +33,14 @@ export default async function AdminSettings() {
         Contact details shown in the footer on every page. Leave a field empty
         to hide it.
       </p>
-      {/* Only the id and label cross to the client — never the keys. */}
+      {/* Only the login id and environment cross to the client — never the key. */}
       <SettingsForm
         settings={settings}
-        authorizeNetAccounts={authorizeNetAccounts().map((a) => ({
-          id: a.id,
-          label: a.label,
-          env: a.env,
-          country: a.country ?? null,
-        }))}
+        authorizeNet={{
+          configured: authorizeNetConfigured(),
+          loginId: apiLoginId(),
+          env: authorizeNetEnv(),
+        }}
       />
     </div>
   );
