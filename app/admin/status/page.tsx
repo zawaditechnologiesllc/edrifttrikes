@@ -9,6 +9,7 @@ import StorageCacheButton from "./StorageCacheButton";
 import { getSiteSettings } from "@/lib/db";
 import { trustGaps } from "@/lib/seo";
 import { checkStoredLogo } from "@/lib/logo";
+import { authorizeNetAccounts } from "@/lib/authorize-net";
 
 export const metadata = { title: "System status" };
 
@@ -51,6 +52,7 @@ export default async function SystemStatus() {
   const logo = await checkStoredLogo(settings.logo_url);
   const stripeOk = Boolean(serverEnv("STRIPE_SECRET_KEY"));
   const paypalOk = Boolean(serverEnv("PAYPAL_CLIENT_ID") && serverEnv("PAYPAL_SECRET"));
+  const anetAccounts = authorizeNetAccounts();
 
   const config = [
     { label: "Supabase URL", ok: Boolean(supabaseUrl()) },
@@ -60,9 +62,16 @@ export default async function SystemStatus() {
     { label: "Internal API key (emails)", ok: Boolean(serverEnv("INTERNAL_API_KEY")) },
     { label: "Stripe (card payments)", ok: stripeOk },
     { label: "PayPal", ok: paypalOk },
+    {
+      label:
+        anetAccounts.length > 0
+          ? `Authorize.Net (${anetAccounts.length} account${anetAccounts.length === 1 ? "" : "s"})`
+          : "Authorize.Net",
+      ok: anetAccounts.length > 0,
+    },
     { label: "Turnstile (form bot protection)", ok: Boolean(serverEnv("TURNSTILE_SECRET_KEY")) },
   ];
-  const checkoutLive = stripeOk || paypalOk;
+  const checkoutLive = stripeOk || paypalOk || anetAccounts.length > 0;
 
   let orders: Order[] = [];
   // Probe one column per migration — a failed select means that migration
@@ -73,7 +82,7 @@ export default async function SystemStatus() {
     const admin = createAdminClient();
     const columnExists = async (table: string, column: string) =>
       !(await admin.from(table).select(column).limit(1)).error;
-    const [m3, m4a, m4b, m5, m6, m12, m13, m15, m16, m17, { data }] = await Promise.all([
+    const [m3, m4a, m4b, m5, m6, m12, m13, m15, m16, m17, m18, m19, { data }] = await Promise.all([
       columnExists("site_settings", "id"),
       columnExists("site_settings", "shipping_cents"),
       columnExists("articles", "id").then(async (ok) => {
@@ -90,6 +99,8 @@ export default async function SystemStatus() {
       columnExists("orders", "risk_level"),
       columnExists("site_settings", "statement_descriptor"),
       columnExists("site_settings", "dba_name"),
+      columnExists("orders", "gateway_reference"),
+      columnExists("site_settings", "authorizenet_account"),
       admin.from("orders").select("*").order("created_at", { ascending: false }).limit(30),
     ]);
     migrations.push(
@@ -101,7 +112,9 @@ export default async function SystemStatus() {
       { label: "0013 — store logo for product sheets", ok: m13 },
       { label: "0015 — order origin + fraud review", ok: m15 },
       { label: "0016 — statement descriptor on card charges", ok: m16 },
-      { label: "0017 — invoice identity (DBA, tax ID) + invoices", ok: m17 }
+      { label: "0017 — invoice identity (DBA, tax ID) + invoices", ok: m17 },
+      { label: "0018 — gateway reference + account on orders", ok: m18 },
+      { label: "0019 — Authorize.Net account selection", ok: m19 }
     );
     orders = (data as Order[]) ?? [];
   }

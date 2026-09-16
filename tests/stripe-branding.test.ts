@@ -205,7 +205,9 @@ describe("the name the payment processor is shown", () => {
 
   test("the site's own name does not leak onto Stripe's page", () => {
     // The whole point of the split: changing one must not change the other.
-    if (STRIPE_MERCHANT_NAME === COMPANY.name) return; // nothing to separate
+    // (A guard for "what if they are equal" was here and TypeScript rightly
+    // called it dead — the two are different string literals, and if they ever
+    // become the same this test SHOULD fail rather than quietly skip.)
     for (const text of [
       submitMessage("US", { totalCents: 1000 }),
       afterSubmitMessage(),

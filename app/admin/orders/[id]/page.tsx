@@ -192,6 +192,25 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
               </p>
             </div>
           )}
+          {/* How the money arrived. Which ACCOUNT matters with Authorize.Net:
+              several accounts mean several merchant accounts, and a refund has
+              to go back through the one that took it. */}
+          {(order.paid_via || order.gateway_reference || order.stripe_session_id) && (
+            <div>
+              <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-1">Payment</h3>
+              {order.paid_via && (
+                <p className="text-white text-sm capitalize">{order.paid_via}</p>
+              )}
+              {order.gateway_account && (
+                <p className="text-on-surface-variant text-xs">
+                  account: {order.gateway_account}
+                </p>
+              )}
+              <p className="text-on-surface-variant text-xs break-all mt-1">
+                {order.gateway_reference ?? order.stripe_session_id}
+              </p>
+            </div>
+          )}
           {order.tracking_number && (
             <div>
               <h3 className="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant mb-1">Tracking</h3>

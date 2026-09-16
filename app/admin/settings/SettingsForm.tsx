@@ -25,7 +25,21 @@ const input =
 const lbl =
   "block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest";
 
-export default function SettingsForm({ settings }: { settings: SiteSettings }) {
+/** What the server tells us about a configured account — id and label only. */
+export type AuthorizeNetAccountOption = {
+  id: string;
+  label: string;
+  env: "sandbox" | "production";
+  country: string | null;
+};
+
+export default function SettingsForm({
+  settings,
+  authorizeNetAccounts = [],
+}: {
+  settings: SiteSettings;
+  authorizeNetAccounts?: AuthorizeNetAccountOption[];
+}) {
   const [state, action] = useActionState<SettingsState, FormData>(saveSiteSettings, {});
   const logoInput = useRef<HTMLInputElement>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -198,6 +212,52 @@ export default function SettingsForm({ settings }: { settings: SiteSettings }) {
           jurisdictions, use a real tax service (Stripe Tax, TaxJar) instead of
           relying on this.
         </p>
+      </div>
+
+      <div className="border-t border-white/10 pt-6">
+        <p className="font-label-bold text-label-bold text-white uppercase tracking-widest text-xs mb-4">
+          Authorize.Net
+        </p>
+        {authorizeNetAccounts.length === 0 ? (
+          <p className="text-[11px] text-on-surface-variant max-w-2xl">
+            No accounts configured, so Authorize.Net is not offered at checkout.
+            Add them to the{" "}
+            <code className="text-secondary">AUTHORIZENET_ACCOUNTS</code> secret
+            on Cloudflare and Render. Credentials live there, never in this
+            database — a transaction key moves money, so a database read must
+            not be able to reach it.
+          </p>
+        ) : (
+          <>
+            <label className={lbl}>Account that takes payments</label>
+            <select
+              name="authorizenet_account"
+              defaultValue={settings.authorizenet_account ?? authorizeNetAccounts[0].id}
+              className={`${input} max-w-[24rem]`}
+            >
+              {authorizeNetAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                  {a.country ? ` (${a.country})` : ""}
+                  {a.env === "sandbox" ? " — SANDBOX" : ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-outline uppercase tracking-widest mt-2 max-w-2xl">
+              Each Authorize.Net account is tied to one merchant account, one
+              acquirer and one country, so this chooses which entity settles the
+              money. It applies to NEW payments; orders already paid keep the
+              account that took them, which is what a refund has to go back
+              through.
+            </p>
+            {authorizeNetAccounts.some((a) => a.env === "sandbox") && (
+              <p className="text-[11px] text-signal-orange mt-2">
+                One or more accounts are in sandbox. A sandbox account takes no
+                real money.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="border-t border-white/10 pt-6">

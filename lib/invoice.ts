@@ -147,7 +147,8 @@ export function documentRecord(
     );
     // The gateway's own reference, so the record and the processor's record can
     // be tied together from the code alone.
-    if (order.stripe_session_id) lines.push(`Ref: ${order.stripe_session_id}`);
+    const ref = gatewayReference(order);
+    if (ref !== "—") lines.push(`Ref: ${ref}`);
     lines.push(`Balance due: 0.00 ${cur}`);
   } else {
     lines.push("", `AMOUNT DUE: ${money(order.total_cents)} ${cur}`, "No payment received.");
@@ -350,8 +351,20 @@ function formatDateTime(value: Date | string | null | undefined): string {
 const PAYMENT_METHODS: Record<string, string> = {
   stripe: "Card (Stripe)",
   paypal: "PayPal",
+  authorizenet: "Card (Authorize.Net)",
   manual: "Recorded manually",
 };
+
+/**
+ * The gateway's own reference for this payment.
+ *
+ * `gateway_reference` since migration 0018; `stripe_session_id` before it, which
+ * carried Stripe sessions AND PayPal order ids. Both are read so an invoice for
+ * an older order still reconciles.
+ */
+function gatewayReference(order: Order): string {
+  return text(order.gateway_reference) ?? text(order.stripe_session_id) ?? "—";
+}
 
 /** The buyer's name and address, as lines. */
 function buyerLines(order: Order): string[] {
@@ -896,7 +909,7 @@ function drawPayment(doc: PdfDocument, top: number, order: Order, paid: boolean)
   const pairs: [string, string][] = [
     ["Method", method],
     ["Date", formatDateTime(order.paid_at)],
-    ["Reference", order.stripe_session_id ?? "—"],
+    ["Reference", gatewayReference(order)],
   ];
   const colW = (CONTENT_WIDTH - 24) / 3;
   pairs.forEach(([label, value], i) => {

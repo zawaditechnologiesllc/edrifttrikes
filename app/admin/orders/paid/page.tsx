@@ -29,6 +29,10 @@ const SOURCE_STYLE: Record<string, { label: string; className: string }> = {
     label: "PayPal",
     className: "bg-secondary/10 text-secondary border-secondary/30",
   },
+  authorizenet: {
+    label: "Authorize.Net",
+    className: "bg-white/10 text-white border-white/20",
+  },
   manual: {
     label: "Manual",
     className: "bg-signal-orange/10 text-signal-orange border-signal-orange/30",
@@ -141,6 +145,7 @@ export default async function AdminPaidOrders({
     { key: null, label: "All" },
     { key: "stripe", label: "Stripe" },
     { key: "paypal", label: "PayPal" },
+    { key: "authorizenet", label: "Authorize.Net" },
     { key: "manual", label: "Manual" },
   ];
 

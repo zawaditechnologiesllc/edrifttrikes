@@ -88,6 +88,17 @@ export type Order = {
   currency: string;
   shipping_address: Record<string, unknown> | null;
   stripe_session_id: string | null;
+  /**
+   * The gateway's own id for this payment — a Stripe `cs_…` session, a PayPal
+   * order id, or an Authorize.Net transId. Supersedes stripe_session_id, which
+   * was carrying all of them. Absent before migration 0018.
+   */
+  gateway_reference?: string | null;
+  /**
+   * Which configured gateway account took the payment. Only meaningful for a
+   * provider with several (Authorize.Net); null for Stripe and PayPal.
+   */
+  gateway_account?: string | null;
   /** When payment actually cleared — the anchor for the delivery schedule. */
   paid_at?: string | null;
   /** How it was paid: 'stripe' | 'paypal' | 'manual' (admin marked it). */
@@ -176,6 +187,11 @@ export type SiteSettings = {
   tax_id?: string | null;
   /** Optional note at the foot of every invoice — terms, bank details. */
   invoice_footer?: string | null;
+  /**
+   * Which Authorize.Net account takes payments, by id. Names an entry in the
+   * AUTHORIZENET_ACCOUNTS secret — never holds credentials itself.
+   */
+  authorizenet_account?: string | null;
   updated_at?: string;
 };
 

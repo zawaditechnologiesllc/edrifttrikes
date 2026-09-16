@@ -8,6 +8,12 @@ import {
   statementDescriptorSuffix,
 } from "@/lib/stripe-fulfillment";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
+import {
+  authorizeNetConfigured,
+  createHostedPaymentToken,
+  hostedFormUrl,
+  resolveAccount,
+} from "@/lib/authorize-net";
 import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
 import { sendAbandonedCartEmail } from "@/lib/email";
@@ -53,7 +59,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: CHECKOUT_PAUSED }, { status: 503 });
   }
   const stripe = getStripe();
-  if (!stripe && !paypalConfigured()) {
+  if (!stripe && !paypalConfigured() && !authorizeNetConfigured()) {
     return NextResponse.json({ error: CHECKOUT_PAUSED }, { status: 503 });
   }
 
@@ -351,7 +357,13 @@ export async function POST(request: Request) {
       // Persist the PayPal order id so the inline card-fields flow can capture
       // by it (POST /api/paypal/capture). The redirect flow maps by order_number
       // instead, so this is harmless there.
-      await admin.from("orders").update({ stripe_session_id: paypalOrderId }).eq("id", order.id);
+      // Both columns: stripe_session_id is what the existing capture path
+      // looks the order up by, gateway_reference is the honest name going
+      // forward (migration 0018).
+      await admin
+        .from("orders")
+        .update({ stripe_session_id: paypalOrderId, gateway_reference: paypalOrderId })
+        .eq("id", order.id);
       if (!approveUrl) throw new Error("no approve url");
       // `id` + `orderNumber` are used by the inline PayPal card fields;
       // `url` by the redirect flow.
@@ -365,6 +377,57 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: "PayPal is unavailable right now. Please try card instead.",
+          debug: reason,
+        },
+        { status: 502 }
+      );
+    }
+  }
+
+  /**
+   * Authorize.Net path — mint a hosted-page token and hand the browser the form
+   * to post it to. The card is entered on Authorize.Net's page, never ours.
+   *
+   * WHICH ACCOUNT: an Authorize.Net gateway account is tied to one merchant
+   * account in one country, so a store with several picks one per order. The
+   * admin's choice lives in site_settings; resolveAccount falls back to the
+   * first configured one if that choice no longer names a real account.
+   */
+  if (method === "authorizenet" && authorizeNetConfigured()) {
+    const account = resolveAccount(
+      (settingsRow as { authorizenet_account?: string | null } | null)
+        ?.authorizenet_account
+    );
+    try {
+      if (!account) throw new Error("no Authorize.Net account configured");
+      const token = await createHostedPaymentToken({
+        account,
+        amountCents: totals.total,
+        orderNumber: order.order_number,
+        returnUrl: `${siteUrl}/api/authorize-net/return?order=${order.order_number}`,
+        cancelUrl: `${siteUrl}/checkout`,
+        email,
+      });
+      // Record which account is taking it BEFORE the buyer leaves: the return
+      // handler and the webhook both need to know which credentials can read
+      // the transaction back, and by then the settings may have changed.
+      await admin
+        .from("orders")
+        .update({ gateway_account: account.id })
+        .eq("id", order.id);
+      // The browser POSTs the token to Authorize.Net — a redirect will not do,
+      // because the token travels as a form field rather than a query string.
+      return NextResponse.json({
+        postTo: hostedFormUrl(account),
+        token,
+        orderNumber: order.order_number,
+      });
+    } catch (e) {
+      const reason = String((e as Error)?.message || e).slice(0, 300);
+      console.error("[checkout] Authorize.Net page create failed:", reason);
+      return NextResponse.json(
+        {
+          error: "Card payment is unavailable right now. Please try another method.",
           debug: reason,
         },
         { status: 502 }
@@ -494,7 +557,10 @@ export async function POST(request: Request) {
       session = await stripe.checkout.sessions.create(rest);
     }
 
-    await admin.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
+    await admin
+      .from("orders")
+      .update({ stripe_session_id: session.id, gateway_reference: session.id })
+      .eq("id", order.id);
     return NextResponse.json({ url: session.url });
     } catch (e) {
       const reason = String((e as Error)?.message || e).slice(0, 300);

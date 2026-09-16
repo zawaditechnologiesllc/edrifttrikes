@@ -17,6 +17,11 @@ import {
   emailConfig,
 } from "./email.js";
 import { verifyPayPalWebhook } from "./paypal.js";
+import {
+  verifyAuthorizeNetSignature,
+  PAID_EVENTS,
+  readPayload,
+} from "./authorizenet.js";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -82,6 +87,56 @@ app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (re
   }
   res.json({ received: true });
 });
+
+// ---- Authorize.Net webhook (raw body, must precede express.json) ----
+//
+// The reconciliation layer, not the primary path: /api/authorize-net/return
+// already confirms the payment synchronously when the buyer comes back. This
+// catches the buyer who closed the tab, and resolves a transaction that was
+// HELD FOR REVIEW at return time and approved afterwards — the one case the
+// synchronous path deliberately refuses to call paid.
+app.post(
+  "/authorizenet/webhook",
+  express.raw({ type: "*/*" }),
+  async (req, res) => {
+    const signatureKey = process.env.AUTHORIZENET_SIGNATURE_KEY;
+    if (!signatureKey) {
+      return res.status(503).json({ error: "Authorize.Net not configured" });
+    }
+    if (
+      !verifyAuthorizeNetSignature(
+        req.headers["x-anet-signature"],
+        req.body,
+        signatureKey
+      )
+    ) {
+      return res.status(400).json({ error: "Signature failed" });
+    }
+
+    let body;
+    try {
+      body = JSON.parse(req.body.toString("utf8"));
+    } catch {
+      return res.status(400).json({ error: "Body is not JSON" });
+    }
+
+    const { eventType, transId, orderNumber } = readPayload(body);
+    if (PAID_EVENTS.has(eventType) && orderNumber) {
+      // Hand the transition to the app, exactly as the Stripe and PayPal
+      // webhooks do: it owns the delivery schedule, the stage timeline and the
+      // emails, and /api/internal/order-paid is idempotent — so this arriving
+      // after the synchronous return is a no-op rather than a second receipt.
+      await markOrderPaidInApp({ orderNumber, paidVia: "authorizenet" }).catch(
+        (e) =>
+          console.error(
+            `[authorizenet webhook] order-paid failed for ${orderNumber} (${transId}):`,
+            e.message
+          )
+      );
+    }
+    res.json({ received: true });
+  }
+);
 
 app.use(express.json({ limit: "1mb" }));
 

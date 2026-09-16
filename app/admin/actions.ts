@@ -665,6 +665,7 @@ export async function saveSiteSettings(
     dba_name: trimmed("dba_name"),
     tax_id: trimmed("tax_id"),
     invoice_footer: trimmed("invoice_footer"),
+    authorizenet_account: trimmed("authorizenet_account"),
     updated_at: new Date().toISOString(),
   };
 
@@ -689,6 +690,7 @@ export async function saveSiteSettings(
     delete row.dba_name;
     delete row.tax_id;
     delete row.invoice_footer;
+    delete row.authorizenet_account;
     ({ error } = await admin.from("site_settings").upsert(row, { onConflict: "id" }));
     if (!error) {
       revalidateTag(SETTINGS_TAG);

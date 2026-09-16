@@ -116,7 +116,7 @@ export async function loadOrder(
  * view can distinguish a gateway-confirmed payment from one an admin flipped by
  * hand — which matters when reconciling takings.
  */
-export type PaidVia = "stripe" | "paypal" | "manual";
+export type PaidVia = "stripe" | "paypal" | "authorizenet" | "manual";
 
 export type PaidResult = {
   ok: boolean;
