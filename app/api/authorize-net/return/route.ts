@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
-import { fetchTransaction, resolveAccount } from "@/lib/authorize-net";
+import {
+  apiLoginId,
+  authorizeNetConfigured,
+  fetchTransaction,
+} from "@/lib/authorize-net";
 import { markOrderPaid, loadOrder } from "@/lib/orders";
 import { publicSiteUrl } from "@/lib/env";
 import type { Order } from "@/lib/types";
@@ -40,14 +44,28 @@ async function verify(
   const order = await loadOrder(admin, { orderNumber });
   if (!order) return { ok: false, reason: "order not found" };
 
-  // The account recorded when the payment page was created — not whatever is
-  // selected in settings right now, which may have changed since.
-  const account = resolveAccount(order.gateway_account);
-  if (!account) return { ok: false, reason: "no gateway account", order };
+  if (!authorizeNetConfigured()) {
+    return { ok: false, reason: "not_configured", order };
+  }
+
+  // The account that CREATED the payment page must be the one asked about it.
+  // Credentials get swapped; a lookup with the new account's keys cannot see
+  // the old account's transaction, and the gateway's error for that is opaque.
+  // Refusing here is deliberate — the money did move, but nothing we can reach
+  // proves it, so an admin marks the order paid by hand rather than the site
+  // taking the buyer's word for it.
+  const recorded = (order.gateway_account || "").trim();
+  if (recorded && recorded !== apiLoginId()) {
+    return {
+      ok: false,
+      reason: `order was taken on gateway account ${recorded}, which is no longer configured`,
+      order,
+    };
+  }
 
   let transaction;
   try {
-    transaction = await fetchTransaction(account, transId);
+    transaction = await fetchTransaction(transId);
   } catch (e) {
     return {
       ok: false,
@@ -89,7 +107,7 @@ async function verify(
     .from("orders")
     .update({
       gateway_reference: transaction.transId,
-      gateway_account: account.id,
+      gateway_account: apiLoginId(),
     })
     .eq("id", order.id);
 

@@ -9,7 +9,7 @@ import StorageCacheButton from "./StorageCacheButton";
 import { getSiteSettings } from "@/lib/db";
 import { trustGaps } from "@/lib/seo";
 import { checkStoredLogo } from "@/lib/logo";
-import { authorizeNetAccounts } from "@/lib/authorize-net";
+import { authorizeNetConfigured, authorizeNetEnv } from "@/lib/authorize-net";
 
 export const metadata = { title: "System status" };
 
@@ -52,7 +52,7 @@ export default async function SystemStatus() {
   const logo = await checkStoredLogo(settings.logo_url);
   const stripeOk = Boolean(serverEnv("STRIPE_SECRET_KEY"));
   const paypalOk = Boolean(serverEnv("PAYPAL_CLIENT_ID") && serverEnv("PAYPAL_SECRET"));
-  const anetAccounts = authorizeNetAccounts();
+  const anetOk = authorizeNetConfigured();
 
   const config = [
     { label: "Supabase URL", ok: Boolean(supabaseUrl()) },
@@ -63,15 +63,16 @@ export default async function SystemStatus() {
     { label: "Stripe (card payments)", ok: stripeOk },
     { label: "PayPal", ok: paypalOk },
     {
-      label:
-        anetAccounts.length > 0
-          ? `Authorize.Net (${anetAccounts.length} account${anetAccounts.length === 1 ? "" : "s"})`
-          : "Authorize.Net",
-      ok: anetAccounts.length > 0,
+      // The environment is worth saying out loud: a sandbox account looks
+      // configured from every angle and takes no real money.
+      label: anetOk
+        ? `Authorize.Net (${authorizeNetEnv()})`
+        : "Authorize.Net",
+      ok: anetOk,
     },
     { label: "Turnstile (form bot protection)", ok: Boolean(serverEnv("TURNSTILE_SECRET_KEY")) },
   ];
-  const checkoutLive = stripeOk || paypalOk || anetAccounts.length > 0;
+  const checkoutLive = stripeOk || paypalOk || anetOk;
 
   let orders: Order[] = [];
   // Probe one column per migration — a failed select means that migration
@@ -114,7 +115,8 @@ export default async function SystemStatus() {
       { label: "0016 — statement descriptor on card charges", ok: m16 },
       { label: "0017 — invoice identity (DBA, tax ID) + invoices", ok: m17 },
       { label: "0018 — gateway reference + account on orders", ok: m18 },
-      { label: "0019 — Authorize.Net account selection", ok: m19 }
+      // Inverted on purpose: 0019 DROPS a column, so "run" means it is gone.
+      { label: "0019 — Authorize.Net account picker removed", ok: !m19 }
     );
     orders = (data as Order[]) ?? [];
   }

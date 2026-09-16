@@ -25,20 +25,24 @@ const input =
 const lbl =
   "block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest";
 
-/** What the server tells us about a configured account — id and label only. */
-export type AuthorizeNetAccountOption = {
-  id: string;
-  label: string;
+/**
+ * What the server tells us about the Authorize.Net account — read-only, and
+ * never the transaction key. The API Login ID is not a secret (Accept.js ships
+ * it to the browser), and seeing it is how an admin confirms WHICH account is
+ * live after swapping the secret over.
+ */
+export type AuthorizeNetStatus = {
+  configured: boolean;
+  loginId: string;
   env: "sandbox" | "production";
-  country: string | null;
 };
 
 export default function SettingsForm({
   settings,
-  authorizeNetAccounts = [],
+  authorizeNet,
 }: {
   settings: SiteSettings;
-  authorizeNetAccounts?: AuthorizeNetAccountOption[];
+  authorizeNet?: AuthorizeNetStatus;
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveSiteSettings, {});
   const logoInput = useRef<HTMLInputElement>(null);
@@ -218,42 +222,34 @@ export default function SettingsForm({
         <p className="font-label-bold text-label-bold text-white uppercase tracking-widest text-xs mb-4">
           Authorize.Net
         </p>
-        {authorizeNetAccounts.length === 0 ? (
+        {/*
+          Read-only on purpose. Authorize.Net is configured exactly like Stripe
+          and PayPal — three environment variables, no database row — because a
+          transaction key moves money and a database read must not be able to
+          reach it. This panel only reports what the secrets currently say, so
+          an admin can confirm a swap landed without opening Cloudflare.
+        */}
+        {!authorizeNet?.configured ? (
           <p className="text-[11px] text-on-surface-variant max-w-2xl">
-            No accounts configured, so Authorize.Net is not offered at checkout.
-            Add them to the{" "}
-            <code className="text-secondary">AUTHORIZENET_ACCOUNTS</code> secret
-            on Cloudflare and Render. Credentials live there, never in this
-            database — a transaction key moves money, so a database read must
-            not be able to reach it.
+            Not configured, so Authorize.Net is not offered at checkout. Set{" "}
+            <code className="text-secondary">AUTHORIZENET_API_LOGIN_ID</code>,{" "}
+            <code className="text-secondary">AUTHORIZENET_TRANSACTION_KEY</code>{" "}
+            and <code className="text-secondary">AUTHORIZENET_ENV</code> on
+            Cloudflare and Render.
           </p>
         ) : (
           <>
-            <label className={lbl}>Account that takes payments</label>
-            <select
-              name="authorizenet_account"
-              defaultValue={settings.authorizenet_account ?? authorizeNetAccounts[0].id}
-              className={`${input} max-w-[24rem]`}
-            >
-              {authorizeNetAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.label}
-                  {a.country ? ` (${a.country})` : ""}
-                  {a.env === "sandbox" ? " — SANDBOX" : ""}
-                </option>
-              ))}
-            </select>
-            <p className="text-[10px] text-outline uppercase tracking-widest mt-2 max-w-2xl">
-              Each Authorize.Net account is tied to one merchant account, one
-              acquirer and one country, so this chooses which entity settles the
-              money. It applies to NEW payments; orders already paid keep the
-              account that took them, which is what a refund has to go back
-              through.
+            <p className="text-[11px] text-on-surface-variant max-w-2xl">
+              Live on API Login ID{" "}
+              <code className="text-secondary">{authorizeNet.loginId}</code>.
+              To switch to a different Authorize.Net account, change those
+              secrets — the same operation as rotating a Stripe key. Orders
+              already paid keep the account that took them, which is what a
+              refund has to go back through.
             </p>
-            {authorizeNetAccounts.some((a) => a.env === "sandbox") && (
+            {authorizeNet.env === "sandbox" && (
               <p className="text-[11px] text-signal-orange mt-2">
-                One or more accounts are in sandbox. A sandbox account takes no
-                real money.
+                Sandbox environment — this account takes no real money.
               </p>
             )}
           </>

@@ -1,142 +1,93 @@
 import { test, describe, afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  authorizeNetAccounts,
+  apiLoginId,
   authorizeNetConfigured,
+  authorizeNetEnv,
   createHostedPaymentToken,
   fetchTransaction,
   hostedFormUrl,
   parseAnetJson,
-  resolveAccount,
-  type AuthorizeNetAccount,
 } from "../lib/authorize-net";
 
 /**
  * Authorize.Net.
  *
- * The parts that can silently take or fail to take money: which account gets
- * charged, whether a response was understood, and — above all — whether a
+ * The parts that can silently take or fail to take money: which endpoint gets
+ * hit, whether a response was understood, and — above all — whether a
  * transaction counts as PAID. Held-for-review is the one with no equivalent in
  * the Stripe or PayPal paths and the one most likely to be got wrong.
  */
 
 const realEnv = { ...process.env };
 
-const ACCOUNTS = [
-  {
-    id: "us",
-    label: "United States",
-    loginId: "us-login",
-    transactionKey: "us-key",
-    env: "production",
-    currencies: ["USD"],
-    country: "US",
-  },
-  {
-    id: "uk",
-    label: "United Kingdom",
-    loginId: "uk-login",
-    transactionKey: "uk-key",
-    env: "sandbox",
-    currencies: ["GBP", "EUR"],
-    country: "GB",
-  },
-];
-
 beforeEach(() => {
-  process.env.AUTHORIZENET_ACCOUNTS = JSON.stringify(ACCOUNTS);
+  process.env.AUTHORIZENET_API_LOGIN_ID = "login";
+  process.env.AUTHORIZENET_TRANSACTION_KEY = "key";
+  process.env.AUTHORIZENET_ENV = "sandbox";
 });
 
 afterEach(() => {
   process.env = { ...realEnv };
 });
 
-describe("several accounts, because that is how the gateway works", () => {
+describe("configuration", () => {
   /**
-   * An Authorize.Net gateway account is bound to one merchant account, one
-   * acquirer and one country. There is no key that fans out across processors:
-   * five countries means five credential sets, and the integration holds all of
-   * them and picks one per order.
+   * One account, three variables — the same shape as PAYPAL_CLIENT_ID /
+   * PAYPAL_SECRET / PAYPAL_ENV. Swapping to a different Authorize.Net account
+   * is swapping these, which is the same operation as rotating a Stripe key.
    */
-  test("reads every configured account", () => {
-    const accounts = authorizeNetAccounts();
-    assert.equal(accounts.length, 2);
-    assert.deepEqual(accounts.map((a) => a.id), ["us", "uk"]);
-    assert.equal(accounts[0].env, "production");
-    assert.equal(accounts[1].env, "sandbox");
+  test("both credentials present means configured", () => {
+    assert.equal(authorizeNetConfigured(), true);
+    assert.equal(apiLoginId(), "login");
   });
 
-  test("the admin's choice decides which account is charged", () => {
-    assert.equal(resolveAccount("uk")?.loginId, "uk-login");
-    assert.equal(resolveAccount("us")?.loginId, "us-login");
+  test("either credential missing disables the method", () => {
+    delete process.env.AUTHORIZENET_TRANSACTION_KEY;
+    assert.equal(authorizeNetConfigured(), false);
+
+    process.env.AUTHORIZENET_TRANSACTION_KEY = "key";
+    delete process.env.AUTHORIZENET_API_LOGIN_ID;
+    assert.equal(authorizeNetConfigured(), false);
   });
 
-  test("a choice naming an account that no longer exists still takes the money", () => {
-    // Falling back beats refusing the payment: an account removed from the
-    // secret should not take checkout down with it.
-    assert.equal(resolveAccount("removed")?.id, "us");
-    assert.equal(resolveAccount(null)?.id, "us");
-    assert.equal(resolveAccount(undefined)?.id, "us");
+  test("whitespace is not a credential", () => {
+    // A secret set to an empty-looking value must take Authorize.Net off the
+    // checkout page, not offer a method that fails at the gateway.
+    process.env.AUTHORIZENET_API_LOGIN_ID = "   ";
+    assert.equal(authorizeNetConfigured(), false);
   });
 
-  test("each account gets the endpoints for its OWN environment", () => {
-    // A production account pointed at the sandbox endpoint takes no money and
-    // reports success, which is the worst of both.
-    const [us, uk] = authorizeNetAccounts();
-    assert.match(hostedFormUrl(us), /^https:\/\/accept\.authorize\.net\//);
-    assert.match(hostedFormUrl(uk), /^https:\/\/test\.authorize\.net\//);
+  test("credentials are read at call time, not at import", () => {
+    // On Cloudflare, secrets are runtime bindings invisible at module scope. A
+    // module-scope read would silently disable the method in production only.
+    delete process.env.AUTHORIZENET_API_LOGIN_ID;
+    assert.equal(authorizeNetConfigured(), false);
+    process.env.AUTHORIZENET_API_LOGIN_ID = "late-arrival";
+    assert.equal(authorizeNetConfigured(), true);
+    assert.equal(apiLoginId(), "late-arrival");
   });
 
   test("env defaults to sandbox rather than production", () => {
     // If the value is missing or misspelled, the safe failure is taking no real
     // money — not taking it against the wrong endpoint.
-    process.env.AUTHORIZENET_ACCOUNTS = JSON.stringify([
-      { id: "x", loginId: "l", transactionKey: "k" },
-      { id: "y", loginId: "l", transactionKey: "k", env: "PRODUCTIOM" },
-    ]);
-    assert.deepEqual(authorizeNetAccounts().map((a) => a.env), ["sandbox", "sandbox"]);
-  });
-});
-
-describe("bad configuration disables the method, it does not crash checkout", () => {
-  test("no secret at all", () => {
-    delete process.env.AUTHORIZENET_ACCOUNTS;
-    assert.deepEqual(authorizeNetAccounts(), []);
-    assert.equal(authorizeNetConfigured(), false);
-    assert.equal(resolveAccount("us"), null);
+    delete process.env.AUTHORIZENET_ENV;
+    assert.equal(authorizeNetEnv(), "sandbox");
+    process.env.AUTHORIZENET_ENV = "PRODUCTIOM";
+    assert.equal(authorizeNetEnv(), "sandbox");
   });
 
-  test("malformed JSON", () => {
-    // A typo in a secret must take Authorize.Net off the checkout page and
-    // leave Stripe and PayPal working — not throw inside the checkout route.
-    process.env.AUTHORIZENET_ACCOUNTS = "{not json";
-    assert.deepEqual(authorizeNetAccounts(), []);
-    assert.equal(authorizeNetConfigured(), false);
+  test("production is recognised whatever the case", () => {
+    process.env.AUTHORIZENET_ENV = "Production";
+    assert.equal(authorizeNetEnv(), "production");
   });
 
-  test("an object instead of an array", () => {
-    process.env.AUTHORIZENET_ACCOUNTS = JSON.stringify({ id: "us" });
-    assert.deepEqual(authorizeNetAccounts(), []);
-  });
-
-  test("entries missing credentials are skipped, not half-offered", () => {
-    process.env.AUTHORIZENET_ACCOUNTS = JSON.stringify([
-      { id: "good", loginId: "l", transactionKey: "k" },
-      { id: "no-key", loginId: "l" },
-      { id: "no-login", transactionKey: "k" },
-      { loginId: "l", transactionKey: "k" },
-    ]);
-    assert.deepEqual(authorizeNetAccounts().map((a) => a.id), ["good"]);
-  });
-
-  test("a duplicate id does not create two accounts under one name", () => {
-    process.env.AUTHORIZENET_ACCOUNTS = JSON.stringify([
-      { id: "us", loginId: "first", transactionKey: "k" },
-      { id: "us", loginId: "second", transactionKey: "k" },
-    ]);
-    const accounts = authorizeNetAccounts();
-    assert.equal(accounts.length, 1);
-    assert.equal(accounts[0].loginId, "first");
+  test("the hosted form URL follows the environment", () => {
+    // A production account pointed at the sandbox endpoint takes no money and
+    // reports success, which is the worst of both.
+    assert.match(hostedFormUrl(), /^https:\/\/test\.authorize\.net\//);
+    process.env.AUTHORIZENET_ENV = "production";
+    assert.match(hostedFormUrl(), /^https:\/\/accept\.authorize\.net\//);
   });
 });
 
@@ -165,15 +116,6 @@ describe("the byte-order mark", () => {
 
 /* -------------------------------------------------------------------------- */
 
-const ACCOUNT: AuthorizeNetAccount = {
-  id: "us",
-  label: "US",
-  loginId: "login",
-  transactionKey: "key",
-  env: "sandbox",
-  currencies: ["USD"],
-};
-
 /** Stand in for the gateway, returning a BOM-prefixed body as it really does. */
 function stubGateway(body: unknown) {
   const calls: { url: string; body: unknown }[] = [];
@@ -190,10 +132,9 @@ describe("minting the hosted payment page", () => {
     globalThis.fetch = realFetch;
   });
 
-  test("sends the account's credentials and our order number", async () => {
+  test("sends the configured credentials and our order number", async () => {
     const calls = stubGateway({ token: "form-token", messages: { resultCode: "Ok" } });
     const token = await createHostedPaymentToken({
-      account: ACCOUNT,
       amountCents: 425984,
       orderNumber: "EDT-7A3F91C2",
       returnUrl: "https://shop.example/return",
@@ -218,16 +159,25 @@ describe("minting the hosted payment page", () => {
     assert.equal((tx.order as Record<string, string>).invoiceNumber, "EDT-7A3F91C2");
   });
 
-  test("hits the endpoint for the account's environment", async () => {
+  test("hits the endpoint for the configured environment", async () => {
     const calls = stubGateway({ token: "t", messages: { resultCode: "Ok" } });
     await createHostedPaymentToken({
-      account: { ...ACCOUNT, env: "production" },
       amountCents: 100,
       orderNumber: "EDT-1",
       returnUrl: "https://x/r",
       cancelUrl: "https://x/c",
     });
-    assert.equal(calls[0].url, "https://api.authorize.net/xml/v1/request.api");
+    assert.equal(calls[0].url, "https://apitest.authorize.net/xml/v1/request.api");
+
+    process.env.AUTHORIZENET_ENV = "production";
+    const live = stubGateway({ token: "t", messages: { resultCode: "Ok" } });
+    await createHostedPaymentToken({
+      amountCents: 100,
+      orderNumber: "EDT-1",
+      returnUrl: "https://x/r",
+      cancelUrl: "https://x/c",
+    });
+    assert.equal(live[0].url, "https://api.authorize.net/xml/v1/request.api");
   });
 
   test("throws with the gateway's own reason when it refuses", async () => {
@@ -240,7 +190,6 @@ describe("minting the hosted payment page", () => {
     await assert.rejects(
       () =>
         createHostedPaymentToken({
-          account: ACCOUNT,
           amountCents: 100,
           orderNumber: "EDT-1",
           returnUrl: "https://x/r",
@@ -256,7 +205,6 @@ describe("minting the hosted payment page", () => {
     await assert.rejects(
       () =>
         createHostedPaymentToken({
-          account: ACCOUNT,
           amountCents: 100,
           orderNumber: "EDT-1",
           returnUrl: "https://x/r",
@@ -287,7 +235,7 @@ describe("what counts as paid", () => {
 
   test("response code 1 is money taken", async () => {
     stubGateway(transaction({}));
-    const t = await fetchTransaction(ACCOUNT, "60115585081");
+    const t = await fetchTransaction("60115585081");
     assert.equal(t.paid, true);
     assert.equal(t.heldForReview, false);
     assert.equal(t.amountCents, 425984);
@@ -301,7 +249,7 @@ describe("what counts as paid", () => {
      * means shipping goods against money that may never arrive.
      */
     stubGateway(transaction({ responseCode: 4 }));
-    const t = await fetchTransaction(ACCOUNT, "60115585081");
+    const t = await fetchTransaction("60115585081");
     assert.equal(t.paid, false);
     assert.equal(t.heldForReview, true);
   });
@@ -309,7 +257,7 @@ describe("what counts as paid", () => {
   test("declined and error are not paid", async () => {
     for (const code of [2, 3]) {
       stubGateway(transaction({ responseCode: code }));
-      const t = await fetchTransaction(ACCOUNT, "60115585081");
+      const t = await fetchTransaction("60115585081");
       assert.equal(t.paid, false, `code ${code} was treated as paid`);
       assert.equal(t.heldForReview, false);
     }
@@ -318,21 +266,33 @@ describe("what counts as paid", () => {
   test("an unknown code is not paid", async () => {
     // Anything we do not recognise must fail closed.
     stubGateway(transaction({ responseCode: 99 }));
-    assert.equal((await fetchTransaction(ACCOUNT, "x")).paid, false);
+    assert.equal((await fetchTransaction("x")).paid, false);
     stubGateway(transaction({ responseCode: undefined }));
-    assert.equal((await fetchTransaction(ACCOUNT, "x")).paid, false);
+    assert.equal((await fetchTransaction("x")).paid, false);
   });
 
   test("falls back to the authorised amount before settlement", async () => {
     stubGateway(transaction({ settleAmount: undefined, authAmount: "10.00" }));
-    assert.equal((await fetchTransaction(ACCOUNT, "x")).amountCents, 1000);
+    assert.equal((await fetchTransaction("x")).amountCents, 1000);
   });
 
   test("a missing amount is zero, not NaN", async () => {
     // NaN would compare unequal to the order total and refuse the payment,
     // which is the right outcome — but it must be a number to get there.
     stubGateway(transaction({ settleAmount: undefined, authAmount: undefined }));
-    assert.equal((await fetchTransaction(ACCOUNT, "x")).amountCents, 0);
+    assert.equal((await fetchTransaction("x")).amountCents, 0);
+  });
+
+  test("the lookup carries the same credentials the payment page did", async () => {
+    // Asking with different keys than the ones that took the money is how a
+    // real payment becomes invisible; the return handler guards the swapped-
+    // account case separately, by comparing the login id recorded on the order.
+    const calls = stubGateway(transaction({}));
+    await fetchTransaction("60115585081");
+    const req = (calls[0].body as Record<string, never>)
+      .getTransactionDetailsRequest as Record<string, never>;
+    assert.equal((req.merchantAuthentication as Record<string, string>).name, "login");
+    assert.equal(req.transId, "60115585081");
   });
 
   test("a lookup the gateway rejects throws rather than reporting unpaid", async () => {
@@ -341,6 +301,6 @@ describe("what counts as paid", () => {
     stubGateway({
       messages: { resultCode: "Error", message: [{ code: "E00040", text: "Not found." }] },
     });
-    await assert.rejects(() => fetchTransaction(ACCOUNT, "nope"), /E00040/);
+    await assert.rejects(() => fetchTransaction("nope"), /E00040/);
   });
 });
