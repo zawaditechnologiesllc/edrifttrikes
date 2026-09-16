@@ -126,7 +126,14 @@ app.post(
       // webhooks do: it owns the delivery schedule, the stage timeline and the
       // emails, and /api/internal/order-paid is idempotent — so this arriving
       // after the synchronous return is a no-op rather than a second receipt.
-      await markOrderPaidInApp({ orderNumber, paidVia: "authorizenet" }).catch(
+      // transId travels with it: a transaction held for review is paid HERE,
+      // not by the return handler, so this is the only chance to record the
+      // gateway's own reference against the order.
+      await markOrderPaidInApp({
+        orderNumber,
+        paidVia: "authorizenet",
+        gatewayReference: transId,
+      }).catch(
         (e) =>
           console.error(
             `[authorizenet webhook] order-paid failed for ${orderNumber} (${transId}):`,

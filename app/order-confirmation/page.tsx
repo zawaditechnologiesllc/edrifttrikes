@@ -6,13 +6,17 @@ import { formatMoney } from "@/lib/format";
 import ClearCartOnMount from "./ClearCartOnMount";
 import { Icon } from "@/components/Icon";
 import OrderTracker from "@/components/storefront/OrderTracker";
+import { confirmationView } from "@/lib/payment-return";
 
-export const metadata = { title: "Order Confirmed" };
+// Deliberately generic: the page is not always a confirmation. An
+// Authorize.Net payment held for review lands here unpaid, and a tab titled
+// "Order Confirmed" over that would be the same lie the body used to tell.
+export const metadata = { title: "Your order" };
 
 export default async function OrderConfirmation({
   searchParams: searchParamsPromise,
 }: {
-  searchParams: Promise<{ order?: string }>;
+  searchParams: Promise<{ order?: string; payment?: string }>;
 }) {
   const searchParams = await searchParamsPromise;
   // Works for a guest who has just paid as well as a signed-in rider; the
@@ -22,19 +26,36 @@ export default async function OrderConfirmation({
     : null;
   const order = receipt?.order ?? null;
 
+  /**
+   * THE ORDER'S STORED STATUS DECIDES WHAT THIS PAGE SAYS. `payment` is a hint
+   * from the gateway's return handler that only refines the wording — it comes
+   * back through the buyer's browser, so it can never promote an unpaid order
+   * to a confirmed one. See lib/payment-return.ts.
+   */
+  const view = confirmationView(order?.status, searchParams.payment);
+
   return (
     <div className="bg-background text-on-surface min-h-screen flex flex-col">
+      {/* The order exists either way, so the cart is cleared either way —
+          leaving it full invites a second order for goods already on the
+          books, which is the one outcome worse than an unclear status. */}
       <ClearCartOnMount />
       <SiteHeader />
       <main className="flex-1 max-w-3xl w-full mx-auto px-margin-mobile md:px-margin-desktop py-16 text-center">
-        <Icon name="check_circle" className="w-16 h-16 text-secondary" />
+        <Icon name={view.icon} className={`w-16 h-16 ${view.accent}`} />
         <h1 className="font-display-lg text-display-lg-mobile md:text-headline-xl text-white uppercase mt-4">
-          Order Confirmed
+          {view.title}
         </h1>
         <p className="text-on-surface-variant font-body-lg mt-3">
-          The garage is on it. {order ? `Confirmation sent to ${order.email}.` : "A confirmation email is on its way."}{" "}
-          You can follow every step here or on your rider dashboard.
+          {view.message}
         </p>
+        {order && (
+          <p className="text-on-surface-variant font-body-lg mt-2">
+            {view.settled
+              ? `Confirmation sent to ${order.email}.`
+              : `We'll email ${order.email} as soon as this changes.`}
+          </p>
+        )}
 
         {order && (
           <div className="mt-10 text-left bg-surface-container border border-white/10 rounded-lg p-8">
@@ -62,7 +83,7 @@ export default async function OrderConfirmation({
           </div>
         )}
 
-        {order && (
+        {order && view.settled && (
           <div className="mt-8 text-left">
             <OrderTracker order={order} />
           </div>

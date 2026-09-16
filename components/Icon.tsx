@@ -67,6 +67,8 @@ const PATHS: Record<string, ReactNode> = {
   arrow_forward: (<><line x1="4" y1="12" x2="20" y2="12" /><polyline points="14 6 20 12 14 18" /></>),
   check_circle: (<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>),
   check: (<polyline points="20 6 9 17 4 12" />),
+  schedule: (<><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15.5 14" /></>),
+  error_outline: (<><circle cx="12" cy="12" r="9" /><line x1="12" y1="7.5" x2="12" y2="13" /><line x1="12" y1="16.5" x2="12" y2="16.6" /></>),
   expand_more: (<polyline points="6 9 12 15 18 9" />),
   logout: (<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>),
   storefront: (<><path d="M3 9l1.2-5h15.6L21 9" /><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" /><path d="M9 20v-6h6v6" /></>),

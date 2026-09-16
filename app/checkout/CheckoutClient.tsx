@@ -14,15 +14,19 @@ import CheckoutField from "./CheckoutField";
 import { CHECKOUT_FIELDS, checkoutFieldsFor, validateCheckout } from "@/lib/validation";
 import { deliveryEstimateSentence } from "@/lib/delivery";
 import type { AddressPrefill } from "@/lib/address-lookup";
+import type { CheckoutNotice } from "@/lib/payment-return";
 
 type PaymentMethod = "stripe" | "paypal" | "authorizenet" | "";
 
 export default function CheckoutClient({
   methods,
   paypalCardFields = false,
+  notice = null,
 }: {
   methods: { stripe: boolean; paypal: boolean; authorizenet: boolean };
   paypalCardFields?: boolean;
+  /** Why a gateway sent this buyer back without a payment. See the page. */
+  notice?: CheckoutNotice | null;
 }) {
   const { items, clear } = useCart();
   const settings = useSiteSettings();
@@ -255,6 +259,21 @@ export default function CheckoutClient({
           order summary where it does its work at the moment of paying.
         */}
         <h1 className="font-headline-xl text-headline-xl uppercase text-white mb-8">Secure Checkout</h1>
+
+        {/* A gateway bounced this buyer back. Shown above everything else,
+            because "was I charged?" is the only question they have until it is
+            answered — and it is answered in every branch of the copy. */}
+        {notice && (
+          <div
+            role="alert"
+            className="mb-10 bg-error/10 border border-error/50 rounded-lg p-6"
+          >
+            <p className="text-error font-label-bold uppercase tracking-widest text-sm">
+              {notice.title}
+            </p>
+            <p className="text-on-surface-variant mt-2">{notice.message}</p>
+          </div>
+        )}
 
         {noPayments && (
           <div className="mb-10 bg-signal-orange/10 border border-signal-orange/50 rounded-lg p-6">

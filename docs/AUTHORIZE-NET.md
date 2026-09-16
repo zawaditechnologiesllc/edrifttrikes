@@ -38,6 +38,48 @@ endpoint fail outright; production keys against the sandbox endpoint is the
 worse one — it reports success and takes no money. The default when the variable
 is missing or misspelled is `sandbox`, so a typo fails safe.
 
+### End to end: every file the money touches
+
+| Step | Where |
+| --- | --- |
+| Offer the method at checkout | `app/checkout/page.tsx` → `authorizeNetConfigured()` |
+| Buyer picks it, form-POSTs the token | `app/checkout/CheckoutClient.tsx` |
+| Mint the token, record the account | `app/api/checkout/route.ts` |
+| Talk to the gateway | `lib/authorize-net.ts` |
+| Verify the return, mark paid | `app/api/authorize-net/return/route.ts` |
+| Verify the webhook signature | `server/src/authorizenet.js` |
+| Receive the webhook | `server/src/index.js` → `/authorizenet/webhook` |
+| The shared paid transition | `app/api/internal/order-paid` → `lib/orders.ts` |
+| What the buyer is told on return | `lib/payment-return.ts` |
+| Admin: source badge, filter, account | `app/admin/orders/paid`, `app/admin/orders/[id]` |
+| Invoices | `lib/invoice.ts` → "Card (Authorize.Net)" |
+
+The token is POSTed rather than redirected because Accept Hosted takes it as a
+**form field**, not a query parameter — so `CheckoutClient` builds a form and
+submits it instead of setting `location.href` the way the Stripe and PayPal
+paths do. That is the one place this flow differs on the front end.
+
+### Held for review is the state that needs the webhook
+
+Response code **4** — the gateway has the transaction and has not approved it.
+Not paid, not declined, and with no Stripe or PayPal equivalent, which is why it
+is the easiest thing here to get wrong.
+
+- The **return handler refuses it**: `heldForReview` is a separate boolean from
+  `paid`, and only `paid` marks an order. The buyer goes to
+  `/order-confirmation?payment=review`, which says the payment is under review —
+  not "Order Confirmed" over an order nobody has paid for.
+- The **webhook finishes it**: when the gateway approves,
+  `net.authorize.payment.authcapture.created` reaches Render, which calls the
+  shared paid transition — the same one Stripe and PayPal use, so the receipt,
+  the delivery schedule and the timeline are identical.
+- The webhook carries the **transId** through as `gatewayReference`, because
+  this is the only path that ever sees it for a held transaction. Without that
+  the order would settle with a blank "Ref:" on its invoice.
+
+**So a held transaction never resolves on its own if the webhook is not
+configured.** That is the single most consequential item in *Turning it on*.
+
 ### One account at a time — and why the order records which
 
 An Authorize.Net gateway account is bound to **one** merchant account, with one

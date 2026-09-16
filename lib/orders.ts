@@ -141,6 +141,17 @@ export async function markOrderPaid(
     sendEmail?: boolean;
     paidVia?: PaidVia;
     /**
+     * The gateway's own id for this payment, when the caller has it.
+     *
+     * The WEBHOOK path needs this. A synchronous return handler writes the
+     * reference itself before calling here, but an Authorize.Net transaction
+     * HELD FOR REVIEW never reaches that code — the return refuses it, and the
+     * order is only paid later by the webhook. Without this the order settles
+     * with no transaction id at all: a blank "Ref:" on the invoice and nothing
+     * tying the payment to the gateway's record.
+     */
+    gatewayReference?: string;
+    /**
      * Send the confirmation even if the `confirmed` stage was already recorded.
      * For the ADMIN path only: a human clicking "mark paid" with notifications
      * on is a deliberate instruction, and the claim-once rule — which exists to
@@ -202,6 +213,26 @@ export async function markOrderPaid(
         console.error("[orders] markOrderPaid failed:", fallbackError.message);
         return { ok: false, transitioned: false, order, reason: fallbackError.message };
       }
+    }
+  }
+
+  /**
+   * The gateway reference, written SEPARATELY from the transition and
+   * best-effort on purpose: a database that has not run migration 0018 has no
+   * such column, and losing a reference must never be able to cost the paid
+   * transition itself. Only filled when empty, so a webhook arriving after a
+   * synchronous return cannot overwrite what that return already established.
+   */
+  if (opts.gatewayReference && !order.gateway_reference) {
+    const { error } = await admin
+      .from("orders")
+      .update({ gateway_reference: opts.gatewayReference.slice(0, 200) })
+      .eq("id", order.id);
+    if (error) {
+      console.error(
+        `[orders] could not record gateway reference for ${order.order_number} ` +
+          `(${error.message}) — the payment stands. Run supabase/migrations/0018_gateway_reference.sql.`
+      );
     }
   }
 
