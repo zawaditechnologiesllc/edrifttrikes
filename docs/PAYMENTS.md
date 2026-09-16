@@ -59,9 +59,9 @@ prettier admin view is **`/admin/status`** with a "Checkout live / paused" chip.
 
 ## 3. How a payment actually flows (what the buyer sees)
 
-Both providers today are **redirect / hosted-page** flows — the buyer is sent to
-Stripe's or PayPal's secure page to enter payment details. **Card data never
-touches our servers** (best case for PCI + security).
+All three providers are **redirect / hosted-page** flows — the buyer is sent to
+Stripe's, PayPal's or Authorize.Net's secure page to enter payment details.
+**Card data never touches our servers** (best case for PCI + security).
 
 **Stripe**
 1. Buyer clicks **Pay** → `/api/checkout` creates a Stripe Checkout Session.
@@ -77,21 +77,68 @@ touches our servers** (best case for PCI + security).
 3. PayPal returns to `/api/paypal/capture`, which captures, marks **paid**, and
    emails the receipt. (The Render webhook is the backup/reconciliation layer.)
 
+**Authorize.Net** (Accept Hosted)
+1. Buyer clicks **Pay** → `/api/checkout` mints a short-lived **form token** and
+   records the API Login ID on the order.
+2. The browser **POSTs** that token to Authorize.Net's page — a redirect cannot
+   carry it, so `CheckoutClient` builds a form and submits it.
+3. Authorize.Net POSTs the buyer back to `/api/authorize-net/return`, which
+   **re-asks the gateway** what the transaction really is before believing
+   anything, then marks **paid** and emails the receipt.
+4. Render's webhook is the backup — and the only path that resolves a
+   transaction **held for review** (see below).
+
+### The return journey when payment does *not* succeed
+
+Every no-payment return lands back on `/checkout` with a reason, and the page
+renders a banner that says **whether money was taken** — the only question a
+bounced buyer has, and the one whose absence produces duplicate payments and
+chargebacks. The copy lives in `lib/payment-return.ts`.
+
+| Where the buyer lands | When |
+| --- | --- |
+| `/checkout?payment=cancelled` | Backed out of a hosted page (Authorize.Net or PayPal) |
+| `/checkout?payment=failed` | Authorize.Net declined it, or the return could not be verified |
+| `/checkout?payment=incomplete` | The return arrived without an order number or transaction id |
+| `/checkout?error=paypal` | PayPal's capture failed |
+
+### Held for review — the state only Authorize.Net has
+
+Authorize.Net response code **4** means the gateway has the transaction and has
+**not** approved it. It is not paid, not declined, and has no Stripe or PayPal
+equivalent.
+
+The return handler refuses to mark such an order paid and sends the buyer to
+`/order-confirmation?payment=review`, which says the payment is under review
+rather than confirmed. **The webhook is what finishes the job**: when the
+gateway approves, `net.authorize.payment.authcapture.created` arrives at Render,
+the order is marked paid, the receipt goes out, and the gateway's transaction id
+is recorded against the order. Without that webhook configured, a held
+transaction never becomes a paid order on its own.
+
+> `/order-confirmation` takes its wording from the **order's stored status**,
+> never from the query string — the buyer controls the URL, so a hint can refine
+> the copy but can never turn an unpaid order into a confirmed one.
+
 ---
 
 ## 4. What checkout looks like per configuration
 
-Driven by which keys the Worker sees (`stripeConfigured()` / `paypalConfigured()`):
+Driven by which keys the Worker sees (`stripeConfigured()` / `paypalConfigured()`
+/ `authorizeNetConfigured()`). Any combination works; the chooser appears as soon
+as more than one is connected.
 
 | Connected | Checkout UI | On click |
 | --- | --- | --- |
-| **PayPal only** | One button: **"Pay with PayPal or card"** | → PayPal hosted page (PayPal or card) |
 | **Stripe only** | One button: **"Pay $X securely"** | → Stripe hosted page (card) |
-| **Both** | A **Card / PayPal** chooser (Card is the default) | *Card* → Stripe · *PayPal* → PayPal |
-| **Neither** | Disabled button + **"Checkout temporarily paused — very high volume of orders… try again in a few hours"** | — |
+| **PayPal only** | One button: **"Pay with PayPal or card"** | → PayPal hosted page (PayPal or card) |
+| **Authorize.Net only** | One button, labelled **Card** | → Accept Hosted page (card) |
+| **Two or three** | A **Card / Card (alt) / PayPal** chooser | Each goes to that provider's page |
+| **None** | Disabled button + **"Checkout temporarily paused — very high volume of orders… try again in a few hours"** | — |
 
-So yes — with **both** connected, the buyer gets to choose **Card (Stripe)** or
-**PayPal**, and PayPal itself still also accepts cards on its page.
+With Stripe and Authorize.Net both connected, Stripe is **Card** and
+Authorize.Net is **Card (alt)** — two separate card gateways, which is real
+redundancy if one account is restricted.
 
 ---
 

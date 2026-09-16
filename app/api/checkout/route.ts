@@ -352,7 +352,7 @@ export async function POST(request: Request) {
         orderNumber: order.order_number,
         orderId: order.id,
         returnUrl: `${siteUrl}/api/paypal/capture?order=${order.order_number}`,
-        cancelUrl: `${siteUrl}/checkout`,
+        cancelUrl: `${siteUrl}/checkout?payment=cancelled`,
       });
       // Persist the PayPal order id so the inline card-fields flow can capture
       // by it (POST /api/paypal/capture). The redirect flow maps by order_number
@@ -394,7 +394,7 @@ export async function POST(request: Request) {
         amountCents: totals.total,
         orderNumber: order.order_number,
         returnUrl: `${siteUrl}/api/authorize-net/return?order=${order.order_number}`,
-        cancelUrl: `${siteUrl}/checkout`,
+        cancelUrl: `${siteUrl}/checkout?payment=cancelled`,
         email,
       });
       // Record WHICH gateway account is taking it, before the buyer leaves. The

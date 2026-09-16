@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * Auth: the INTERNAL_API_KEY shared secret. Idempotent — a replayed Stripe
  * event returns transitioned:false and sends no second email.
  *
- * POST { orderId?, orderNumber?, paypalOrderId?, paidVia? }
+ * POST { orderId?, orderNumber?, paypalOrderId?, paidVia?, gatewayReference? }
  */
 export async function POST(request: Request) {
   if (!isInternalRequest(request)) {
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     orderNumber?: string;
     paypalOrderId?: string;
     paidVia?: string;
+    gatewayReference?: string;
   };
 
   // Whitelist the source rather than storing whatever the caller sent — this
@@ -56,7 +57,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await markOrderPaid(createAdminClient(), by, { paidVia });
+  // The gateway's own transaction id, when the webhook knows it. Bounded and
+  // string-checked; markOrderPaid only fills it when the order has none.
+  const gatewayReference =
+    typeof body.gatewayReference === "string" && body.gatewayReference.trim()
+      ? body.gatewayReference.trim().slice(0, 200)
+      : undefined;
+
+  const result = await markOrderPaid(createAdminClient(), by, {
+    paidVia,
+    gatewayReference,
+  });
   if (!result.ok) {
     return NextResponse.json(
       { ok: false, reason: result.reason },
