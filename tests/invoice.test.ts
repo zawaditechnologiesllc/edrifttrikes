@@ -575,8 +575,36 @@ describe("the record the code carries", () => {
     assert.match(r, /^INVOICE$/m);
     assert.match(r, /PAID IN FULL 15 Aug 2026/);
     assert.match(r, /Method: Card \(Stripe\)/);
-    assert.match(r, /Ref: cs_live_a1b2c3d4e5f6/);
+    // The reference is NAMED for the provider that issued it. "Ref:" left a
+    // reviewer checking the payment with no idea which system to look in.
+    assert.match(r, /Checkout session: cs_live_a1b2c3d4e5f6/);
     assert.match(r, /Balance due: 0\.00 USD/);
+  });
+
+  test("the reference is named for whichever gateway took the money", () => {
+    const anet = record(
+      {
+        ...PAID,
+        paid_via: "authorizenet",
+        gateway_reference: "60115585081",
+        stripe_session_id: null,
+      },
+      "paid"
+    );
+    assert.match(anet, /Method: Card \(Authorize\.Net\)/);
+    assert.match(anet, /Transaction ID: 60115585081/);
+
+    const paypal = record(
+      {
+        ...PAID,
+        paid_via: "paypal",
+        gateway_reference: "5O190127TN364715T",
+        stripe_session_id: null,
+      },
+      "paid"
+    );
+    assert.match(paypal, /Method: PayPal/);
+    assert.match(paypal, /PayPal order: 5O190127TN364715T/);
   });
 
   test("the proforma record says outright that nothing was paid", () => {

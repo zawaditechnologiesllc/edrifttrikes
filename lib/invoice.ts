@@ -42,6 +42,11 @@ import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 // template. One list, so the two can never disagree about what is real.
 import { isReal } from "@/lib/seo";
 import { encodeQr } from "@/lib/qr";
+import {
+  gatewayReference,
+  methodLabel,
+  referenceLabel,
+} from "@/lib/payment-display";
 import type { Order, OrderItem, SellerSnapshot, SiteSettings } from "@/lib/types";
 
 /* -------------------------------------------------------------------------- */
@@ -143,12 +148,15 @@ export function documentRecord(
     lines.push(
       "",
       `PAID IN FULL ${formatDate(order.paid_at)}`,
-      `Method: ${PAYMENT_METHODS[String(order.paid_via ?? "")] ?? "Not recorded"}`
+      `Method: ${methodLabel(order)}`
     );
-    // The gateway's own reference, so the record and the processor's record can
-    // be tied together from the code alone.
+    // The gateway's own reference, so this document and the processor's record
+    // can be tied together from the code alone. NAMED rather than "Ref:" — a
+    // reviewer checking the payment needs to know which system to look in, and
+    // "Transaction ID" points at Authorize.Net the way "Checkout session"
+    // points at Stripe.
     const ref = gatewayReference(order);
-    if (ref !== "—") lines.push(`Ref: ${ref}`);
+    if (ref) lines.push(`${referenceLabel(order)}: ${ref}`);
     lines.push(`Balance due: 0.00 ${cur}`);
   } else {
     lines.push("", `AMOUNT DUE: ${money(order.total_cents)} ${cur}`, "No payment received.");
@@ -348,13 +356,6 @@ function formatDateTime(value: Date | string | null | undefined): string {
   return `${formatDate(d)} ${d.toISOString().slice(11, 16)} UTC`;
 }
 
-const PAYMENT_METHODS: Record<string, string> = {
-  stripe: "Card (Stripe)",
-  paypal: "PayPal",
-  authorizenet: "Card (Authorize.Net)",
-  manual: "Recorded manually",
-};
-
 /**
  * The gateway's own reference for this payment.
  *
@@ -362,10 +363,6 @@ const PAYMENT_METHODS: Record<string, string> = {
  * carried Stripe sessions AND PayPal order ids. Both are read so an invoice for
  * an older order still reconciles.
  */
-function gatewayReference(order: Order): string {
-  return text(order.gateway_reference) ?? text(order.stripe_session_id) ?? "—";
-}
-
 /** The buyer's name and address, as lines. */
 function buyerLines(order: Order): string[] {
   const a = (order.shipping_address ?? {}) as Record<string, unknown>;
@@ -905,11 +902,12 @@ function drawPayment(doc: PdfDocument, top: number, order: Order, paid: boolean)
     return top + h + 12;
   }
 
-  const method = PAYMENT_METHODS[String(order.paid_via ?? "")] ?? "Not recorded";
   const pairs: [string, string][] = [
-    ["Method", method],
+    ["Method", methodLabel(order)],
     ["Date", formatDateTime(order.paid_at)],
-    ["Reference", gatewayReference(order)],
+    // Named per provider — "Transaction ID" points a reviewer at Authorize.Net
+    // the way "Checkout session" points at Stripe.
+    [referenceLabel(order), gatewayReference(order) ?? "—"],
   ];
   const colW = (CONTENT_WIDTH - 24) / 3;
   pairs.forEach(([label, value], i) => {

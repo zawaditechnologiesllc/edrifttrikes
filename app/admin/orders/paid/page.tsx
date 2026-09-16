@@ -4,55 +4,29 @@ import Link from "next/link";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { formatMoney } from "@/lib/format";
 import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
+import {
+  PAYMENT_SOURCES,
+  SOURCE_LABEL,
+  formatPaidAt,
+  gatewayReference,
+  referenceLabel,
+  type PaymentSource,
+} from "@/lib/payment-display";
+import PaymentSourceBadge from "../PaymentSourceBadge";
 import type { Order } from "@/lib/types";
 
 export const metadata = { title: "Paid Orders" };
 
 /**
  * PAID ORDERS — every order money has actually been received for, however it
- * arrived: a Stripe or PayPal webhook confirming the gateway took payment, or
- * an admin marking it paid by hand (bank transfer, cash on collection, a
+ * arrived: Stripe, PayPal or Authorize.Net confirming the gateway took payment,
+ * or an admin marking it paid by hand (bank transfer, cash on collection, a
  * gateway that failed to call back).
  *
  * Separate from the main orders list on purpose: that list is everything
  * including abandoned `pending` rows, which makes it useless for answering
  * "what have we actually taken?".
  */
-
-/** How the payment reached us — colour-coded so manual entries stand out. */
-const SOURCE_STYLE: Record<string, { label: string; className: string }> = {
-  stripe: {
-    label: "Stripe",
-    className: "bg-primary-container/30 text-primary border-primary/30",
-  },
-  paypal: {
-    label: "PayPal",
-    className: "bg-secondary/10 text-secondary border-secondary/30",
-  },
-  authorizenet: {
-    label: "Authorize.Net",
-    className: "bg-white/10 text-white border-white/20",
-  },
-  manual: {
-    label: "Manual",
-    className: "bg-signal-orange/10 text-signal-orange border-signal-orange/30",
-  },
-};
-
-function SourceBadge({ via }: { via: string | null | undefined }) {
-  // Orders paid before migration 0007 ran have no recorded source.
-  const style = SOURCE_STYLE[via ?? ""] ?? {
-    label: "Unknown",
-    className: "bg-white/5 text-on-surface-variant border-white/10",
-  };
-  return (
-    <span
-      className={`inline-block rounded border px-2 py-0.5 text-[10px] font-label-bold uppercase tracking-widest ${style.className}`}
-    >
-      {style.label}
-    </span>
-  );
-}
 
 function StatTile({
   label,
@@ -88,7 +62,10 @@ export default async function AdminPaidOrders({
   }
 
   const { via } = await searchParamsPromise;
-  const filter = via && SOURCE_STYLE[via] ? via : null;
+  const filter =
+    via && (PAYMENT_SOURCES as readonly string[]).includes(via)
+      ? (via as PaymentSource)
+      : null;
 
   const admin = createAdminClient();
 
@@ -141,12 +118,11 @@ export default async function AdminPaidOrders({
   const monthRevenue = thisMonth.reduce((n, o) => n + (o.total_cents || 0), 0);
   const awaitingFulfilment = orders.filter((o) => o.status === "paid").length;
 
-  const tabs: { key: string | null; label: string }[] = [
+  // Built from the shared list, so a provider added there appears here without
+  // anyone remembering to come and add it.
+  const tabs: { key: PaymentSource | null; label: string }[] = [
     { key: null, label: "All" },
-    { key: "stripe", label: "Stripe" },
-    { key: "paypal", label: "PayPal" },
-    { key: "authorizenet", label: "Authorize.Net" },
-    { key: "manual", label: "Manual" },
+    ...PAYMENT_SOURCES.map((key) => ({ key, label: SOURCE_LABEL[key] })),
   ];
 
   return (
@@ -157,8 +133,10 @@ export default async function AdminPaidOrders({
             Paid Orders
           </h1>
           <p className="text-on-surface-variant text-sm mt-1 max-w-xl">
-            Orders payment has been received for — confirmed by a Stripe or
-            PayPal webhook, or marked paid by an admin.
+            Orders payment has been received for — confirmed by Stripe, PayPal
+            or Authorize.Net, or marked paid by an admin. Each row carries the
+            gateway&apos;s own reference, so it can be matched against the
+            processor&apos;s dashboard without opening the order.
           </p>
         </div>
         <Link
@@ -171,7 +149,7 @@ export default async function AdminPaidOrders({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatTile
-          label={filter ? `${SOURCE_STYLE[filter].label} revenue` : "Total revenue"}
+          label={filter ? `${SOURCE_LABEL[filter]} revenue` : "Total revenue"}
           value={formatMoney(revenue, orders[0]?.currency ?? "usd")}
           hint={`${orders.length} paid order${orders.length === 1 ? "" : "s"}`}
         />
@@ -214,13 +192,14 @@ export default async function AdminPaidOrders({
       </div>
 
       <div className="bg-surface-container border border-white/10 rounded-lg overflow-x-auto">
-        <table className="w-full text-left min-w-[820px]">
+        <table className="w-full text-left min-w-[1040px]">
           <thead className="bg-surface-container-high text-on-surface-variant text-xs uppercase tracking-widest font-label-bold">
             <tr>
               <th className="p-4">Order</th>
               <th className="p-4">Customer</th>
               <th className="p-4">Paid</th>
               <th className="p-4">Via</th>
+              <th className="p-4">Gateway reference</th>
               <th className="p-4">Delivery stage</th>
               <th className="p-4">Total</th>
             </tr>
@@ -243,18 +222,36 @@ export default async function AdminPaidOrders({
                 </td>
                 <td className="p-4 text-on-surface-variant">{o.email}</td>
                 <td className="p-4 text-on-surface-variant text-sm whitespace-nowrap">
+                  {/* Date AND time. Several orders a day is the goal, and the
+                      time is what matches this row to one in the gateway's own
+                      dashboard when the two have to be reconciled. */}
                   {o.paid_at ? (
-                    new Date(o.paid_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
+                    formatPaidAt(o.paid_at)
                   ) : (
                     <span className="text-outline">—</span>
                   )}
                 </td>
                 <td className="p-4">
-                  <SourceBadge via={o.paid_via} />
+                  <PaymentSourceBadge via={o.paid_via} />
+                  {/* Which merchant account took it — only Authorize.Net has
+                      one, and only it can process the refund. */}
+                  {o.gateway_account && (
+                    <span className="block text-[10px] text-outline mt-1 break-all">
+                      {o.gateway_account}
+                    </span>
+                  )}
+                </td>
+                <td className="p-4 text-xs text-on-surface-variant max-w-[15rem]">
+                  {gatewayReference(o) ? (
+                    <>
+                      <span className="block text-[10px] uppercase tracking-widest text-outline">
+                        {referenceLabel(o)}
+                      </span>
+                      <span className="break-all">{gatewayReference(o)}</span>
+                    </>
+                  ) : (
+                    <span className="text-outline">—</span>
+                  )}
                 </td>
                 <td className="p-4 text-on-surface-variant text-sm whitespace-nowrap">
                   {
@@ -270,9 +267,9 @@ export default async function AdminPaidOrders({
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-on-surface-variant">
+                <td colSpan={7} className="p-12 text-center text-on-surface-variant">
                   {filter
-                    ? `No orders paid via ${SOURCE_STYLE[filter].label} yet.`
+                    ? `No orders paid via ${SOURCE_LABEL[filter]} yet.`
                     : "No paid orders yet."}
                 </td>
               </tr>

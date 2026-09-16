@@ -7,6 +7,7 @@ import ClearCartOnMount from "./ClearCartOnMount";
 import { Icon } from "@/components/Icon";
 import OrderTracker from "@/components/storefront/OrderTracker";
 import { confirmationView } from "@/lib/payment-return";
+import { customerPaymentLine } from "@/lib/payment-display";
 
 // Deliberately generic: the page is not always a confirmation. An
 // Authorize.Net payment held for review lands here unpaid, and a tab titled
@@ -80,6 +81,14 @@ export default async function OrderConfirmation({
                   store never collects this, so there is nothing to reconcile —
                   and it keeps the receipt in step with the published rate. */}
             </div>
+            {/* How and when it was paid, in the buyer's terms — no gateway ids.
+                Only renders once money is actually in, so it cannot contradict
+                a "payment under review" heading above it. */}
+            {customerPaymentLine(order) && (
+              <p className="text-outline text-xs mt-4 border-t border-white/10 pt-4">
+                {customerPaymentLine(order)}
+              </p>
+            )}
           </div>
         )}
 

@@ -3,6 +3,7 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import { getReceiptByNumber, getSiteSettings } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
+import { methodLabel } from "@/lib/payment-display";
 import { STAGE_COPY, formatDeliveryDate, type FulfillmentStage } from "@/lib/fulfillment";
 import { sellerFor } from "@/lib/invoice";
 import { Icon } from "@/components/Icon";
@@ -117,6 +118,13 @@ export default async function VerifyDocument({
                   <span className="text-on-surface-variant">Not yet received</span>
                 )}
               </Row>
+              {/* HOW it was paid, not just when. This page exists for anyone
+                  checking the order is real — a processor reviewing the account
+                  among them — and "which gateway took this" is the first thing
+                  they need in order to go and match it on their own side. */}
+              {order.paid_at && (
+                <Row label="Method">{methodLabel(order)}</Row>
+              )}
               <Row label="Status">
                 {
                   STAGE_COPY[

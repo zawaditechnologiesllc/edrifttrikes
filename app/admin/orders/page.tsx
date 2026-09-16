@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/format";
 import { OrderStatusQuickForm } from "./OrderStatusForm";
 import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 import { OriginCell } from "./OrderOrigin";
+import PaymentSourceBadge from "./PaymentSourceBadge";
 
 export default async function AdminOrders() {
   if (!adminConfigured()) {
@@ -62,7 +63,17 @@ export default async function AdminOrders() {
                   )}
                 </td>
                 <td className="p-4 text-on-surface-variant text-sm">{new Date(o.created_at).toLocaleDateString()}</td>
-                <td className="p-4 text-white font-label-bold">{formatMoney(o.total_cents, o.currency)}</td>
+                <td className="p-4 text-white font-label-bold whitespace-nowrap">
+                  {formatMoney(o.total_cents, o.currency)}
+                  {/* How it was paid, where the amount is — the two facts get
+                      read together, and it saves opening the order to find out
+                      which gateway a refund has to go back through. */}
+                  {o.paid_via && (
+                    <span className="block mt-1">
+                      <PaymentSourceBadge via={o.paid_via} />
+                    </span>
+                  )}
+                </td>
                 <td className="p-4 text-on-surface-variant text-sm whitespace-nowrap">
                   {STAGE_COPY[(o.fulfillment_stage ?? "awaiting_payment") as FulfillmentStage]?.label ?? "—"}
                 </td>

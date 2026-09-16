@@ -142,6 +142,37 @@ redundancy if one account is restricted.
 
 ---
 
+## 4b. Where a payment's details show up
+
+Every screen that describes a payment reads its labels from
+**`lib/payment-display.ts`**, so a provider is named identically everywhere or
+nowhere. Add a gateway there and all of this follows.
+
+| Surface | What it shows |
+| --- | --- |
+| **Admin → order detail** | Method · paid date **and time** · the gateway's reference, labelled for its provider · the merchant account that took it |
+| **Admin → Paid Orders** | Source badge · paid date and time · gateway reference in its own column · merchant account under the badge · filter tabs per provider |
+| **Admin → all orders** | Source badge beneath the total |
+| **Invoice PDF (paid)** | Method · date · reference — and the same three inside the QR record |
+| **Receipt email** | Payment received · **payment method** |
+| **Rider dashboard + receipt page** | One line: *"Paid by card on 3 March 2026, 14:07."* |
+| **`/verify/<order>`** | Payment received · method |
+
+Two depths, on purpose:
+
+- **`paymentRows()`** is the internal record — gateway ids, merchant account.
+  Admin screens only.
+- **`customerPaymentLine()`** is one sentence with none of that. Which merchant
+  account took the money is the store's business, and a transaction id means
+  nothing to a buyer. A test asserts neither ever appears in it.
+
+The reference is **named for the system that issued it** — "Checkout session"
+for Stripe, "PayPal order" for PayPal, "Transaction ID" for Authorize.Net.
+An unlabelled id gives whoever is chasing a payment nowhere to go and look it
+up.
+
+---
+
 ## 5. Inline card fields on `/checkout` (no redirect, no "create account")
 
 The app ships **PayPal Advanced Card Fields** — card inputs rendered directly on

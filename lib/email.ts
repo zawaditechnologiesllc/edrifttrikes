@@ -8,6 +8,7 @@ import {
 } from "@/lib/fulfillment";
 import { trackingUrlFor } from "@/lib/couriers";
 import { COMPANY } from "@/lib/company";
+import { methodLabel } from "@/lib/payment-display";
 import { isFinalReminder, reminderCopy, type ReminderStep } from "@/lib/abandoned";
 
 /**
@@ -167,6 +168,11 @@ function receiptBlock(order: Order): string {
     ["Order number", esc(order.order_number)],
     placed ? ["Placed", esc(placed)] : null,
     paid ? ["Payment received", esc(paid)] : null,
+    // HOW they paid, not only when. This is the document they keep, and
+    // "which card did this come off" is a question they ask themselves months
+    // later with no way to look it up. Named from the shared labels, so the
+    // receipt, the invoice and the dashboard agree.
+    paid ? ["Payment method", esc(methodLabel(order))] : null,
     eta ? ["Estimated delivery", esc(eta)] : null,
     order.tracking_number
       ? [
