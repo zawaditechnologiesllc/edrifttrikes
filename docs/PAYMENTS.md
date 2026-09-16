@@ -5,6 +5,11 @@ host**, and what the buyer sees. If checkout says *"paused"* or *"PayPal is
 unavailable,"* the cause is almost always a variable in the wrong place or a
 `PAYPAL_ENV` that doesn't match the keys — this page is the fix.
 
+> **Thinking about Authorize.Net?** See
+> [`AUTHORIZE-NET.md`](AUTHORIZE-NET.md) — what it would take, what it would
+> cost, and the eligibility gate that decides whether it is possible at all.
+> Nothing is implemented; that document is the research.
+
 ---
 
 ## 1. Two hosts, two jobs
