@@ -15,13 +15,13 @@ import { CHECKOUT_FIELDS, checkoutFieldsFor, validateCheckout } from "@/lib/vali
 import { deliveryEstimateSentence } from "@/lib/delivery";
 import type { AddressPrefill } from "@/lib/address-lookup";
 
-type PaymentMethod = "stripe" | "paypal" | "";
+type PaymentMethod = "stripe" | "paypal" | "authorizenet" | "";
 
 export default function CheckoutClient({
   methods,
   paypalCardFields = false,
 }: {
-  methods: { stripe: boolean; paypal: boolean };
+  methods: { stripe: boolean; paypal: boolean; authorizenet: boolean };
   paypalCardFields?: boolean;
 }) {
   const { items, clear } = useCart();
@@ -35,7 +35,7 @@ export default function CheckoutClient({
     })),
     settings
   );
-  const noPayments = !methods.stripe && !methods.paypal;
+  const noPayments = !methods.stripe && !methods.paypal && !methods.authorizenet;
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [shipping, setShipping] = useState<Record<string, string>>({});
@@ -96,12 +96,13 @@ export default function CheckoutClient({
 
   // Show a chooser only when more than one method is connected. Otherwise use
   // whichever single method is connected (or fall back to the direct/email path).
-  const both = methods.stripe && methods.paypal;
-  const initialMethod: PaymentMethod = methods.stripe
-    ? "stripe"
-    : methods.paypal
-      ? "paypal"
-      : "";
+  const connected = [
+    methods.stripe && "stripe",
+    methods.authorizenet && "authorizenet",
+    methods.paypal && "paypal",
+  ].filter(Boolean) as PaymentMethod[];
+  const both = connected.length > 1;
+  const initialMethod: PaymentMethod = connected[0] ?? "";
   const [method, setMethod] = useState<PaymentMethod>(initialMethod);
 
   /** Never throws: a browser without full timezone data simply reports none. */
@@ -162,7 +163,21 @@ export default function CheckoutClient({
       // emptying their cart at that point loses the sale. The confirmation
       // page clears it once payment has actually gone through
       // (app/order-confirmation/ClearCartOnMount.tsx).
-      if (data.url) window.location.href = data.url; // Stripe or PayPal
+      if (data.postTo && data.token) {
+        // Authorize.Net's hosted page takes the form token as a POST field, so
+        // a redirect cannot carry it. Build the form, submit, and let the
+        // browser navigate.
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = data.postTo;
+        const field = document.createElement("input");
+        field.type = "hidden";
+        field.name = "token";
+        field.value = data.token;
+        form.appendChild(field);
+        document.body.appendChild(form);
+        form.submit();
+      } else if (data.url) window.location.href = data.url; // Stripe or PayPal
       else {
         clear();
         router.push(`/order-confirmation?order=${data.orderNumber}`);
@@ -383,8 +398,20 @@ export default function CheckoutClient({
               <div className="space-y-2 pt-1">
                 <p className="block text-[10px] font-label-bold text-on-surface-variant uppercase tracking-widest">Payment method</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setMethod("stripe")} className={methodBtn(method === "stripe")}>Card</button>
-                  <button type="button" onClick={() => setMethod("paypal")} className={methodBtn(method === "paypal")}>PayPal</button>
+                  {methods.stripe && (
+                    <button type="button" onClick={() => setMethod("stripe")} className={methodBtn(method === "stripe")}>Card</button>
+                  )}
+                  {/* Labelled by what the buyer is choosing, not by the gateway
+                      behind it: "Authorize.Net" means nothing to them, and two
+                      buttons both saying "Card" means less. */}
+                  {methods.authorizenet && (
+                    <button type="button" onClick={() => setMethod("authorizenet")} className={methodBtn(method === "authorizenet")}>
+                      {methods.stripe ? "Card (alt)" : "Card"}
+                    </button>
+                  )}
+                  {methods.paypal && (
+                    <button type="button" onClick={() => setMethod("paypal")} className={methodBtn(method === "paypal")}>PayPal</button>
+                  )}
                 </div>
               </div>
             )}

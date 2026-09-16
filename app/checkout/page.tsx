@@ -1,6 +1,7 @@
 import CheckoutClient from "./CheckoutClient";
 import { stripeConfigured } from "@/lib/stripe";
 import { paypalConfigured } from "@/lib/paypal";
+import { authorizeNetConfigured } from "@/lib/authorize-net";
 import { paypalCardFieldsEnabled } from "@/lib/env";
 
 export const metadata = { title: "Checkout" };
@@ -14,7 +15,11 @@ export const dynamic = "force-dynamic";
 export default function CheckoutPage() {
   return (
     <CheckoutClient
-      methods={{ stripe: stripeConfigured(), paypal: paypalConfigured() }}
+      methods={{
+        stripe: stripeConfigured(),
+        paypal: paypalConfigured(),
+        authorizenet: authorizeNetConfigured(),
+      }}
       paypalCardFields={paypalConfigured() && paypalCardFieldsEnabled()}
     />
   );

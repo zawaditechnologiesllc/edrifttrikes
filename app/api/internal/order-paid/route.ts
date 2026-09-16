@@ -36,7 +36,10 @@ export async function POST(request: Request) {
   // Whitelist the source rather than storing whatever the caller sent — this
   // value is displayed to the admin as the record of how money arrived.
   const paidVia: PaidVia | undefined =
-    body.paidVia === "stripe" || body.paidVia === "paypal" || body.paidVia === "manual"
+    body.paidVia === "stripe" ||
+    body.paidVia === "paypal" ||
+    body.paidVia === "authorizenet" ||
+    body.paidVia === "manual"
       ? body.paidVia
       : undefined;
 

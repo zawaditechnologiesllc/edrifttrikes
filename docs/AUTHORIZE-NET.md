@@ -1,16 +1,62 @@
-# Authorize.Net — what adding it would take
+# Authorize.Net
 
-Research notes and an integration plan for adding Authorize.Net alongside
-Stripe and PayPal. **Nothing is implemented yet**; this is the document that
-says what the work is, what it costs, and what could stop it.
+**Implemented and wired end to end** — checkout, database, admin, invoices and
+webhooks. It is **dormant until credentials are set**: with no
+`AUTHORIZENET_ACCOUNTS` secret, the method simply is not offered, exactly as
+PayPal behaves without its keys.
+
+Research notes on the API, and the plan this was built from, follow the setup.
 
 Read [`PAYMENTS.md`](PAYMENTS.md) first — it describes the two-host split
-(Cloudflare starts a payment, Render confirms it) that any third provider has
-to fit into.
+(Cloudflare starts a payment, Render confirms it) that this fits into.
 
 ---
 
-## 0. The gate: check this before writing any code
+## Turning it on
+
+1. **Run the migrations**: `0018_gateway_reference.sql` and
+   `0019_authorizenet_account.sql`. Admin → System lists them.
+2. **Set `AUTHORIZENET_ACCOUNTS`** on Cloudflare *and* Render — a JSON array,
+   one entry per gateway account:
+
+   ```json
+   [
+     {"id":"us","label":"United States","loginId":"…","transactionKey":"…",
+      "env":"production","currencies":["USD"],"country":"US"},
+     {"id":"uk","label":"United Kingdom","loginId":"…","transactionKey":"…",
+      "env":"production","currencies":["GBP","EUR"],"country":"GB"}
+   ]
+   ```
+
+3. **Set `AUTHORIZENET_SIGNATURE_KEY`** on Render (webhooks only).
+4. **Point the webhook** at `https://<render-url>/authorizenet/webhook` and
+   subscribe to `net.authorize.payment.authcapture.created`.
+5. **Pick the live account** in Admin → Settings → Authorize.Net.
+
+Check `/api/health` → `payments.authorizenet`: it reports **how many accounts
+parsed**, which is the actual question when the method is not appearing. `0`
+means the secret is missing or malformed — never the ids, never the keys.
+
+### Several accounts, and why
+
+An Authorize.Net gateway account is bound to **one** merchant account, with one
+acquirer, in one country, settling one set of currencies. **There is no key that
+fans out across processors.** Five accounts in five countries means five
+credential sets, which is why the secret is an array and why `orders`
+records which account took each payment.
+
+That last part is not bookkeeping: **a refund has to go back through the account
+that took the money**, so an order paid on the UK account cannot be refunded
+from the US one. `gateway_account` on the order is what tells you which.
+
+Changing the live account applies to **new** payments only. Orders already paid
+keep the account that took them.
+
+---
+
+---
+
+## 0. The gate: this still decides whether any of it is usable
 
 **Authorize.Net is a gateway, not a processor.** It does not settle money; it
 passes transactions to an acquiring bank. That means two accounts, not one:
@@ -30,9 +76,10 @@ fine. But it turns on a question only you can answer:
 - [ ] Is the legal entity registered in a supported country?
 - [ ] Is there a business bank account **in that same country**?
 
-If the answer to either is no, Authorize.Net is not available and the rest of
-this document is moot. **Confirm this before any development starts** — it is
-a week of work that a single "no" makes worthless.
+If the answer to either is no, Authorize.Net is not available to you — the code
+is built and dormant, and setting credentials you cannot obtain is not a step
+you can take. **This is the one thing that has to be true before any of it
+works.**
 
 One further expectation to set: because a real acquiring bank is involved,
 underwriting is typically **slower and more documentation-heavy than Stripe's**,
@@ -136,14 +183,9 @@ Stripe `cs_`/PaymentIntent id, and what belongs on the invoice.
 
 ---
 
-## 3. How it maps onto this codebase
+## 3. What was built
 
-The good news: the shape already exists twice, and `lib/paypal.ts` is the
-template to copy — plain `fetch`, credentials read at **call** time via
-`serverEnv()` (Cloudflare secrets are not visible at module scope), and a
-`…Configured()` predicate so the method simply is not offered when unset.
-
-| File | Change |
+| File | What it does |
 | --- | --- |
 | `lib/authorize-net.ts` *(new)* | Mirror of `lib/paypal.ts`: `authorizeNetConfigured()`, `createHostedPaymentToken()`, `fetchTransaction()`. Plain fetch, no SDK — see §4. |
 | `app/api/checkout/route.ts` | A third branch beside `method === "paypal"`. The order row, totals, colour validation, origin capture and abandoned-cart email all already happen before the branch — none of that changes. |
@@ -156,34 +198,38 @@ template to copy — plain `fetch`, credentials read at **call** time via
 | `lib/invoice.ts` | `PAYMENT_METHODS` gains a label, so the invoice's payment block and the QR record name it. |
 | `docs/PAYMENTS.md`, `README.md`, `.env.example` | The variable matrix. |
 
-**No migration is needed.** `orders.paid_via` is free-text (migration 0007), so a
-third value needs no schema change — the same reason the seven fulfilment stages
-needed none.
+`orders.paid_via` needed no change — it is free text (migration 0007), the same
+reason the seven fulfilment stages needed none.
 
-### ⚠️ One structural problem to decide on first
+### The column overload, resolved
 
-`orders.stripe_session_id` **already holds two different things**: Stripe `cs_…`
-session ids and PayPal order ids. `isStripeSessionId()` in
-`lib/stripe-fulfillment.ts` exists solely to tell them apart by prefix.
+`orders.stripe_session_id` had been holding **two** different things: Stripe
+`cs_…` sessions and PayPal order ids, with `isStripeSessionId()` existing only
+to tell them apart by prefix. Authorize.Net's `transId` is a bare number with no
+prefix, which would have made that column unusable.
 
-Adding a third gateway makes that column a three-way overload, and
-Authorize.Net's `transId` is a bare number with no prefix to detect. Two ways
-out, and this should be decided **before** the code is written:
+Migration 0018 adds **`gateway_reference`** — the honest name — backfilled from
+`stripe_session_id`, and all three paths now write it. `stripe_session_id` is
+left in place and still written, because the PayPal capture route looks orders
+up by it; dropping a column live code reads is how a deploy takes checkout down.
 
-1. **Add a `gateway_reference` column** (and migrate the existing values). Clean,
-   costs one migration, makes `isStripeSessionId` unnecessary.
-2. **Keep overloading**, storing something like `anet_<transId>` so a prefix
-   check still works. Cheaper now, one more piece of cleverness to remember.
+### Where the credentials live
 
-Recommendation: **(1)**. The column name is already a lie for PayPal orders; a
-third tenant makes it a trap.
+**In the environment, never the database.** `site_settings.authorizenet_account`
+holds a short id (`"us"`, `"uk"`) naming an entry in the secret; the transaction
+keys stay in Cloudflare and Render. A transaction key is a bearer credential for
+moving money, and keeping it out of Postgres means a leaked service-role key, a
+bad RLS policy or a stray backup cannot reach it.
+
+The admin dropdown is built from the ids and labels only — the keys never cross
+to the browser.
 
 ---
 
-## 4. Four things that will each cost you a day
+## 4. Four things that cost a day each (all handled — here is where)
 
-These are not obscure. Each is a well-known, still-unfixed characteristic of
-this API.
+Each is a well-known, still-unfixed characteristic of this API. All four are
+dealt with in the code; this is where, so nobody "fixes" one by removing it.
 
 ### 1. JSON responses begin with a byte-order mark
 
@@ -200,13 +246,10 @@ const data = JSON.parse(text.replace(/^﻿/, ""));
 The header is `X-ANET-Signature: sha512=<UPPERCASE HEX>`, an HMAC-SHA512 of the
 **raw request body**:
 
-```js
-const expected = crypto
-  .createHmac("sha512", process.env.AUTHORIZENET_SIGNATURE_KEY)  // plain string
-  .update(rawBody)
-  .digest("hex")
-  .toUpperCase();
-```
+`verifyAuthorizeNetSignature()` in `server/src/authorizenet.js`. There is a test
+that signs with the **hex-decoded** key and asserts it is rejected — so if
+somebody "fixes" it to match transHashSHA2, that test fails rather than the
+webhook silently refusing every notification.
 
 The trap: the **same account** also issues a `transHashSHA2` for receipts, and
 *that* one requires the key hex-decoded to binary (`Buffer.from(key, "hex")`).
@@ -220,47 +263,42 @@ already is.
 ### 3. The official npm SDK will not run on Cloudflare Workers
 
 `authorizenet` depends on `winston`, `winston-daily-rotate-file` and
-`https-proxy-agent` — file-system logging and Node HTTP agents. Use plain
-`fetch`, as `lib/paypal.ts` does. This is not a limitation in practice; the API
-is a single POST endpoint.
+`https-proxy-agent` — file-system logging and Node HTTP agents. **No dependency
+was added**: `lib/authorize-net.ts` is plain `fetch`, as `lib/paypal.ts` is.
 
 ### 4. Duplicate-transaction rejection
 
 Two identical transactions within a short window are rejected as duplicates
-(error `E00027`) rather than processed twice. Helpful — but it means a legitimate
-retry can fail, so surface it as something other than a generic decline. Send our
-order number as `refId` so gateway records and ours can be reconciled.
+(error `E00027`) rather than processed twice. Our order number goes out as
+`refId` and as the invoice number, so gateway records and ours reconcile — and
+an `E00027` surfaces with the gateway's own wording rather than a generic
+failure.
+
+### And one with no equivalent in the other two paths
+
+**Response code 4 is "held for review" — it is NOT paid.** The gateway has the
+transaction but has not approved it. Neither Stripe Checkout nor PayPal has this
+state, which is exactly why it is easy to treat as success and ship goods
+against money that never arrives.
+
+The return handler refuses it explicitly and sends the buyer to the confirmation
+page with `?payment=review` rather than to a decline. The webhook resolves it if
+and when the gateway approves. `fetchTransaction()` reports `paid` and
+`heldForReview` as separate booleans so the two can never be conflated.
 
 ---
 
-## 5. Work breakdown
-
-Assuming Accept Hosted and the `gateway_reference` column:
-
-| # | Task | Rough size |
-| --- | --- | --- |
-| 1 | `lib/authorize-net.ts` + unit tests (BOM stripping, response-code mapping, held-for-review) | ~half a day |
-| 2 | Migration: `gateway_reference`, backfill from `stripe_session_id` | ~2 hours |
-| 3 | Checkout branch + the return route | ~half a day |
-| 4 | Checkout UI: third method | ~2 hours |
-| 5 | Render webhook + signature verification + tests | ~half a day |
-| 6 | Admin: badge, filter, invoice label | ~2 hours |
-| 7 | Sandbox end-to-end: approve, decline, **held for review**, duplicate, webhook replay | ~half a day |
-| 8 | Docs + env matrix | ~2 hours |
-
-**Roughly 2½–3 days of development**, plus however long the merchant account
-takes to underwrite — which is the long pole and is not in our control.
-
-### Environment variables it would add
-
-Not yet in `.env.example`, because nothing reads them yet.
+## 5. Environment variables
 
 | Variable | Cloudflare | Render | Purpose |
 | --- | :---: | :---: | --- |
-| `AUTHORIZENET_API_LOGIN_ID` | ✅ | ✅ | Identifies the account on every call |
-| `AUTHORIZENET_TRANSACTION_KEY` | ✅ | ✅ | Secret, paired with the login id |
+| `AUTHORIZENET_ACCOUNTS` | ✅ | ✅ | JSON array of accounts — login id, transaction key and `env` per account. One secret, however many accounts |
 | `AUTHORIZENET_SIGNATURE_KEY` | — | ✅ | Render verifies webhook signatures |
-| `AUTHORIZENET_ENV` | ✅ | ✅ | `sandbox` or `production` — **must match the key type, same on both hosts**, exactly the trap `PAYPAL_ENV` already sets |
+
+There is no separate `AUTHORIZENET_ENV`: each account carries its own, because
+nothing stops one account being live while another is still in sandbox. An
+unrecognised value falls back to **sandbox** — the safe failure is taking no
+real money, not taking it against the wrong endpoint.
 
 ---
 
