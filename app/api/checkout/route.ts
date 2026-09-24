@@ -23,6 +23,7 @@ import { originFromRequest } from "@/lib/request-origin";
 import { sellerSnapshot } from "@/lib/invoice";
 import { assessOrigin } from "@/lib/risk";
 import { countryCode } from "@/lib/countries";
+import { recordGatewayIds } from "@/lib/orders";
 import type { Order } from "@/lib/types";
 
 type IncomingItem = { productId: string; qty: number; color?: string | null };
@@ -357,13 +358,15 @@ export async function POST(request: Request) {
       // Persist the PayPal order id so the inline card-fields flow can capture
       // by it (POST /api/paypal/capture). The redirect flow maps by order_number
       // instead, so this is harmless there.
-      // Both columns: stripe_session_id is what the existing capture path
-      // looks the order up by, gateway_reference is the honest name going
-      // forward (migration 0018).
-      await admin
-        .from("orders")
-        .update({ stripe_session_id: paypalOrderId, gateway_reference: paypalOrderId })
-        .eq("id", order.id);
+      //
+      // Two writes, not one: stripe_session_id is what the capture path looks
+      // the order up by and it must land even on a database that has not run
+      // migration 0018. Bundled with gateway_reference it would not — see
+      // recordGatewayIds.
+      await recordGatewayIds(admin, order.id, {
+        legacySessionId: paypalOrderId,
+        reference: paypalOrderId,
+      });
       if (!approveUrl) throw new Error("no approve url");
       // `id` + `orderNumber` are used by the inline PayPal card fields;
       // `url` by the redirect flow.
@@ -401,10 +404,7 @@ export async function POST(request: Request) {
       // API Login ID is not a secret (Accept.js ships it to the browser), and
       // credentials get swapped over time — so without this, an order taken on
       // a since-replaced account is a payment nobody can look up or refund.
-      await admin
-        .from("orders")
-        .update({ gateway_account: apiLoginId() })
-        .eq("id", order.id);
+      await recordGatewayIds(admin, order.id, { account: apiLoginId() });
       // The browser POSTs the token to Authorize.Net — a redirect will not do,
       // because the token travels as a form field rather than a query string.
       return NextResponse.json({
@@ -547,10 +547,12 @@ export async function POST(request: Request) {
       session = await stripe.checkout.sessions.create(rest);
     }
 
-    await admin
-      .from("orders")
-      .update({ stripe_session_id: session.id, gateway_reference: session.id })
-      .eq("id", order.id);
+    // Same split as the PayPal path: stripe_session_id drives the tracking
+      // write-back to Stripe and must not be lost to a missing migration.
+      await recordGatewayIds(admin, order.id, {
+        legacySessionId: session.id,
+        reference: session.id,
+      });
     return NextResponse.json({ url: session.url });
     } catch (e) {
       const reason = String((e as Error)?.message || e).slice(0, 300);

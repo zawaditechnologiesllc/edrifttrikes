@@ -5,7 +5,7 @@ import {
   authorizeNetConfigured,
   fetchTransaction,
 } from "@/lib/authorize-net";
-import { markOrderPaid, loadOrder } from "@/lib/orders";
+import { markOrderPaid, loadOrder, recordGatewayIds } from "@/lib/orders";
 import { publicSiteUrl } from "@/lib/env";
 import type { Order } from "@/lib/types";
 
@@ -103,13 +103,10 @@ async function verify(
     };
   }
 
-  await admin
-    .from("orders")
-    .update({
-      gateway_reference: transaction.transId,
-      gateway_account: apiLoginId(),
-    })
-    .eq("id", order.id);
+  await recordGatewayIds(admin, order.id, {
+    reference: transaction.transId,
+    account: apiLoginId(),
+  });
 
   // The shared transition: sets paid_at, moves to `confirmed`, emails the
   // receipt, and is idempotent — so the webhook arriving later is a no-op.
