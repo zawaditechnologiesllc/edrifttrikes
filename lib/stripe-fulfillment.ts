@@ -117,57 +117,6 @@ export function statementDescriptorSuffix(
   return text;
 }
 
-/**
- * Order value at which a card payment is worth asking the issuer to verify.
- *
- * A crated trike is a four-figure charge. One fraudulent chargeback at that
- * size, plus the dispute fee, moves a young account's fraud rate more than a
- * hundred clean orders move it back — and a fraud rate over roughly 0.75%% is
- * what puts a Stripe account into review, reserves or closure.
- */
-export const THREE_DS_VALUE_THRESHOLD_CENTS = 100_000; // US$1,000
-
-/**
- * Whether to ask for 3-D Secure on this order.
- *
- * ═══ WHAT THIS IS, AND WHAT IT IS NOT ══════════════════════════════════════
- *
- * 3-D Secure is the issuing bank verifying its own cardholder. When it
- * completes, LIABILITY FOR A FRAUDULENT CHARGEBACK MOVES TO THE ISSUER — the
- * merchant keeps the money even if the card turns out to be stolen.
- *
- * It is the opposite of hiding anything from the processor. It gives the
- * issuer more to check, and the resulting drop in fraud disputes is the thing
- * that actually gets a flagged account back in good standing. Nothing here
- * changes how the store looks to Stripe; it changes how many bad payments
- * reach it.
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * `"any"` requests it. If the issuer does not support 3DS the payment still
- * goes through unverified, so this is a request, not a wall — but modern 3DS2
- * is usually risk-based and invisible to the buyer, and the cost of the
- * occasional extra step is far below the cost of one four-figure chargeback.
- *
- * `"automatic"` leaves it to Stripe and the SCA rules, which is the default and
- * the right answer for a small, unremarkable order.
- *
- * `riskLevel` comes from our OWN assessment of where the checkout came from
- * (lib/risk.ts — Tor, VPN and hosting networks, timezone and country
- * mismatches). That assessment was previously recorded on the order and then
- * ignored; this is what makes it do something.
- */
-export function requestThreeDSecure(input: {
-  totalCents: number;
-  riskLevel?: string | null;
-}): "any" | "automatic" {
-  const level = String(input.riskLevel ?? "").trim().toLowerCase();
-  // Anything our own checks disliked, at any value.
-  if (level === "review" || level === "high") return "any";
-  // Anything expensive enough that a single chargeback hurts.
-  if (Number(input.totalCents) >= THREE_DS_VALUE_THRESHOLD_CENTS) return "any";
-  return "automatic";
-}
-
 export type FulfillmentEvidence = {
   courier: string | null;
   trackingNumber: string | null;

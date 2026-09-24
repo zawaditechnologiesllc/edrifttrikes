@@ -27,7 +27,7 @@ export async function GET() {
     ok: true,
     // Bump on each debug push — if this value doesn't change after a redeploy,
     // your deployment pipeline is serving a stale build.
-    diag: "release-2026-09-24-gateway-id-split",
+    diag: "release-2026-09-24-revert-card-verification",
     adminReady: supabase.url && supabase.serviceRoleKey,
     supabase,
     render: {
