@@ -142,6 +142,22 @@ redundancy if one account is restricted.
 
 ---
 
+## 4a. Migrations must be run, and the code must survive them not being
+
+Payments need **`0018_gateway_reference.sql`**. Check it at **Admin → System**,
+which probes one column per migration and names any that are missing.
+
+The code no longer depends on that being true. A write must never put a column
+added by a recent migration in the same statement as one that has always
+existed: PostgREST rejects the statement whole, so the old column is not written
+either, and the deploy looks perfectly healthy while payments quietly stop being
+captured. `recordGatewayIds()` in `lib/orders.ts` splits them — the long-standing
+column on its own first, the newer ones after, best-effort, with a log naming the
+migration. `tests/gateway-ids.test.ts` runs both paths against a database that
+has not run 0018.
+
+---
+
 ## 4b. Where a payment's details show up
 
 Every screen that describes a payment reads its labels from

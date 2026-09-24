@@ -112,6 +112,68 @@ export async function loadOrder(
 }
 
 /**
+ * Record the gateway's ids on an order, WITHOUT letting a new column take an
+ * old one down with it.
+ *
+ * ═══ WHY THIS IS NOT ONE UPDATE ════════════════════════════════════════════
+ *
+ * PostgREST sends an update as a single statement. If ANY column in the payload
+ * does not exist in the database, the whole statement is rejected and NOTHING
+ * is written — including the columns that were perfectly fine.
+ *
+ * So `.update({ stripe_session_id, gateway_reference })` is a trap: on a
+ * database that has not yet run migration 0018, it does not degrade to writing
+ * `stripe_session_id`. It writes nothing. And `stripe_session_id` is what the
+ * PayPal card-fields capture looks an order up by (loadOrder → paypalOrderId)
+ * and what the Stripe tracking write-back needs — so a missing migration stops
+ * payments being captured, silently, with the deploy looking perfectly healthy.
+ *
+ * Splitting them is the whole point: the column that has always existed is
+ * written on its own and cannot fail, and the newer ones are attempted after,
+ * best-effort, with a log that names the migration to run. Same reasoning as
+ * the tracking-column fallback in markOrderPaid below.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export async function recordGatewayIds(
+  admin: Admin,
+  orderId: string,
+  ids: {
+    /** Goes in `stripe_session_id` — the pre-0018 column every path still reads. */
+    legacySessionId?: string | null;
+    /** Goes in `gateway_reference` (migration 0018). */
+    reference?: string | null;
+    /** Goes in `gateway_account` (migration 0018). */
+    account?: string | null;
+  }
+): Promise<void> {
+  // FIRST, and alone: the column that has existed since the beginning. Nothing
+  // newer is allowed to be in this statement.
+  if (ids.legacySessionId) {
+    const { error } = await admin
+      .from("orders")
+      .update({ stripe_session_id: ids.legacySessionId })
+      .eq("id", orderId);
+    if (error) {
+      console.error(`[orders] could not record the gateway session id: ${error.message}`);
+    }
+  }
+
+  // THEN the 0018 columns, together, and never fatally.
+  const modern: Record<string, string> = {};
+  if (ids.reference) modern.gateway_reference = ids.reference.slice(0, 200);
+  if (ids.account) modern.gateway_account = ids.account.slice(0, 200);
+  if (Object.keys(modern).length === 0) return;
+
+  const { error } = await admin.from("orders").update(modern).eq("id", orderId);
+  if (error) {
+    console.error(
+      `[orders] could not record the gateway reference/account (${error.message}) — ` +
+        "the payment is unaffected. Run supabase/migrations/0018_gateway_reference.sql."
+    );
+  }
+}
+
+/**
  * How an order came to be paid. Recorded on the order so the admin Paid Orders
  * view can distinguish a gateway-confirmed payment from one an admin flipped by
  * hand — which matters when reconciling takings.
@@ -224,16 +286,7 @@ export async function markOrderPaid(
    * synchronous return cannot overwrite what that return already established.
    */
   if (opts.gatewayReference && !order.gateway_reference) {
-    const { error } = await admin
-      .from("orders")
-      .update({ gateway_reference: opts.gatewayReference.slice(0, 200) })
-      .eq("id", order.id);
-    if (error) {
-      console.error(
-        `[orders] could not record gateway reference for ${order.order_number} ` +
-          `(${error.message}) — the payment stands. Run supabase/migrations/0018_gateway_reference.sql.`
-      );
-    }
+    await recordGatewayIds(admin, order.id, { reference: opts.gatewayReference });
   }
 
   // Claim the stage — this is what decides whether the email is ours to send.
