@@ -6,6 +6,7 @@ import { stripeCompanyContent } from "@/lib/stripe-branding";
 import {
   stripeShipping,
   statementDescriptorSuffix,
+  requestThreeDSecure,
 } from "@/lib/stripe-fulfillment";
 import { paypalConfigured, createPayPalOrder } from "@/lib/paypal";
 import {
@@ -485,6 +486,35 @@ export async function POST(request: Request) {
       success_url: `${siteUrl}/order-confirmation?order=${order.order_number}`,
       cancel_url: `${siteUrl}/checkout`,
       metadata: { order_id: order.id, order_number: order.order_number },
+      /**
+       * COLLECT THE FULL BILLING ADDRESS, so the card network can run AVS.
+       *
+       * Stripe's default here is `auto`, which asks for the least it can get
+       * away with — often just a postal code, sometimes nothing. That means a
+       * four-figure charge reaches the issuer with NO address verification on
+       * it, and both Radar and the issuer's own authorisation logic treat a
+       * missing AVS result as a risk in itself.
+       *
+       * One extra field at checkout, in exchange for the single strongest
+       * fraud signal a card payment can carry. For physical goods going to a
+       * named address it is not a close call.
+       */
+      billing_address_collection: "required" as const,
+      /**
+       * Ask the issuer to verify its own cardholder on anything expensive or
+       * anything our own origin checks disliked — see requestThreeDSecure.
+       * When 3DS completes, liability for a fraudulent chargeback moves to the
+       * issuer, which is the most effective thing a merchant can do about the
+       * dispute rate that gets accounts flagged.
+       */
+      payment_method_options: {
+        card: {
+          request_three_d_secure: requestThreeDSecure({
+            totalCents: totals.total,
+            riskLevel: risk.level,
+          }),
+        },
+      },
       /**
        * Link repeat buyers to one Stripe customer.
        *
