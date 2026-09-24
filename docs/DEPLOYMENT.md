@@ -187,7 +187,7 @@ mark secrets as *Encrypted*):
 > "serviceRoleKey": false}}`.
 >
 > - **Check `diag` first.** The current code reports `"diag":
->   "release-2026-09-24-gateway-id-split"`. If your deployed `/api/health` shows
+>   "release-2026-09-24-revert-card-verification"`. If your deployed `/api/health` shows
 >   an older value
 >   (or 404s), Cloudflare is building an old commit — usually because the
 >   Worker is connected to a fork or branch that hasn't pulled the latest code.

@@ -266,37 +266,23 @@ Stripe → **Radar** → **Rules**. None of this needs a deploy:
 | Review if `:risk_level: = 'elevated'` | Holds the borderline ones for a human instead of guessing. |
 | Block if `:card_country: in (...)` | If a specific country keeps producing chargebacks, refuse it **by the card's issuing country** rather than by IP. That is the version a VPN cannot get around, and it turns nobody away for merely browsing from there. |
 
-### What the checkout now enforces in code
-
-Two of these used to be dashboard-only advice. They are now in the Checkout
-Session itself, which means they apply to every payment without anyone
-remembering to configure them.
-
-| Setting | Effect |
-|---|---|
-| `billing_address_collection: "required"` | Collects the **full billing address**, so the card network can run **AVS**. Stripe's default (`auto`) asks for the least it can — often just a postal code — which sends a four-figure charge to the issuer with no address verification on it. **The `:address_zip_check:` Radar rule above cannot pass without this**: the check has nothing to compare. |
-| `payment_method_options.card.request_three_d_secure` | Asks the issuer to verify its own cardholder on any order over **US$1,000**, and on **any** order our own origin checks flagged (`risk_level` of `review` or `high` — Tor, VPN or hosting network, timezone or country mismatch). See `requestThreeDSecure()` in `lib/stripe-fulfillment.ts`. |
-
-The second one is what finally makes `lib/risk.ts` do something. It has always
-scored where a checkout came from; that score was written to the order and then
-ignored, and every payment went to Stripe identically.
-
-**3DS is a request, not a wall.** If the issuer does not support it the payment
-still completes, unverified. When it *does* complete, liability for a fraudulent
-chargeback moves to the issuer — you keep the money even if the card turns out
-to be stolen. Modern 3DS2 is usually risk-based and invisible to the buyer.
-
 Also worth doing, in order of value:
 
-1. **Watch the dispute rate.** Above roughly 0.75% of transactions, card
+1. **Turn on 3D Secure for risky payments** (Radar → *Request 3D Secure* on
+   elevated risk). It shifts chargeback liability to the issuer on authenticated
+   payments — the fraud stops costing you money rather than merely being
+   detected.
+2. **Watch the dispute rate.** Above roughly 0.75% of transactions, card
    networks start charging monitoring fees; the reputational cost with Stripe
    arrives well before the financial one.
-2. **Don't fulfil straight off `paid`.** The store already requires an admin to
+3. **Don't fulfil straight off `paid`.** The store already requires an admin to
    move an order along; keep that habit for first-time buyers with a high order
    value and a fresh email address.
-3. **Add the Radar rules above** — the code settings and the rules do different
-   jobs. The code decides what verification to *request*; Radar decides what to
-   *refuse* once the results come back.
+
+PayPal has its own equivalent (Fraud Protection filters in the developer
+dashboard), but the payment protection it offers on Seller Protection–eligible
+transactions covers most of this already, provided you ship to the address
+PayPal supplied and keep the tracking number on the order.
 
 ---
 
@@ -328,15 +314,9 @@ What actually moves a review, roughly in order of weight:
    lead times produce "goods not received" disputes. The store quotes a window
    with a deliberate buffer and emails at every stage — that trail is the
    evidence that wins those disputes.
-5. **Cut the fraud rate**, with the controls above.
 
-Points 1–4 are the ones a human reviewer weighs. None of them are cosmetic, and
-none of them involve making the business harder to recognise.
-
-PayPal has its own equivalent (Fraud Protection filters in the developer
-dashboard), but the payment protection it offers on Seller Protection–eligible
-transactions covers most of this already, provided you ship to the address
-PayPal supplied and keep the tracking number on the order.
+These are what a human reviewer weighs. None of them change the checkout or add
+a step for the buyer.
 
 
 ## Showing the buyer their own currency
