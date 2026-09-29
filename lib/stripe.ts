@@ -15,16 +15,32 @@ import {
  * runtime Worker bindings that aren't visible when the module is first
  * evaluated, so a module-scope read would silently disable Stripe.
  */
+/**
+ * The client is cached per WORKER ISOLATE, so it must remember WHICH KEY built
+ * it.
+ *
+ * ⚠️ ROTATING THE SECRET IS THE CASE THIS EXISTS FOR. Caching on `!cached`
+ * alone meant that after a key rotation, any isolate already holding a client
+ * kept using the OLD key: `serverEnv` returned the new key, the null check
+ * passed, and the stale client was handed back regardless — so every Stripe
+ * call authenticated with a revoked secret and came back 401. The isolate has
+ * to be recycled before it recovers, which is why a rotation appears to work
+ * for some requests and not others, and why re-deploying "fixes" it.
+ *
+ * Comparing the key makes the rotation take effect on the very next request.
+ */
 let cached: Stripe | null = null;
+let cachedKey: string | null = null;
 
 export function getStripe(): Stripe | null {
   const key = serverEnv("STRIPE_SECRET_KEY");
   if (!key) return null;
-  if (!cached) {
+  if (!cached || cachedKey !== key) {
     cached = new Stripe(key, {
       apiVersion: "2025-02-24.acacia",
       httpClient: Stripe.createFetchHttpClient(),
     });
+    cachedKey = key;
   }
   return cached;
 }
