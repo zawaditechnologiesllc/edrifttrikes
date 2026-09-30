@@ -60,7 +60,7 @@ needs), then Cloudflare, then wire Stripe's webhook back to Render.
 
 ### 1c. Seed starter data (recommended)
 Run `supabase/seed.sql`. It creates the three **categories** (`trikes`, `parts`,
-`gear`) and a set of demo products so the site isn't empty.
+`dirt-bikes`) and a set of demo products so the site isn't empty.
 - Categories must exist before you can assign products to them, so even if you
   delete the demo products later, keep (or recreate) the categories.
 - To clear the demo products but keep categories:
@@ -187,7 +187,7 @@ mark secrets as *Encrypted*):
 > "serviceRoleKey": false}}`.
 >
 > - **Check `diag` first.** The current code reports `"diag":
->   "release-2026-09-30-full-range-grid"`. If your deployed `/api/health` shows
+>   "release-2026-09-30-dirt-bikes"`. If your deployed `/api/health` shows
 >   an older value
 >   (or 404s), Cloudflare is building an old commit — usually because the
 >   Worker is connected to a fork or branch that hasn't pulled the latest code.

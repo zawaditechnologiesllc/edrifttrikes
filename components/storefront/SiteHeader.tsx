@@ -18,7 +18,7 @@ const SHOP = [
   { label: "All Rigs", href: "/shop" },
   { label: "Trikes", href: "/shop?category=trikes" },
   { label: "Parts", href: "/shop?category=parts" },
-  { label: "Gear", href: "/shop?category=gear" },
+  { label: "Dirt Bikes", href: "/shop?category=dirt-bikes" },
   { label: "Electric", href: "/electric-trikes" },
 ];
 const EXPLORE = [
@@ -30,7 +30,7 @@ const EXPLORE = [
 const NAV = [
   { label: "Trikes", href: "/shop?category=trikes" },
   { label: "Parts", href: "/shop?category=parts" },
-  { label: "Gear", href: "/shop?category=gear" },
+  { label: "Dirt Bikes", href: "/shop?category=dirt-bikes" },
   { label: "About Us", href: "/our-story" },
 ];
 

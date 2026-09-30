@@ -31,7 +31,7 @@ export default function SiteFooter() {
           <nav className="flex flex-col gap-2">
             <Link href="/shop?category=trikes" className="text-on-surface-variant hover:text-primary transition-colors">Trikes</Link>
             <Link href="/shop?category=parts" className="text-on-surface-variant hover:text-primary transition-colors">Parts</Link>
-            <Link href="/shop?category=gear" className="text-on-surface-variant hover:text-primary transition-colors">Gear</Link>
+            <Link href="/shop?category=dirt-bikes" className="text-on-surface-variant hover:text-primary transition-colors">Dirt Bikes</Link>
             <Link href="/wishlist" className="text-on-surface-variant hover:text-primary transition-colors">Parts Bin</Link>
           </nav>
         </div>

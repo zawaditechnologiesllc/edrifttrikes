@@ -75,17 +75,20 @@ export default async function HomePage() {
               Precision torque meets lateral freedom. Dominate every corner with the world&apos;s most advanced electric drift trikes.
             </p>
             {/*
-              Two doors, deliberately. The first is for someone who arrived
-              ready to buy. The second is for the much larger group who did
-              not — sending them straight to a price is how you lose them,
-              so it opens the spec instead, on the same page.
+              Two doors, one per product line. The second used to jump to the
+              spec section further down the page; it now goes to the dirt bikes,
+              so the hero names both things the store actually sells instead of
+              spending half its call-to-action on a scroll.
+
+              The spec section is still on the page for anyone who wants
+              convincing — it is just no longer what the hero points at.
             */}
             <div className="flex flex-wrap gap-4 pt-2">
               <Link href="/shop?category=trikes" className="bg-primary-container text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition-all">
                 Shop Trikes
               </Link>
-              <Link href="#the-drift-spec" className="border-2 border-white/30 text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:border-secondary hover:text-secondary active:scale-95 transition-all">
-                See the Spec
+              <Link href="/shop?category=dirt-bikes" className="border-2 border-white/30 text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:border-secondary hover:text-secondary active:scale-95 transition-all">
+                Shop Dirt Bikes
               </Link>
             </div>
           </div>
@@ -181,7 +184,7 @@ export default async function HomePage() {
             {(categories.length ? categories : [
               { id: "t", slug: "trikes", name: "Trikes", description: "The ultimate drifting machines.", image_url: "/assets/trike-voltage-blue.jpg" },
               { id: "p", slug: "parts", name: "Parts", description: "Tune for performance.", image_url: "/assets/parts-performance.jpg" },
-              { id: "g", slug: "gear", name: "Gear", description: "Protection meets style.", image_url: "/assets/action-mid-slide.jpg" },
+              { id: "g", slug: "dirt-bikes", name: "Dirt Bikes", description: "Electric dirt bikes built for dirt, jumps and trails.", image_url: "/assets/action-360-slide.jpg" },
             ]).map((c) => (
               <Link key={c.id} href={`/shop?category=${c.slug}`} className="group relative aspect-[3/4] overflow-hidden rounded-lg hover-lift border-b-2 border-transparent hover:border-primary-container">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
