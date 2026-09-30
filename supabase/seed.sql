@@ -5,7 +5,7 @@
 insert into public.categories (slug, name, description, image_url, position) values
   ('trikes', 'Trikes', 'The ultimate drifting machines.', '/assets/trike-voltage-blue.jpg', 1),
   ('parts',  'Parts',  'Tune for performance.',          '/assets/parts-performance.jpg',  2),
-  ('gear',   'Gear',   'Protection meets style.',         '/assets/action-mid-slide.jpg',   3)
+  ('dirt-bikes', 'Dirt Bikes', 'Electric dirt bikes built for dirt, jumps and trails.', '/assets/action-360-slide.jpg', 3)
 on conflict (slug) do update set name=excluded.name, description=excluded.description, image_url=excluded.image_url, position=excluded.position;
 
 -- Products ------------------------------------------------------------------
@@ -31,13 +31,12 @@ values
    14900, 17900, (select id from public.categories where slug='parts'), 'na', null, null, null, 40, 'active', false, 'SALE', '/assets/mechanic-sleeve-install.jpg'),
   ('elite-drift-bundle', 'Elite Drift Bundle V4', 'Everything to upgrade your slide.',
    'Performance bundle: hub motor controller, slide sleeves, grip set and tuning harness. The fastest way to a pro-grade build.',
-   59900, 74900, (select id from public.categories where slug='parts'), 'electric', null, null, null, 20, 'active', true, 'UPGRADE', '/assets/parts-performance.jpg'),
-  ('apex-carbon-helmet', 'Apex Carbon Helmet', 'Street-motorsport protection.',
-   'Carbon-shell full-face helmet with neon-green stitching. DOT + ECE rated for the rough side of the track.',
-   32900, null, (select id from public.categories where slug='gear'), 'na', null, null, null, 15, 'active', false, null, '/assets/action-mid-slide.jpg'),
-  ('hazard-drift-gloves', 'Hazard Drift Gloves', 'Grip when it gets loose.',
-   'Reinforced leather drift gloves with hazard-lime accents and knuckle armour.',
-   7900, null, (select id from public.categories where slug='gear'), 'na', null, null, null, 30, 'active', false, null, '/assets/garage-workshop-night.jpg')
+   59900, 74900, (select id from public.categories where slug='parts'), 'electric', null, null, null, 20, 'active', true, 'UPGRADE', '/assets/parts-performance.jpg')
+-- The Apex Carbon Helmet and Hazard Drift Gloves demo rows were removed with
+-- the Gear category (migration 0020). They pointed at slug='gear', which no
+-- longer exists, so the subquery would have set category_id to null and left
+-- them uncategorised — and filing a helmet under "Dirt Bikes" instead would
+-- have been worse. Add real dirt-bike products in Admin -> Products.
 on conflict (slug) do update set
   name=excluded.name, tagline=excluded.tagline, description=excluded.description,
   price_cents=excluded.price_cents, compare_at_cents=excluded.compare_at_cents,
