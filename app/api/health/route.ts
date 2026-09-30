@@ -27,7 +27,7 @@ export async function GET() {
     ok: true,
     // Bump on each debug push — if this value doesn't change after a redeploy,
     // your deployment pipeline is serving a stale build.
-    diag: "release-2026-09-29-stripe-key-rotation",
+    diag: "release-2026-09-30-clean-rebuild",
     adminReady: supabase.url && supabase.serviceRoleKey,
     supabase,
     render: {
