@@ -2,7 +2,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
-import { getFeaturedProducts, getCategories } from "@/lib/db";
+import { getProducts, getCategories } from "@/lib/db";
 import { Icon } from "@/components/Icon";
 
 // ISR: serve cached HTML, refresh in the background.
@@ -14,11 +14,35 @@ const FEATURES = [
   { icon: "architecture", title: "Pro Frame", body: "Aircraft-grade 6061 aluminium frame with a 15° aggressive rake for superior counter-steer feedback." },
 ];
 
+/**
+ * How many products the homepage will show.
+ *
+ * The point of the grid is that a visitor sees the whole range without
+ * navigating, so this is a safety valve rather than a curation limit: a
+ * catalogue under this size is shown in full. It exists because an uncapped
+ * homepage would grow without bound as products are added, and at some size a
+ * single page stops being the fastest way to see the range.
+ */
+const HOMEPAGE_PRODUCT_LIMIT = 60;
+
 export default async function HomePage() {
-  const [featured, categories] = await Promise.all([
-    getFeaturedProducts(4),
+  const [catalogue, categories] = await Promise.all([
+    // Every ACTIVE product, not just the flagged ones — the old call filtered
+    // to `featured = true` and capped at four.
+    getProducts({ sort: "newest", limit: HOMEPAGE_PRODUCT_LIMIT }),
     getCategories(),
   ]);
+
+  /**
+   * Featured products first, everything else after, newest-first within each
+   * group. A stable partition, so the admin's "featured" checkbox still decides
+   * what a visitor sees FIRST even though the grid now shows everything — the
+   * flag keeps its meaning instead of quietly becoming decorative.
+   */
+  const products = [
+    ...catalogue.filter((p) => p.featured),
+    ...catalogue.filter((p) => !p.featured),
+  ];
 
   return (
     <div className="bg-surface text-on-surface overflow-x-hidden">
@@ -28,7 +52,7 @@ export default async function HomePage() {
       {/*
         SIZED SO THE PRODUCTS PEEK ABOVE THE FOLD. A hero that fills the window
         is a hero that hides the shop: the visitor has to take it on faith that
-        there is anything below. At ~62% of the viewport the "Featured Rigs"
+        there is anything below. At ~62% of the viewport the "The Full Range"
         heading and the tops of the cards are visible without scrolling, which
         is the whole reason they were moved up here.
 
@@ -78,19 +102,46 @@ export default async function HomePage() {
         top padding is a pixel further the product cards sit below the fold,
         which is the one thing this section's position was chosen to avoid.
       */}
-      {featured.length > 0 && (
+      {products.length > 0 && (
         <section className="pt-14 pb-24 bg-off-white text-surface-container-lowest">
           <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
             <div className="flex items-end justify-between mb-8">
               <div>
-                <span className="font-label-bold text-label-bold text-primary-container uppercase tracking-widest">Latest Drop</span>
-                <h2 className="font-headline-xl text-headline-xl uppercase mt-2">Featured Rigs</h2>
+                <span className="font-label-bold text-label-bold text-primary-container uppercase tracking-widest">Shop everything</span>
+                {/* Named for what it now is. The section used to show four
+                    flagged products, so "Featured Rigs" was accurate; it
+                    shows the whole catalogue, so it no longer would be. */}
+                <h2 className="font-headline-xl text-headline-xl uppercase mt-2">The Full Range</h2>
               </div>
-              <Link href="/shop" className="font-label-bold text-label-bold uppercase tracking-widest text-primary-container hover:underline hidden md:block">View all →</Link>
+              {/* Everything is already on this page, so the link is no longer
+                  "see the rest" — it is for narrowing down, which is what
+                  /shop has that this grid does not. */}
+              <Link href="/shop" className="font-label-bold text-label-bold uppercase tracking-widest text-primary-container hover:underline hidden md:block">Filter &amp; compare →</Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-              {featured.map((p) => <ProductCard key={p.id} product={p} />)}
+            {/*
+              TWO COLUMNS ON A PHONE, UP TO SIX ON A DESKTOP.
+
+              The whole range visible without navigating is the goal, so the
+              grid gets dense rather than tall: at two-up a phone shows four
+              products in the first screenful instead of one, and six-up fills
+              a 1440px window without the cards becoming postage stamps.
+
+              The gap tightens with the columns — 24px between 200px cards
+              spends a tenth of the row on empty space. ProductCard sizes its
+              own contents to the column it lands in (container queries), which
+              is what stops a six-up card from overflowing.
+            */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-gutter">
+              {products.map((p) => <ProductCard key={p.id} product={p} />)}
             </div>
+            {/* Only when the cap actually bit. */}
+            {products.length >= HOMEPAGE_PRODUCT_LIMIT && (
+              <p className="mt-8 text-center">
+                <Link href="/shop" className="font-label-bold text-label-bold uppercase tracking-widest text-primary-container hover:underline">
+                  See the rest in the shop →
+                </Link>
+              </p>
+            )}
           </div>
         </section>
       )}

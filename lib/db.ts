@@ -100,31 +100,19 @@ export const getProducts = unstable_cache(
   { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
 );
 
-const getFlaggedFeatured = unstable_cache(
-  async (limit: number): Promise<Product[]> => {
-    if (!supabaseConfigured()) return [];
-    const supabase = createPublicClient();
-    // If the `featured` column doesn't exist yet (migration 0003 not run),
-    // this errors and `data` is null — callers fall back to newest products.
-    const { data } = await supabase
-      .from("products")
-      .select("*, category:categories(*)")
-      .eq("status", "active")
-      .eq("featured", true)
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    return (data as Product[]) ?? [];
-  },
-  ["featured-products"],
-  { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
-);
-
-/** Admin-flagged featured products; falls back to newest when none are flagged. */
-export async function getFeaturedProducts(limit = 4): Promise<Product[]> {
-  const flagged = await getFlaggedFeatured(limit);
-  if (flagged.length > 0) return flagged;
-  return getProducts({ sort: "newest", limit });
-}
+/*
+ * getFeaturedProducts / getFlaggedFeatured were removed here.
+ *
+ * They fetched only `featured = true` products, capped at four, for the old
+ * homepage strip. The homepage now shows the whole active catalogue via
+ * getProducts() and orders featured-first in the page itself, so a separate
+ * featured-only query had no caller — and one still named
+ * "getFeaturedProducts" would have been the first place someone looked to
+ * change the homepage grid.
+ *
+ * The `featured` column is still used: app/page.tsx sorts on it, and the admin
+ * product form still sets it.
+ */
 
 export const getSiteSettings = unstable_cache(
   async (): Promise<SiteSettings> => {
