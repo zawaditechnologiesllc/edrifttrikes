@@ -614,6 +614,38 @@ export async function saveCategory(formData: FormData) {
   revalidatePath("/shop");
 }
 
+/**
+ * Switch a category on or off.
+ *
+ * Separate from saveCategory so it is one click rather than a form submit, and
+ * so turning a range off can never be a side effect of editing its name.
+ *
+ * "Off" removes the category from the storefront — the /shop filter and the
+ * homepage tiles — and makes /shop?category=<slug> return nothing. It does NOT
+ * hide its products: that stays with products.status, so switching a category
+ * off cannot silently unpublish real catalogue rows.
+ */
+export async function toggleCategory(formData: FormData) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  // The desired state is sent by the form, so the click does not depend on
+  // reading the current row back first.
+  const active = String(formData.get("active") || "") === "true";
+  const { error } = await admin.from("categories").update({ active }).eq("id", id);
+  if (error) {
+    console.error(
+      `[admin] toggleCategory failed${error.code ? ` [${error.code}]` : ""}: ${error.message}` +
+        " — run supabase/migrations/0021_category_active.sql if the column is missing."
+    );
+  }
+  revalidateTag(CATALOG_TAG);
+  revalidatePath("/admin/categories");
+  revalidatePath("/shop");
+  revalidatePath("/");
+}
+
 export async function deleteCategory(formData: FormData) {
   await requireAdmin();
   const admin = createAdminClient();

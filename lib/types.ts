@@ -8,6 +8,13 @@ export type Category = {
   description: string | null;
   image_url: string | null;
   position: number;
+  /**
+   * False hides the category from the storefront without deleting it or
+   * touching its products (migration 0021). Optional because rows read from a
+   * database that has not run that migration have no such column — treat a
+   * missing value as active, which is what `!== false` does below.
+   */
+  active?: boolean;
 };
 
 export type ProductImage = {

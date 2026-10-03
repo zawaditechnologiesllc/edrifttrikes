@@ -87,7 +87,13 @@ export const getCategories = unstable_cache(
       .select("*")
       .order("position", { ascending: true });
     logReadFailure("categories", error);
-    return data ?? [];
+    /**
+     * Filtered here rather than in the query, so a database that has not run
+     * migration 0021 still works: `.eq("active", true)` against a missing
+     * column fails the whole read and empties the nav, while a row with no
+     * `active` field simply is not `false` and stays visible.
+     */
+    return (data ?? []).filter((c) => (c as Category).active !== false);
   },
   ["categories"],
   { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
@@ -110,10 +116,24 @@ export const getProducts = unstable_cache(
     if (opts?.categorySlug) {
       const { data: cat } = await supabase
         .from("categories")
-        .select("id")
+        .select("*")
         .eq("slug", opts.categorySlug)
         .maybeSingle();
-      if (cat) query = query.eq("category_id", cat.id);
+      /**
+       * A slug that names nothing, or names a switched-off category, returns
+       * NO products — it previously fell through and showed the entire
+       * catalogue, so a typo or a hidden category quietly became "everything".
+       * That also makes a hard-coded nav link to a switched-off category
+       * behave sensibly: an empty category page, not the whole shop.
+       */
+      const usable = cat && (cat as Category).active !== false;
+      if (!usable) {
+        console.warn(
+          `[db] category "${opts.categorySlug}" is unknown or switched off — returning no products`
+        );
+        return [];
+      }
+      query = query.eq("category_id", (cat as Category).id);
     }
     if (opts?.power) query = query.eq("power", opts.power);
 

@@ -118,8 +118,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
+  /**
+   * ⚠️ THIS WRITE MUST NEVER THROW.
+   *
+   * localStorage.setItem throws for reasons that have nothing to do with us:
+   * QuotaExceededError when the origin's storage is full, SecurityError when
+   * the browser is blocking site data (Safari private browsing, strict privacy
+   * settings, some in-app browsers). The READ above was already wrapped; this
+   * write was not.
+   *
+   * CartProvider wraps the entire app, so an uncaught throw here killed the
+   * React tree on EVERY page — which is what produced "Application error: a
+   * client-side exception has occurred", why a reload sometimes appeared to fix
+   * it, and why links stopped responding: once the tree is dead, nothing is
+   * listening for the click.
+   *
+   * A cart that cannot be persisted is a small loss. A storefront that will not
+   * render is a total one, so this fails quietly and keeps the cart in memory
+   * for the rest of the visit.
+   */
   useEffect(() => {
-    if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      /* storage full or blocked — keep the in-memory cart and carry on */
+    }
   }, [items, hydrated]);
 
   const value = useMemo<CartContextValue>(() => {
