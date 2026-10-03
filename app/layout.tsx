@@ -7,7 +7,7 @@ import PublicEnvScript from "@/components/PublicEnvScript";
 import SiteSettingsProvider from "@/components/storefront/SiteSettingsProvider";
 import { CartProvider } from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
-import { getAnnouncements, getSiteSettings } from "@/lib/db";
+import { getAnnouncements, getCategories, getSiteSettings } from "@/lib/db";
 import { liveAnnouncements } from "@/lib/announcements";
 import { organizationSchema, websiteSchema } from "@/lib/seo";
 import { publicSiteUrl } from "@/lib/env";
@@ -50,9 +50,16 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [settings, announcements] = await Promise.all([
+  /*
+   * The categories are read here, once, for the whole site: the header and
+   * footer are client components and build their links from them, so this is
+   * what makes switching a category off reach the nav on every page instead of
+   * just the pages that happen to read categories themselves.
+   */
+  const [settings, announcements, categories] = await Promise.all([
     getSiteSettings(),
     getAnnouncements(),
+    getCategories(),
   ]);
   const base = publicSiteUrl();
   return (
@@ -84,6 +91,7 @@ export default async function RootLayout({
         <SiteSettingsProvider
           settings={settings}
           announcements={liveAnnouncements(announcements)}
+          categories={categories}
         >
           <CartProvider>
             {children}

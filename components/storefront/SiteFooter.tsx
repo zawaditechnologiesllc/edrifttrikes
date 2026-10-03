@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import NewsletterForm from "./NewsletterForm";
-import { useSiteSettings } from "./SiteSettingsProvider";
+import { useCategories, useSiteSettings } from "./SiteSettingsProvider";
+import { categoryLinks } from "@/lib/categories";
 import { Icon } from "@/components/Icon";
 
 export default function SiteFooter() {
   const settings = useSiteSettings();
+  // Built from the real categories, never written down here: a hard-coded
+  // footer link is a door to a category the admin has switched off.
+  const ranges = categoryLinks(useCategories());
   return (
     <footer className="w-full bg-surface-container-lowest border-t border-secondary/20">
       <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12">
@@ -29,9 +33,12 @@ export default function SiteFooter() {
             Shop
           </h4>
           <nav className="flex flex-col gap-2">
-            <Link href="/shop?category=trikes" className="text-on-surface-variant hover:text-primary transition-colors">Trikes</Link>
-            <Link href="/shop?category=parts" className="text-on-surface-variant hover:text-primary transition-colors">Parts</Link>
-            <Link href="/shop?category=dirt-bikes" className="text-on-surface-variant hover:text-primary transition-colors">Dirt Bikes</Link>
+            {ranges.map((c) => (
+              <Link key={c.key} href={c.href} className="text-on-surface-variant hover:text-primary transition-colors">
+                {c.label}
+              </Link>
+            ))}
+            <Link href="/shop" className="text-on-surface-variant hover:text-primary transition-colors">All Rigs</Link>
             <Link href="/wishlist" className="text-on-surface-variant hover:text-primary transition-colors">Parts Bin</Link>
           </nav>
         </div>

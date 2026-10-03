@@ -3,6 +3,7 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
 import { getProducts, getCategories } from "@/lib/db";
+import { heroLinks } from "@/lib/categories";
 import { Icon } from "@/components/Icon";
 
 // ISR: serve cached HTML, refresh in the background.
@@ -44,6 +45,14 @@ export default async function HomePage() {
     ...catalogue.filter((p) => !p.featured),
   ];
 
+  /**
+   * The hero's doors, one per product line, built from the categories that are
+   * actually switched on. They were hard-coded as "Shop Trikes" and "Shop Dirt
+   * Bikes", which meant switching Dirt Bikes off left the hero — the most
+   * prominent thing on the site — still pointing at it.
+   */
+  const doors = heroLinks(categories);
+
   return (
     <div className="bg-surface text-on-surface overflow-x-hidden">
       <SiteHeader />
@@ -75,21 +84,31 @@ export default async function HomePage() {
               Precision torque meets lateral freedom. Dominate every corner with the world&apos;s most advanced electric drift trikes.
             </p>
             {/*
-              Two doors, one per product line. The second used to jump to the
-              spec section further down the page; it now goes to the dirt bikes,
-              so the hero names both things the store actually sells instead of
-              spending half its call-to-action on a scroll.
+              One door per product line, named after the real categories. The
+              second used to jump to the spec section further down the page; it
+              now goes to the next range, so the hero names what the store
+              actually sells instead of spending half its call-to-action on a
+              scroll. The spec section is still on the page for anyone who
+              wants convincing — it is just no longer what the hero points at.
 
-              The spec section is still on the page for anyone who wants
-              convincing — it is just no longer what the hero points at.
+              The first door is the filled button and the second the outlined
+              one, so the design holds whether there are two ranges, one, or
+              none (heroLinks falls back to the whole shop).
             */}
             <div className="flex flex-wrap gap-4 pt-2">
-              <Link href="/shop?category=trikes" className="bg-primary-container text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition-all">
-                Shop Trikes
-              </Link>
-              <Link href="/shop?category=dirt-bikes" className="border-2 border-white/30 text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:border-secondary hover:text-secondary active:scale-95 transition-all">
-                Shop Dirt Bikes
-              </Link>
+              {doors.map((d, i) => (
+                <Link
+                  key={d.key}
+                  href={d.href}
+                  className={
+                    i === 0
+                      ? "bg-primary-container text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition-all"
+                      : "border-2 border-white/30 text-white px-8 py-4 font-label-bold text-label-bold uppercase tracking-widest rounded-lg hover:border-secondary hover:text-secondary active:scale-95 transition-all"
+                  }
+                >
+                  {d.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -173,33 +192,37 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Category grid */}
-      <section className="py-24 bg-white text-black power-slant-divider-reverse">
-        <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
-          <div className="mb-16 text-center">
-            <span className="font-label-bold text-label-bold text-primary-container uppercase tracking-widest">The Ecosystem</span>
-            <h2 className="font-headline-xl text-headline-xl text-black uppercase mt-2">Choose Your Weapon</h2>
+      {/*
+        Category grid — the whole section goes when there is nothing to show in
+        it. It used to fall back to a hard-coded Trikes / Parts / Dirt Bikes
+        list whenever the real one came back empty, which meant switching every
+        category off RESURRECTED all three as tiles, pictures and all. A
+        fallback that can contradict the admin is worse than an absent section.
+      */}
+      {categories.length > 0 && (
+        <section className="py-24 bg-white text-black power-slant-divider-reverse">
+          <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop">
+            <div className="mb-16 text-center">
+              <span className="font-label-bold text-label-bold text-primary-container uppercase tracking-widest">The Ecosystem</span>
+              <h2 className="font-headline-xl text-headline-xl text-black uppercase mt-2">Choose Your Weapon</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+              {categories.map((c) => (
+                <Link key={c.id} href={`/shop?category=${encodeURIComponent(c.slug)}`} className="group relative aspect-[3/4] overflow-hidden rounded-lg hover-lift border-b-2 border-transparent hover:border-primary-container">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img loading="lazy" decoding="async" src={c.image_url || "/assets/trike-voltage-blue.jpg"} alt={c.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 w-full p-8">
+                    <h4 className="font-headline-md text-headline-md text-white uppercase">{c.name}</h4>
+                    <p className="text-white/70 font-body-md mb-4">{c.description}</p>
+                    <span className="inline-block bg-secondary text-on-secondary-fixed px-4 py-2 font-label-bold text-label-bold uppercase tracking-widest rounded">View all</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-            {(categories.length ? categories : [
-              { id: "t", slug: "trikes", name: "Trikes", description: "The ultimate drifting machines.", image_url: "/assets/trike-voltage-blue.jpg" },
-              { id: "p", slug: "parts", name: "Parts", description: "Tune for performance.", image_url: "/assets/parts-performance.jpg" },
-              { id: "g", slug: "dirt-bikes", name: "Dirt Bikes", description: "Electric dirt bikes built for dirt, jumps and trails.", image_url: "/assets/action-360-slide.jpg" },
-            ]).map((c) => (
-              <Link key={c.id} href={`/shop?category=${c.slug}`} className="group relative aspect-[3/4] overflow-hidden rounded-lg hover-lift border-b-2 border-transparent hover:border-primary-container">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img loading="lazy" decoding="async" src={c.image_url || "/assets/trike-voltage-blue.jpg"} alt={c.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 w-full p-8">
-                  <h4 className="font-headline-md text-headline-md text-white uppercase">{c.name}</h4>
-                  <p className="text-white/70 font-body-md mb-4">{c.description}</p>
-                  <span className="inline-block bg-secondary text-on-secondary-fixed px-4 py-2 font-label-bold text-label-bold uppercase tracking-widest rounded">View all</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Community CTA */}
       <section className="py-24 bg-surface text-on-surface">

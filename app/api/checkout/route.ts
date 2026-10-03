@@ -24,7 +24,8 @@ import { sellerSnapshot } from "@/lib/invoice";
 import { assessOrigin } from "@/lib/risk";
 import { countryCode } from "@/lib/countries";
 import { recordGatewayIds } from "@/lib/orders";
-import type { Order } from "@/lib/types";
+import { hiddenByCategory, hiddenCategoryIds } from "@/lib/categories";
+import type { Category, Order } from "@/lib/types";
 
 type IncomingItem = { productId: string; qty: number; color?: string | null };
 
@@ -139,10 +140,41 @@ export async function POST(request: Request) {
   // select("*") so per-product shipping columns come through when present,
   // without failing on a database that hasn't run migration 0005 yet.
   const ids = items.map((i) => i.productId);
-  const { data: products, error: productsError } = await admin
-    .from("products")
-    .select("*")
-    .in("id", ids);
+  const [
+    { data: products, error: productsError },
+    { data: categoryRows, error: categoriesError },
+  ] = await Promise.all([
+    admin.from("products").select("*").in("id", ids),
+    // Every category, because the switched-off ones are what we need. Read in
+    // parallel with the products so the check costs no extra latency.
+    admin.from("categories").select("*"),
+  ]);
+
+  /**
+   * ═══ A SWITCHED-OFF CATEGORY CANNOT BE BOUGHT ═════════════════════════════
+   *
+   * The storefront hides its products, its pages 404, and nothing links to it
+   * — so the only way to reach this point is a cart that was filled before the
+   * switch, or a crafted request. Either way, taking the money would mean
+   * selling something the shop does not show and the owner has withdrawn.
+   *
+   * Exactly the same reasoning as the `status !== "active"` check below, which
+   * this sits beside rather than duplicating.
+   *
+   * FAIL-OPEN on a read error: an unreadable category list must not stop every
+   * checkout in the shop. A hidden product slipping through is a visibility
+   * bug; refusing all payment is an outage.
+   * ═════════════════════════════════════════════════════════════════════════
+   */
+  if (categoriesError) {
+    console.error(
+      `[checkout] category visibility lookup FAILED${categoriesError.code ? ` [${categoriesError.code}]` : ""}: ` +
+        `${categoriesError.message} — proceeding, so a switched-off category may still be purchasable`
+    );
+  }
+  const hiddenCategories = new Set(
+    hiddenCategoryIds((categoryRows ?? []) as Category[])
+  );
 
   /**
    * The buyer is told "No valid products in cart" either way, but the owner
@@ -182,16 +214,24 @@ export async function POST(request: Request) {
   const lineItems = items
     .map((i) => {
       const p = products.find((x) => x.id === i.productId);
-      if (!p || p.status !== "active") {
+      const categoryHidden =
+        p !== undefined &&
+        hiddenByCategory(p.category_id as string | null, hiddenCategories);
+      if (!p || p.status !== "active" || categoryHidden) {
         /**
-         * The single most likely reason a cart silently empties: the product
-         * exists but is not `active`. That same status gates the storefront —
-         * so a product left as draft disappears from the shop AND refuses to
-         * be bought, with nothing anywhere saying why. Now it says why.
+         * The two most likely reasons a cart silently empties: the product
+         * exists but is not `active`, or its category has been switched off.
+         * Both gate the storefront too — so such a product disappears from the
+         * shop AND refuses to be bought, with nothing anywhere saying why.
+         * Now it says which.
          */
         console.warn(
           `[checkout] dropped ${i.productId}: ` +
-            (p ? `status is "${p.status}", not "active"` : "no such product")
+            (!p
+              ? "no such product"
+              : categoryHidden
+                ? `its category (${p.category_id}) is switched off`
+                : `status is "${p.status}", not "active"`)
         );
         return null;
       }
