@@ -52,17 +52,29 @@ import type Stripe from "stripe";
  */
 
 /**
- * Parameters this module may give up, cheapest loss first.
+ * ═══ THE LIST IS A PREFERENCE, NOT A LIMIT ═════════════════════════════════
  *
- * Every one of these is something the buyer SEES or something that enriches
- * the record afterwards. Losing any of them costs polish; losing the sale
- * costs the sale. A dotted name is a nested field.
+ * The first version of this file could only give up a parameter whose name it
+ * knew. That is the wrong way round, and Managed Payments is the proof: it
+ * shipped AFTER the Stripe SDK this repo pins, so a list written from today's
+ * API cannot contain tomorrow's conflict. The next feature Stripe switches on
+ * by default would have taken the checkout down exactly as this one did.
  *
- * `customer_email` is last and is a deliberate inclusion: without it Stripe
- * simply asks the buyer for their address on its own page, and our order
- * already has it. It is a convenience, not plumbing.
+ * So the rule is inverted. PROTECTED_PARAMS below is a short, closed list of
+ * what may never be given up, and EVERYTHING ELSE we send is negotiable —
+ * including parameters that do not exist yet, ours or Stripe's.
+ *
+ * This list only sets the ORDER of sacrifice: cheapest loss first, so an
+ * account that objects to several things loses the least important one first.
+ * A parameter missing from here is still droppable; it just has no stated
+ * preference. A dotted name is a nested field.
+ *
+ * `customer_email` is near the end and is a deliberate inclusion: without it
+ * Stripe simply asks the buyer for their address on its own page, and our
+ * order already has it. It is a convenience, not plumbing.
+ * ═══════════════════════════════════════════════════════════════════════════
  */
-export const DROPPABLE_PARAMS: readonly string[] = [
+export const DROP_ORDER: readonly string[] = [
   "custom_text",
   "adaptive_pricing",
   "submit_type",
@@ -75,16 +87,27 @@ export const DROPPABLE_PARAMS: readonly string[] = [
   "customer_email",
 ];
 
+/** Kept as the old name so existing callers and tests do not have to change. */
+export const DROPPABLE_PARAMS = DROP_ORDER;
+
 /**
- * Parameters that are never negotiated away.
+ * The only parameters that are never negotiated away — the whole protected
+ * core, and the reason the open-world rule above is safe.
+ *
+ * A path here protects its descendants too: naming `line_items` protects
+ * `line_items[0][price_data][unit_amount]`, so a wrong amount can never be
+ * "fixed" by throwing the line item away.
  *
  * `metadata` is in here and it is the one people get wrong. The Stripe webhook
  * on Render reads `session.metadata.order_id` to mark the order paid — see
  * server/src/index.js — so a session created without it takes the money and
  * leaves the order sitting unpaid forever, with no automatic way to connect
  * the two. That is strictly worse than the checkout refusing to start.
+ *
+ * Note what is NOT here: `payment_intent_data.metadata` is a different path
+ * and only carries dispute evidence, so that copy may go.
  */
-export const REQUIRED_PARAMS: readonly string[] = [
+export const PROTECTED_PARAMS: readonly string[] = [
   "mode",
   "line_items",
   "success_url",
@@ -92,8 +115,32 @@ export const REQUIRED_PARAMS: readonly string[] = [
   "metadata",
 ];
 
+/** Kept as the old name so existing callers and tests do not have to change. */
+export const REQUIRED_PARAMS = PROTECTED_PARAMS;
+
+/** Is this parameter path protected, either exactly or as a descendant? */
+export function isProtected(name: string): boolean {
+  if (!name) return false;
+  return PROTECTED_PARAMS.some((p) => name === p || name.startsWith(`${p}.`));
+}
+
 /** Keep our own copy by switching Managed Payments off for this one request. */
 export const MANAGED_PAYMENTS_OFF = "managed_payments=off";
+
+/**
+ * THE LAST RESORT: send the protected core and nothing else.
+ *
+ * For the case no amount of parsing can cover — an account that refuses
+ * something while naming nothing we can act on, or in wording no regex of
+ * ours matches. One attempt, at the very end, with the five parameters that
+ * make a session a session. It is a real payment page: less of one than we
+ * asked for, but a buyer can complete it and the order still reconciles.
+ *
+ * NOT tried when the error named something protected. A wrong amount must
+ * surface as a wrong amount; stripping the page bare until Stripe accepts a
+ * bad line item would be the worst behaviour in this file.
+ */
+export const MINIMAL_SESSION = "minimal-session";
 
 /** An adjustment is either the opt-out above or `drop:<param path>`. */
 export type Adjustment = string;
@@ -188,11 +235,26 @@ export function offendingParams(e: unknown): string[] {
   push(err.param ?? err.raw?.param);
 
   const message = errorMessage(e);
-  // A message that opens with the parameter name, which is how the conflict
-  // errors ("X cannot be used with Y", "X is not allowed when…") read.
-  push(/^\s*([a-z_]+(?:\[[a-z_]+\])?)\s+(?:cannot|can't|is not|may not)\b/i.exec(message)?.[1]);
-  push(/unknown parameter:?\s*([a-z_]+(?:\[[a-z_]+\])?)/i.exec(message)?.[1]);
-  push(/(?:cannot pass|not allowed to pass|remove)\s+`?([a-z_]+(?:\[[a-z_]+\])?)`?/i.exec(message)?.[1]);
+  /*
+   * And the prose, for the errors that name the parameter only there. These
+   * are the shapes Stripe actually uses; the open-world rule means a NEW
+   * shape costs us the precision of the drop, not the sale — the minimal
+   * session still gets the buyer to a payment page.
+   */
+  const NAME = "([a-z_]+(?:\\[[a-z_0-9]+\\])*)";
+  const patterns = [
+    // "custom_text cannot be used with Managed Payments…", "X is not allowed
+    // when…", "X is only available…", "X must be…"
+    new RegExp(`^\\s*${NAME}\\s+(?:cannot|can't|is|are|may|must|does)\\b`, "i"),
+    new RegExp(`unknown parameter:?\\s*${NAME}`, "i"),
+    new RegExp(`(?:cannot pass|not allowed to pass|remove|unset)\\s+\`?${NAME}\`?`, "i"),
+    // "The `custom_text` parameter is not supported…"
+    new RegExp(`\`?${NAME}\`?\\s+parameter\\b`, "i"),
+    new RegExp(`parameter:?\\s+\`?${NAME}\`?`, "i"),
+    // "…is not supported when using custom_text"
+    new RegExp(`(?:when using|in combination with|together with)\\s+\`?${NAME}\`?`, "i"),
+  ];
+  for (const re of patterns) push(re.exec(message)?.[1]);
 
   return out;
 }
@@ -202,6 +264,17 @@ export function mentionsManagedPayments(e: unknown): boolean {
   return /managed[\s_]?payments/i.test(errorMessage(e));
 }
 
+/**
+ * Did Stripe name something we must not touch?
+ *
+ * The gate on the minimal session. If the complaint is about an amount, a URL
+ * or the metadata, no amount of stripping the page back will help and trying
+ * would only bury the real error — so we stop and let it through.
+ */
+export function namedProtected(e: unknown): boolean {
+  return offendingParams(e).some((n) => isProtected(n));
+}
+
 /* -------------------------------------------------------------------------- */
 /* Deciding what to try next                                                   */
 /* -------------------------------------------------------------------------- */
@@ -209,21 +282,39 @@ export function mentionsManagedPayments(e: unknown): boolean {
 /** The droppable entry a named parameter belongs to, or null. */
 export function droppableFor(name: string): string | null {
   if (!name) return null;
-  if (REQUIRED_PARAMS.includes(name)) return null;
-  // Exact match first, then the nearest droppable ANCESTOR: Stripe may name
-  // `payment_intent_data.shipping.address`, and the thing we know how to
+  // The protected core, and anything inside it, is off the table.
+  if (isProtected(name)) return null;
+
+  // Something we have a stated preference about.
+  if (DROP_ORDER.includes(name)) return name;
+
+  // The nearest known ANCESTOR: Stripe may name
+  // `payment_intent_data.shipping.address.line1`, and the thing we know how to
   // remove is `payment_intent_data.shipping`.
-  if (DROPPABLE_PARAMS.includes(name)) return name;
-  const ancestors = DROPPABLE_PARAMS.filter((d) => name.startsWith(`${d}.`));
+  const ancestors = DROP_ORDER.filter((d) => name.startsWith(`${d}.`));
   if (ancestors.length > 0) {
-    // The most specific ancestor, so we give up as little as possible.
+    // The most specific one, so we give up as little as possible.
     return ancestors.reduce((a, b) => (b.length > a.length ? b : a));
   }
+
   // A bare leaf name — Stripe sometimes reports `shipping` for
-  // `payment_intent_data[shipping]`. Only accept it if exactly one droppable
-  // ends that way, so an ambiguous name is never guessed at.
-  const leaves = DROPPABLE_PARAMS.filter((d) => d.endsWith(`.${name}`));
-  return leaves.length === 1 ? leaves[0] : null;
+  // `payment_intent_data[shipping]`. Resolve it only when exactly one known
+  // path ends that way; more than one is ambiguous and is not guessed at.
+  const leaves = DROP_ORDER.filter((d) => d.endsWith(`.${name}`));
+  if (leaves.length === 1) return leaves[0];
+  if (leaves.length > 1) return null;
+
+  /*
+   * OPEN WORLD. A parameter nobody has heard of — a Stripe feature newer than
+   * this code, or one we added without updating DROP_ORDER — is still
+   * negotiable, because it is not protected. This single line is what stops
+   * the next Managed Payments from being an outage.
+   *
+   * Dropping something we are not actually sending is harmless: the body comes
+   * back unchanged, and the caller notices that there was no progress and
+   * moves on rather than asking again for the same thing.
+   */
+  return name;
 }
 
 /**
@@ -297,10 +388,23 @@ export function negotiate(
     };
   }
 
-  // Stripe named nothing we are allowed to touch. Deliberately NOT walking the
-  // droppable list speculatively: a genuinely bad request (a negative amount,
-  // a malformed URL) would then burn ten API calls and still fail, with the
-  // real error buried under nine irrelevant ones.
+  /*
+   * Stripe named nothing we can act on — no `param`, and wording none of the
+   * patterns match. One last attempt with the protected core alone, which is
+   * still a working payment page.
+   *
+   * Refused outright when the complaint WAS about the protected core: a
+   * request that is wrong about an amount or a URL is not made right by
+   * sending less of it, and the real error has to reach the logs.
+   */
+  if (!namedProtected(e) && !state.applied.includes(MINIMAL_SESSION)) {
+    return {
+      applied: [...state.applied, MINIMAL_SESSION],
+      pending: [],
+      rejected: state.rejected,
+    };
+  }
+
   return null;
 }
 
@@ -340,6 +444,19 @@ export function applyAdjustments<T extends Record<string, unknown>>(
 ): Record<string, unknown> {
   let out: Record<string, unknown> = { ...params };
   for (const adjustment of applied) {
+    if (adjustment === MINIMAL_SESSION) {
+      /*
+       * Keep ONLY the protected core, and nothing that was added before this
+       * — including the Managed Payments opt-out, since the point of the
+       * minimal session is to stop guessing about this account entirely.
+       */
+      const core: Record<string, unknown> = {};
+      for (const key of PROTECTED_PARAMS) {
+        if (key in out) core[key] = out[key];
+      }
+      out = core;
+      continue;
+    }
     if (adjustment === MANAGED_PAYMENTS_OFF) {
       out = { ...out, managed_payments: { enabled: false } };
       continue;
@@ -373,19 +490,26 @@ export function forgetLearnedAdjustments(stripe: object): void {
 }
 
 /**
- * How many times we will ask. Each rung gives up exactly one feature, and the
- * ladder is DROPPABLE_PARAMS plus the Managed Payments opt-out, so this is the
- * worst case plus a little headroom — not a number to tune.
+ * A bound on the whole negotiation, counting the rounds where we think as well
+ * as the ones where we ask.
+ *
+ * Generous rather than tuned: each round that SENDS has to have changed the
+ * request body, and the body can only lose parameters, so the number of
+ * requests is bounded by the number of parameters whatever this says. This
+ * exists so a pathological error message cannot spin, not to ration retries.
  */
-const MAX_ATTEMPTS = DROPPABLE_PARAMS.length + 2;
+const MAX_STEPS = DROP_ORDER.length * 2 + 6;
 
 export type SessionResult = {
   session: Stripe.Checkout.Session;
   /** The adjustments the successful attempt used. Empty means "as asked". */
   applied: Adjustment[];
-  /** How many requests it took, including the one that worked. */
+  /** How many requests Stripe actually received, including the one that worked. */
   attempts: number;
 };
+
+const sameState = (a: NegotiationState, b: NegotiationState) =>
+  JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * Create a Checkout Session, negotiating with the account's configuration.
@@ -410,8 +534,30 @@ export async function createCheckoutSession(
   }
 
   let lastError: unknown;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  let lastBodyJson: string | null = null;
+  let sent = 0;
+
+  for (let step = 0; step < MAX_STEPS; step++) {
     const body = applyAdjustments(params, state.applied);
+    const bodyJson = JSON.stringify(body);
+
+    /*
+     * NO PROGRESS. The adjustment changed nothing, which happens when Stripe
+     * names a parameter we do not actually send — a plausible outcome of
+     * reading a name out of prose. Sending an identical request would waste a
+     * call and get an identical answer, so negotiate further from the same
+     * error instead. The useless drop stays in `applied`, which is what stops
+     * it being chosen again.
+     */
+    if (bodyJson === lastBodyJson) {
+      const next = negotiate(lastError, state);
+      if (!next || sameState(next, state)) break;
+      state = next;
+      continue;
+    }
+
+    lastBodyJson = bodyJson;
+    sent++;
     try {
       /*
        * Cast because `managed_payments` is not in the typings for the pinned
@@ -429,16 +575,30 @@ export async function createCheckoutSession(
        */
       if (state.applied.length > 0) {
         learned.set(stripe as object, [...state.applied]);
-        log(
-          `[checkout] Stripe accepted the session after ${attempt} attempt(s) with: ` +
-            `${state.applied.join(", ")} — remembered for this account`
-        );
+        const minimal = state.applied.includes(MINIMAL_SESSION);
+        const line =
+          `[checkout] Stripe accepted the session after ${sent} attempt(s) with: ` +
+          `${state.applied.join(", ")} — remembered for this account`;
+        if (minimal) {
+          /*
+           * Louder, because this one is a real loss: the buyer gets a plain
+           * Stripe page with none of our copy. The sale completes, but the
+           * owner should know and should look at /api/health.
+           */
+          console.error(
+            `${line}. THE MINIMAL SESSION WAS USED — this account refused something ` +
+              "without naming it, so every presentation parameter was dropped. " +
+              `Last Stripe error: ${errorMessage(lastError).slice(0, 200)}`
+          );
+        } else {
+          log(line);
+        }
       }
-      return { session, applied: [...state.applied], attempts: attempt };
+      return { session, applied: [...state.applied], attempts: sent };
     } catch (e) {
       lastError = e;
       const next = negotiate(e, state);
-      if (!next) break;
+      if (!next || sameState(next, state)) break;
       log(
         `[checkout] Stripe refused a session parameter (${errorMessage(e).slice(0, 160)}) — ` +
           `retrying with: ${next.applied.join(", ") || "no adjustments"}`

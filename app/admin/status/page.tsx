@@ -10,6 +10,9 @@ import { getSiteSettings } from "@/lib/db";
 import { trustGaps } from "@/lib/seo";
 import { checkStoredLogo } from "@/lib/logo";
 import { authorizeNetConfigured, authorizeNetEnv } from "@/lib/authorize-net";
+import { describeStripeAccount } from "@/lib/stripe-account";
+import { getStripe } from "@/lib/stripe";
+import { learnedAdjustments } from "@/lib/stripe-checkout";
 
 export const metadata = { title: "System status" };
 
@@ -73,6 +76,20 @@ export default async function SystemStatus() {
     { label: "Turnstile (form bot protection)", ok: Boolean(serverEnv("TURNSTILE_SECRET_KEY")) },
   ];
   const checkoutLive = stripeOk || paypalOk || anetOk;
+
+  /**
+   * What the connected Stripe account has switched on, and what our Checkout
+   * Sessions had to be adjusted to. Read live, because the whole point is to
+   * answer "what is different about THIS account?" the moment one is attached.
+   *
+   * Never throws (see lib/stripe-account.ts) — a diagnostic must not be able
+   * to break the page it reports on.
+   */
+  const stripeAccount = stripeOk
+    ? await describeStripeAccount()
+    : { ok: false as const, error: "no Stripe secret key configured" };
+  const liveStripe = getStripe();
+  const sessionShape = liveStripe ? learnedAdjustments(liveStripe as object) : [];
 
   let orders: Order[] = [];
   // Probe one column per migration — a failed select means that migration
@@ -157,6 +174,101 @@ export default async function SystemStatus() {
           </p>
         )}
       </section>
+
+      {/*
+        THE STRIPE ACCOUNT ITSELF.
+        Here because every "checkout is unavailable" incident so far has come
+        down to a difference between two Stripe accounts, and the only way to
+        see it used to be the Stripe request logs. Feature flags are read by
+        shape, not by name, so a product Stripe rolls out after this was
+        written still appears — which is how Managed Payments would have been
+        visible before it caused a 400.
+      */}
+      {stripeOk && (
+        <section>
+          <h2 className="font-headline-md text-headline-md text-white uppercase mb-2">
+            Stripe account
+          </h2>
+          <p className="text-on-surface-variant text-sm mb-4 max-w-2xl">
+            Read live from Stripe. Booleans and names only — no key, no
+            business or personal details.
+          </p>
+
+          {!stripeAccount.ok ? (
+            <p className="bg-error/10 border border-error/30 rounded-lg px-4 py-3 text-error text-sm">
+              Could not read the account: {stripeAccount.error}
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Chip ok={stripeAccount.chargesEnabled !== false} label="Charges enabled" />
+                <Chip ok={stripeAccount.payoutsEnabled !== false} label="Payouts enabled" />
+                <div className="flex items-center justify-between bg-surface-container border border-white/10 rounded-lg px-4 py-3">
+                  <span className="text-on-surface-variant text-sm">Account country / currency</span>
+                  <span className="text-white font-label-bold uppercase tracking-widest text-[10px]">
+                    {stripeAccount.country ?? "—"} / {stripeAccount.defaultCurrency ?? "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between bg-surface-container border border-white/10 rounded-lg px-4 py-3">
+                  <span className="text-on-surface-variant text-sm">Checkout Session shape</span>
+                  <span className="text-white text-[11px] text-right">
+                    {sessionShape.length === 0 ? "as sent — no adjustment needed" : sessionShape.join(", ")}
+                  </span>
+                </div>
+              </div>
+
+              {/*
+                The one that matters when an account misbehaves: every
+                `{ enabled: boolean }` toggle Stripe returned, whatever it is
+                called and whenever it was introduced.
+              */}
+              {stripeAccount.featureFlags && Object.keys(stripeAccount.featureFlags).length > 0 && (
+                <div>
+                  <h3 className="font-label-bold text-label-bold text-white uppercase tracking-widest mb-2">
+                    Features switched on
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(stripeAccount.featureFlags).map(([name, on]) => (
+                      <span
+                        key={name}
+                        className={`rounded border px-2 py-1 text-[11px] font-mono ${
+                          on
+                            ? "border-secondary/40 bg-secondary/10 text-secondary"
+                            : "border-white/15 text-on-surface-variant"
+                        }`}
+                      >
+                        {name}: {on ? "on" : "off"}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {stripeAccount.capabilities && Object.keys(stripeAccount.capabilities).length > 0 && (
+                <details className="bg-surface-container border border-white/10 rounded-lg px-4 py-3">
+                  <summary className="text-on-surface-variant text-sm cursor-pointer">
+                    Payment capabilities ({Object.keys(stripeAccount.capabilities).length})
+                  </summary>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {Object.entries(stripeAccount.capabilities).map(([name, status]) => (
+                      <span
+                        key={name}
+                        className={`rounded border px-2 py-1 text-[11px] font-mono ${
+                          status === "active"
+                            ? "border-secondary/40 bg-secondary/10 text-secondary"
+                            : "border-signal-orange/40 bg-signal-orange/10 text-signal-orange"
+                        }`}
+                      >
+                        {name}: {status}
+                      </span>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="font-headline-md text-headline-md text-white uppercase mb-2">
