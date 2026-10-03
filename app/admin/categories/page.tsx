@@ -26,19 +26,40 @@ export default async function AdminCategories() {
         <div><label className={lbl}>Slug</label><input name="slug" required className={input} /></div>
         <div><label className={lbl}>Position</label><input name="position" type="number" defaultValue={0} className={input} /></div>
         <button className="bg-secondary text-on-secondary-fixed px-6 py-3 rounded font-label-bold uppercase tracking-widest">Add</button>
-        <div className="md:col-span-4"><label className={lbl}>Description</label><input name="description" className={input} /></div>
+        <div className="md:col-span-2"><label className={lbl}>Description</label><input name="description" className={input} /></div>
+        <div className="md:col-span-2"><label className={lbl}>Image URL</label><input name="image_url" placeholder="/assets/action-360-slide.jpg" className={input} /></div>
       </form>
 
       <div className="bg-surface-container border border-white/10 rounded-lg divide-y divide-white/5">
+        {/*
+            Each existing category is now EDITABLE, not just deletable. The
+            save action always supported an id, but nothing sent one — so the
+            page offered Add and Delete and nothing in between, and renaming a
+            category or changing its tile image meant writing SQL by hand.
+        */}
         {(categories ?? []).map((c) => (
-          <div key={c.id} className="flex items-center justify-between p-4">
-            <div>
-              <span className="text-white font-label-bold uppercase">{c.name}</span>
-              <span className="text-on-surface-variant text-sm ml-3">/{c.slug}</span>
+          <div key={c.id} className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <span className="text-white font-label-bold uppercase">{c.name}</span>
+                <span className="text-on-surface-variant text-sm ml-3">/{c.slug}</span>
+              </div>
+              <form action={deleteCategory}>
+                <input type="hidden" name="id" value={c.id} />
+                <button className="text-error/80 hover:text-error text-sm font-label-bold uppercase">Delete</button>
+              </form>
             </div>
-            <form action={deleteCategory}>
+            <form action={saveCategory} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
               <input type="hidden" name="id" value={c.id} />
-              <button className="text-error/80 hover:text-error text-sm font-label-bold uppercase">Delete</button>
+              <div><label className={lbl}>Name</label><input name="name" required defaultValue={c.name ?? ""} className={input} /></div>
+              <div><label className={lbl}>Slug</label><input name="slug" required defaultValue={c.slug ?? ""} className={input} /></div>
+              <div><label className={lbl}>Position</label><input name="position" type="number" defaultValue={c.position ?? 0} className={input} /></div>
+              <button className="bg-primary-container text-white px-6 py-3 rounded font-label-bold uppercase tracking-widest">Save</button>
+              <div className="md:col-span-2"><label className={lbl}>Description</label><input name="description" defaultValue={c.description ?? ""} className={input} /></div>
+              <div className="md:col-span-2">
+                <label className={lbl}>Image URL</label>
+                <input name="image_url" defaultValue={c.image_url ?? ""} placeholder="/assets/action-360-slide.jpg" className={input} />
+              </div>
             </form>
           </div>
         ))}
