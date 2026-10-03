@@ -35,6 +35,35 @@ export const ANNOUNCEMENTS_TAG = "announcements";
 // the ceiling for picking up out-of-band edits.
 const CATALOG_TTL = 300; // seconds
 const SEARCH_TTL = 60; // seconds — search keys are user-supplied, keep them short-lived
+
+/**
+ * Say out loud when a catalogue read fails.
+ *
+ * ═══ WHY THIS EXISTS ═══════════════════════════════════════════════════════
+ *
+ * Every read here used to be written `const { data } = await query`, which
+ * throws the `error` away. The caller then gets an empty array, and an empty
+ * array renders as an empty shop — so a BROKEN catalogue and an EMPTY
+ * catalogue looked exactly alike, from the storefront and from the logs.
+ *
+ * That is not a theoretical problem: a wrong anon key, an RLS policy that
+ * stopped matching, a paused Supabase project and a rate limit all land in
+ * that same silent hole, and none of them leave a trace to search for.
+ *
+ * The code still degrades to empty — a failed catalogue read must not take the
+ * page down — but now it says why in the Worker log first.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+function logReadFailure(
+  what: string,
+  error: { message?: string; code?: string; hint?: string; details?: string } | null
+) {
+  if (!error) return;
+  const code = error.code ? ` [${error.code}]` : "";
+  const hint = error.hint ? ` hint: ${error.hint}` : "";
+  const detail = error.details ? ` (${error.details})` : "";
+  console.error(`[db] ${what} read FAILED${code}: ${error.message ?? "unknown"}${detail}${hint}`);
+}
 /**
  * Deliberately the same as CATALOG_TTL, not shorter.
  *
@@ -53,10 +82,11 @@ export const getCategories = unstable_cache(
   async (): Promise<Category[]> => {
     if (!supabaseConfigured()) return [];
     const supabase = createPublicClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("categories")
       .select("*")
       .order("position", { ascending: true });
+    logReadFailure("categories", error);
     return data ?? [];
   },
   ["categories"],
@@ -93,7 +123,25 @@ export const getProducts = unstable_cache(
 
     if (opts?.limit) query = query.limit(opts.limit);
 
-    const { data } = await query;
+    const { data, error } = await query;
+    logReadFailure("products", error);
+    /**
+     * A read that SUCCEEDED and found nothing is a different problem from one
+     * that failed, and the two need different fixes — so they get different
+     * log lines. Public catalogue reads use the anon key, where products are
+     * gated twice: by the `status = 'active'` filter above and again by the
+     * products_public_read RLS policy. Admin reads use the service role and
+     * bypass both, which is how a catalogue can be full in /admin/products and
+     * empty on the storefront at the same time.
+     */
+    if (!error && (!data || data.length === 0)) {
+      console.warn(
+        "[db] products read returned NO ROWS (the query did not fail). " +
+          "Check products.status = 'active' and the products_public_read RLS " +
+          "policy for the anon role — /admin/products reads with the service " +
+          "role and bypasses both."
+      );
+    }
     return (data as Product[]) ?? [];
   },
   ["products"],
