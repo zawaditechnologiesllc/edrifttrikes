@@ -35,7 +35,7 @@ export async function GET() {
     ok: true,
     // Bump on each debug push — if this value doesn't change after a redeploy,
     // your deployment pipeline is serving a stale build.
-    diag: "release-2026-10-04c-stripe-capability-negotiation",
+    diag: "release-2026-10-04d-stripe-open-world-negotiation",
     adminReady: supabase.url && supabase.serviceRoleKey,
     supabase,
     render: {

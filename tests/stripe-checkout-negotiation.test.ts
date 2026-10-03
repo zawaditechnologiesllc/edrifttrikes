@@ -1,9 +1,15 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import type Stripe from "stripe";
 import {
   DROPPABLE_PARAMS,
+  DROP_ORDER,
   MANAGED_PAYMENTS_OFF,
+  MINIMAL_SESSION,
+  PROTECTED_PARAMS,
+  isProtected,
+  namedProtected,
   REQUIRED_PARAMS,
   applyAdjustments,
   createCheckoutSession,
@@ -206,8 +212,25 @@ describe("what may and may not be given up", () => {
     assert.equal(droppableFor("shipping"), "payment_intent_data.shipping");
   });
 
-  test("an unrecognised parameter is left alone", () => {
-    assert.equal(droppableFor("ui_mode"), null);
+  test("A PARAMETER NOBODY HAS HEARD OF IS STILL NEGOTIABLE", () => {
+    // The open-world rule, and the whole point of the rewrite: Managed
+    // Payments shipped after the SDK this repo pins, so a closed list of
+    // droppable names cannot contain the next conflict. Anything not
+    // protected may go.
+    assert.equal(droppableFor("ui_mode"), "ui_mode");
+    assert.equal(droppableFor("some_feature_stripe_ships_in_2027"), "some_feature_stripe_ships_in_2027");
+    assert.equal(droppableFor("tax_id_collection"), "tax_id_collection");
+  });
+
+  test("but the protected core and everything inside it is not", () => {
+    assert.equal(droppableFor("line_items"), null);
+    assert.equal(droppableFor("line_items.0.price_data.unit_amount"), null);
+    assert.equal(droppableFor("metadata.order_id"), null);
+    assert.equal(isProtected("success_url"), true);
+    assert.equal(isProtected("payment_intent_data.metadata"), false);
+  });
+
+  test("nothing at all is not a parameter", () => {
     assert.equal(droppableFor(""), null);
   });
 });
@@ -295,13 +318,46 @@ describe("deciding what to try next", () => {
     assert.equal(negotiate({ type: "StripeAPIError", message: "custom_text" }, fresh), null);
   });
 
-  test("the same parameter is never dropped twice", () => {
+  test("the same parameter is never dropped twice — it escalates instead", () => {
     const next = negotiate(invalid("nope", "custom_text"), {
       applied: ["drop:custom_text"],
       pending: [],
       rejected: [],
-    });
-    assert.equal(next, null);
+    })!;
+    assert.equal(
+      next.applied.filter((a) => a === "drop:custom_text").length,
+      1,
+      "custom_text should not be dropped a second time"
+    );
+    assert.ok(next.applied.includes(MINIMAL_SESSION));
+  });
+
+  test("an error that names NOTHING falls back to the minimal session", () => {
+    // The case no parsing can cover: an account refusing something in wording
+    // none of the patterns match. One bare-bones attempt is still a payment
+    // page the buyer can complete.
+    const next = negotiate(invalid("This account cannot create sessions like that."), fresh)!;
+    assert.deepEqual(next.applied, [MINIMAL_SESSION]);
+  });
+
+  test("…but NEVER when the complaint was about the protected core", () => {
+    // Stripping the page bare until Stripe accepts a bad amount would be the
+    // worst behaviour in the file.
+    assert.equal(negotiate(invalid("Invalid integer", "line_items[0][quantity]"), fresh), null);
+    assert.equal(negotiate(invalid("metadata is too long", "metadata"), fresh), null);
+    assert.equal(namedProtected(invalid("Invalid integer", "line_items[0][quantity]")), true);
+    assert.equal(namedProtected(MANAGED_PAYMENTS_ERROR), false);
+  });
+
+  test("and the minimal session is only ever tried once", () => {
+    assert.equal(
+      negotiate(invalid("still no good"), {
+        applied: [MINIMAL_SESSION],
+        pending: [],
+        rejected: [],
+      }),
+      null
+    );
   });
 });
 
@@ -549,5 +605,169 @@ describe("every presentation parameter we send is negotiable", () => {
         `${key} appears in BOTH lists — it would be negotiated away`
       );
     }
+  });
+});
+
+/**
+ * The complete parameter surface, read from the SDK rather than remembered.
+ *
+ * "Can we read all the Checkout configurations Stripe accepts?" — not from
+ * Stripe's API, which publishes no machine-readable map of what a given
+ * account will accept, and not from its documentation, which changes faster
+ * than any list in here. But the SDK's own typings are an exact, versioned
+ * statement of every parameter THIS build can send, so that is the inventory
+ * these tests hold the code against.
+ *
+ * `managed_payments` is deliberately absent from that inventory: the feature
+ * shipped after the pinned SDK, which is exactly why the opt-out needs a cast
+ * and may be refused — and why the negotiation had to stop depending on a
+ * closed list of names.
+ */
+describe("the pinned SDK's parameter inventory", () => {
+  /** Top-level properties of SessionCreateParams, by brace depth. */
+  const sdkParams = (() => {
+    const src = readFileSync(
+      new URL("../node_modules/stripe/types/Checkout/SessionsResource.d.ts", import.meta.url),
+      "utf8"
+    );
+    const body = src.slice(src.indexOf("interface SessionCreateParams {"));
+    const names: string[] = [];
+    let depth = 0;
+    let line = "";
+    for (const ch of body) {
+      if (ch === "{") { depth++; line = ""; continue; }
+      if (ch === "}") { depth--; if (depth === 0) break; line = ""; continue; }
+      if (ch === "\n") {
+        if (depth === 1) {
+          const m = /^\s*([a-z_][a-z0-9_]*)\??\s*:/.exec(line);
+          if (m) names.push(m[1]);
+        }
+        line = "";
+        continue;
+      }
+      line += ch;
+    }
+    return new Set(names);
+  })();
+
+  test("the inventory parsed at all", () => {
+    // If this ever reads empty, every assertion below would pass vacuously.
+    assert.ok(sdkParams.size > 20, `only found ${sdkParams.size} parameters`);
+    for (const known of ["mode", "line_items", "success_url", "custom_text", "adaptive_pricing"]) {
+      assert.ok(sdkParams.has(known), known);
+    }
+  });
+
+  test("EVERY PROTECTED PARAMETER IS SPELLED CORRECTLY", () => {
+    // The highest-value assertion in this file. A typo here — "metdata" —
+    // would silently make the real metadata droppable, and the first account
+    // that objected to it would take the money with no way to reconcile it.
+    for (const p of PROTECTED_PARAMS) {
+      assert.ok(
+        sdkParams.has(p),
+        `PROTECTED_PARAMS names "${p}", which is not a Checkout Session parameter ` +
+          `in the pinned SDK — a typo here unprotects the real one`
+      );
+    }
+  });
+
+  test("the preference order names real parameters too", () => {
+    for (const p of DROP_ORDER) {
+      const top = p.split(".")[0];
+      assert.ok(
+        sdkParams.has(top),
+        `DROP_ORDER names "${p}", whose root "${top}" is not a session parameter`
+      );
+    }
+  });
+
+  test("the two lists never overlap", () => {
+    for (const p of PROTECTED_PARAMS) {
+      assert.equal(DROP_ORDER.includes(p), false, `${p} is in both lists`);
+    }
+  });
+
+  test("a parameter in the SDK that we have no opinion about is negotiable", () => {
+    // Which is the correct default for all ~40 of them: we send a handful, and
+    // anything else that ever appears in a session body can be given up.
+    const unopinionated = [...sdkParams].filter(
+      (p) => !PROTECTED_PARAMS.includes(p) && !DROP_ORDER.includes(p)
+    );
+    assert.ok(unopinionated.length > 10, "expected most parameters to be unlisted");
+    for (const p of unopinionated) {
+      assert.equal(droppableFor(p), p, `${p} should be negotiable by default`);
+    }
+  });
+});
+
+describe("the last resort", () => {
+  test("the minimal session keeps the protected core and nothing else", () => {
+    const body = applyAdjustments(PARAMS, [MANAGED_PAYMENTS_OFF, MINIMAL_SESSION]);
+    assert.deepEqual(Object.keys(body).sort(), [...PROTECTED_PARAMS].sort());
+    // Including the opt-out: the point is to stop guessing about this account.
+    assert.equal("managed_payments" in body, false);
+    assert.equal("custom_text" in body, false);
+    // And the order is still reconcilable, which is the whole constraint.
+    assert.deepEqual(body.metadata, PARAMS.metadata);
+  });
+
+  test("an account that refuses something WITHOUT naming it still takes the money", async () => {
+    const { stripe, calls } = fakeStripe({
+      refuse: (body) =>
+        Object.keys(body).length > PROTECTED_PARAMS.length
+          ? invalid("This account cannot create Checkout Sessions with these settings.")
+          : null,
+    });
+    const result = await createCheckoutSession(stripe, { ...PARAMS }, quiet);
+    assert.ok(result.session.id);
+    assert.deepEqual(result.applied, [MINIMAL_SESSION]);
+    const final = calls[calls.length - 1];
+    for (const p of PROTECTED_PARAMS) assert.ok(has(final, p), `${p} was lost`);
+    forgetLearnedAdjustments(stripe as object);
+  });
+
+  test("a future Stripe feature that conflicts with a parameter we send is handled", async () => {
+    // The scenario this rewrite exists for: a product Stripe switches on by
+    // default in 2027 that refuses something, named in wording nobody has
+    // written a pattern for yet, about a parameter not in DROP_ORDER.
+    const { stripe, calls } = fakeStripe({
+      refuse: (body) =>
+        body.ui_mode
+          ? invalid("ui_mode cannot be used with Instant Settlement, enabled by default.")
+          : null,
+    });
+    const result = await createCheckoutSession(
+      stripe,
+      { ...PARAMS, ui_mode: "hosted" },
+      quiet
+    );
+    assert.ok(result.session.id);
+    assert.deepEqual(result.applied, ["drop:ui_mode"]);
+    // Precisely that one parameter — not the minimal session, not our copy.
+    assert.ok(has(calls[1], "custom_text"));
+    assert.ok(has(calls[1], "metadata"));
+    forgetLearnedAdjustments(stripe as object);
+  });
+
+  test("NO TWO REQUESTS ARE EVER IDENTICAL, so nothing can spin", async () => {
+    // The guarantee that bounds the whole negotiation. Reading a parameter
+    // name out of prose can name something we do not send — here, `locale` —
+    // and "dropping" it changes nothing. Re-sending that same body would be a
+    // wasted call for a guaranteed-identical answer, so the loop notices and
+    // thinks again instead of asking again.
+    const { stripe, calls } = fakeStripe({
+      refuse: () => invalid("locale cannot be used with Managed Payments.", "locale"),
+    });
+    await assert.rejects(() => createCheckoutSession(stripe, { ...PARAMS }, quiet));
+
+    const bodies = calls.map((c) => JSON.stringify(c));
+    assert.equal(
+      new Set(bodies).size,
+      bodies.length,
+      `the same request was sent more than once:\n${bodies.join("\n")}`
+    );
+    // And it stops quickly: the original, the opt-out, the minimal session.
+    assert.ok(calls.length <= 3, `sent ${calls.length} requests`);
+    forgetLearnedAdjustments(stripe as object);
   });
 });
