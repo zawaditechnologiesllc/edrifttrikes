@@ -589,9 +589,26 @@ export async function saveCategory(formData: FormData) {
     name: String(formData.get("name") || "").trim(),
     description: String(formData.get("description") || "") || null,
     position: parseInt(String(formData.get("position") || "0"), 10) || 0,
+    /**
+     * The picture on the homepage "Choose Your Weapon" tile.
+     *
+     * It was missing here AND from the form, so a category's image could only
+     * ever be set by hand in SQL — which is why a renamed category kept the
+     * old one's photograph.
+     */
+    image_url: String(formData.get("image_url") || "").trim() || null,
   };
-  if (id) await admin.from("categories").update(row).eq("id", id);
-  else await admin.from("categories").insert(row);
+  /**
+   * `id` present means edit, absent means create. The update path existed but
+   * nothing ever sent an id, so existing categories were effectively
+   * read-only: the page offered Add and Delete and nothing in between.
+   */
+  const { error } = id
+    ? await admin.from("categories").update(row).eq("id", id)
+    : await admin.from("categories").insert(row);
+  if (error) {
+    console.error(`[admin] saveCategory failed${error.code ? ` [${error.code}]` : ""}: ${error.message}`);
+  }
   revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/categories");
   revalidatePath("/shop");
