@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
-import { saveCategory, deleteCategory } from "../actions";
+import { saveCategory, deleteCategory, toggleCategory } from "../actions";
 
 const input = "w-full bg-surface-container-highest border border-white/10 text-white p-3 rounded focus:border-secondary focus:ring-0";
 const lbl = "block text-[10px] font-label-bold text-on-surface-variant uppercase mb-1 tracking-widest";
@@ -19,7 +19,13 @@ export default async function AdminCategories() {
 
   return (
     <div className="p-8 max-w-4xl">
-      <h1 className="font-display-lg text-display-lg-mobile text-white uppercase mb-8">Categories</h1>
+      <h1 className="font-display-lg text-display-lg-mobile text-white uppercase mb-2">Categories</h1>
+      <p className="text-on-surface-variant text-sm mb-8 max-w-2xl">
+        Turning a category off removes it from the shop filter and the homepage
+        tiles, and its category page stops listing products — without deleting
+        it or changing its products. To hide individual products, set their
+        status in <span className="text-secondary">Products</span>.
+      </p>
 
       <form action={saveCategory} className="bg-surface-container border border-white/10 rounded-lg p-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-8">
         <div><label className={lbl}>Name</label><input name="name" required className={input} /></div>
@@ -39,15 +45,37 @@ export default async function AdminCategories() {
         */}
         {(categories ?? []).map((c) => (
           <div key={c.id} className="p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
               <div>
                 <span className="text-white font-label-bold uppercase">{c.name}</span>
                 <span className="text-on-surface-variant text-sm ml-3">/{c.slug}</span>
+                {c.active === false && (
+                  <span className="ml-3 inline-block rounded border border-signal-orange/40 bg-signal-orange/10 px-2 py-0.5 text-[10px] font-label-bold uppercase tracking-widest text-signal-orange">
+                    Hidden
+                  </span>
+                )}
               </div>
-              <form action={deleteCategory}>
-                <input type="hidden" name="id" value={c.id} />
-                <button className="text-error/80 hover:text-error text-sm font-label-bold uppercase">Delete</button>
-              </form>
+              <div className="flex items-center gap-4">
+                {/* One click, and the desired state travels with it rather
+                    than being read back from the row first. */}
+                <form action={toggleCategory}>
+                  <input type="hidden" name="id" value={c.id} />
+                  <input type="hidden" name="active" value={c.active === false ? "true" : "false"} />
+                  <button
+                    className={`rounded border px-3 py-1.5 text-xs font-label-bold uppercase tracking-widest transition-colors ${
+                      c.active === false
+                        ? "border-secondary/50 bg-secondary/10 text-secondary hover:bg-secondary/20"
+                        : "border-white/20 text-on-surface-variant hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    {c.active === false ? "Turn on" : "Turn off"}
+                  </button>
+                </form>
+                <form action={deleteCategory}>
+                  <input type="hidden" name="id" value={c.id} />
+                  <button className="text-error/80 hover:text-error text-sm font-label-bold uppercase">Delete</button>
+                </form>
+              </div>
             </div>
             <form action={saveCategory} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
               <input type="hidden" name="id" value={c.id} />
