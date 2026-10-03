@@ -173,10 +173,18 @@ export function stripeCompanyContent(
      * ⚠️ ALSO A DASHBOARD SETTING. This flag defaults to whatever is configured
      * at dashboard.stripe.com/settings/adaptive-pricing, and the feature has to
      * be available to the account at all. Sending it explicitly is the half we
-     * control; if the account rejects it, the checkout route retries without it
-     * rather than losing the sale over a display feature.
+     * control; if the account rejects it, the session is created again without
+     * it rather than losing the sale over a display feature — see
+     * lib/stripe-checkout.ts, which does the same for every parameter in here.
      */
     adaptive_pricing: { enabled: true },
+    /**
+     * ⚠️ REFUSED OUTRIGHT BY ACCOUNTS WITH MANAGED PAYMENTS ENABLED, which is
+     * the default on newer accounts. Not a reason to stop sending it: the
+     * session create switches Managed Payments off for the request so this
+     * copy survives, and drops the copy only if that is refused too. See
+     * lib/stripe-checkout.ts.
+     */
     custom_text: {
       submit: { message: submitMessage(country, { totalCents, orderNumber }) },
       after_submit: { message: afterSubmitMessage() },
