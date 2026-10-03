@@ -4,6 +4,13 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { supabaseConfigured, adminConfigured, createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/company";
 import { maskEmail, orderOwnershipFilter, verifiedUserEmail } from "@/lib/account";
+import {
+  categoryVisible,
+  hiddenCategoryIds,
+  productVisible,
+  visibleCategories,
+  visibleProducts,
+} from "@/lib/categories";
 import type { Announcement } from "@/lib/announcements";
 import type { Article, Category, Order, Product, Profile, SiteSettings } from "@/lib/types";
 
@@ -112,7 +119,20 @@ function logReadFailure(
  */
 const ANNOUNCEMENTS_TTL = CATALOG_TTL;
 
-const getCategoriesCached = unstable_cache(
+/**
+ * EVERY category row, switched on or off.
+ *
+ * ONE READ, TWO USES: the visible list the storefront shows, and the hidden
+ * ids every product read excludes. They have to come from the same row set, or
+ * the two can disagree — a category vanishing from the nav while its products
+ * stay in the grid is exactly the half-applied rule lib/categories.ts exists
+ * to prevent.
+ *
+ * Not filtered in the query on purpose: `.eq("active", true)` against a
+ * database that has not run migration 0021 fails the whole read and empties
+ * the nav, while a row with no `active` field simply is not `false`.
+ */
+const getAllCategoriesCached = unstable_cache(
   async (): Promise<Category[]> => {
     if (!supabaseConfigured()) return [];
     const supabase = createPublicClient();
@@ -121,17 +141,60 @@ const getCategoriesCached = unstable_cache(
       .select("*")
       .order("position", { ascending: true });
     logReadFailure("categories", error);
-    /**
-     * Filtered here rather than in the query, so a database that has not run
-     * migration 0021 still works: `.eq("active", true)` against a missing
-     * column fails the whole read and empties the nav, while a row with no
-     * `active` field simply is not `false` and stays visible.
-     */
-    return (data ?? []).filter((c) => (c as Category).active !== false);
+    return (data as Category[]) ?? [];
   },
   ["categories"],
   { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
 );
+
+/**
+ * The switched-off category ids, for excluding their products.
+ *
+ * Its own try/catch rather than neverThrow(), because this runs INSIDE the
+ * cached product read and the fallback has to be the fail-open one: an
+ * unreadable category list means "nothing is known to be hidden", which shows
+ * a product that should have been hidden. The other way round would empty the
+ * entire shop. One is a visibility bug; the other is an outage.
+ */
+async function hiddenCategoryIdSet(): Promise<Set<string>> {
+  try {
+    return new Set(hiddenCategoryIds(await getAllCategoriesCached()));
+  } catch (e) {
+    console.error(
+      `[db] could not read categories to hide: ${String((e as Error)?.message || e).slice(0, 200)}` +
+        " — showing every active product, including any in a switched-off category."
+    );
+    return new Set();
+  }
+}
+
+/**
+ * The PostgREST filter that excludes a switched-off category's products.
+ *
+ * Exported for tests, because it is the one piece of this file that can empty
+ * the shop by being subtly wrong, and it cannot be checked by reading it:
+ *
+ *  - `category_id.is.null` has to ride along in the same `or`, because SQL's
+ *    NOT IN is NULL for a NULL column. Without it, every UNCATEGORISED product
+ *    would disappear the moment one category was switched off.
+ *  - it returns null for an empty list rather than a filter that matches
+ *    nothing, so a shop with no hidden categories adds no filter at all.
+ *
+ * The read that uses it falls back to an unfiltered query if the server
+ * rejects it — see getProductsCached.
+ */
+export function hiddenCategoryFilter(ids: Iterable<string>): string | null {
+  const list = [...ids]
+    .filter(Boolean)
+    // Quoted only when it has to be, which is the same rule postgrest-js
+    // applies to the values of its own .in()/.notIn() — a comma or a bracket
+    // inside an unquoted value would end the list early and change what the
+    // filter means. Our ids are uuids, so in practice nothing is quoted; this
+    // is here so a text primary key could never rewrite the query.
+    .map((id) => (/[,()"]/.test(id) ? `"${id.replace(/"/g, "")}"` : id));
+  if (list.length === 0) return null;
+  return `category_id.is.null,category_id.not.in.(${list.join(",")})`;
+}
 
 const getProductsCached = unstable_cache(
   async (opts?: {
@@ -142,11 +205,8 @@ const getProductsCached = unstable_cache(
   }): Promise<Product[]> => {
     if (!supabaseConfigured()) return [];
     const supabase = createPublicClient();
-    let query = supabase
-      .from("products")
-      .select("*, category:categories(*)")
-      .eq("status", "active");
 
+    let categoryId: string | null = null;
     if (opts?.categorySlug) {
       const { data: cat } = await supabase
         .from("categories")
@@ -157,27 +217,69 @@ const getProductsCached = unstable_cache(
        * A slug that names nothing, or names a switched-off category, returns
        * NO products — it previously fell through and showed the entire
        * catalogue, so a typo or a hidden category quietly became "everything".
-       * That also makes a hard-coded nav link to a switched-off category
-       * behave sensibly: an empty category page, not the whole shop.
        */
-      const usable = cat && (cat as Category).active !== false;
-      if (!usable) {
+      if (!categoryVisible(cat as Category | null)) {
         console.warn(
           `[db] category "${opts.categorySlug}" is unknown or switched off — returning no products`
         );
         return [];
       }
-      query = query.eq("category_id", (cat as Category).id);
+      categoryId = String((cat as Category).id);
     }
-    if (opts?.power) query = query.eq("power", opts.power);
 
-    if (opts?.sort === "price-asc") query = query.order("price_cents", { ascending: true });
-    else if (opts?.sort === "price-desc") query = query.order("price_cents", { ascending: false });
-    else query = query.order("created_at", { ascending: false });
+    /**
+     * Pinned to one visible category already? Then there is nothing left to
+     * exclude. Otherwise find the switched-off ones.
+     */
+    const hidden = categoryId ? new Set<string>() : await hiddenCategoryIdSet();
 
-    if (opts?.limit) query = query.limit(opts.limit);
+    /**
+     * Built in a factory because it may be run TWICE — see the retry below.
+     *
+     * The hidden categories are excluded in the query as well as in JS, and
+     * the reason is `limit`: trimming 60 rows down to 40 afterwards would show
+     * a short homepage with no way to tell why.
+     */
+    const build = (excludeHidden: boolean) => {
+      let query = supabase
+        .from("products")
+        .select("*, category:categories(*)")
+        .eq("status", "active");
+      if (categoryId) query = query.eq("category_id", categoryId);
+      if (opts?.power) query = query.eq("power", opts.power);
+      if (excludeHidden) {
+        const filter = hiddenCategoryFilter(hidden);
+        if (filter) query = query.or(filter);
+      }
+      if (opts?.sort === "price-asc") query = query.order("price_cents", { ascending: true });
+      else if (opts?.sort === "price-desc") query = query.order("price_cents", { ascending: false });
+      else query = query.order("created_at", { ascending: false });
+      if (opts?.limit) query = query.limit(opts.limit);
+      return query;
+    };
 
-    const { data, error } = await query;
+    let { data, error } = await build(hidden.size > 0);
+
+    /**
+     * ⚠️ THE EXCLUSION MUST NOT BE ABLE TO EMPTY THE SHOP.
+     *
+     * A rejected filter comes back as an error with no rows, which renders as
+     * an empty catalogue — the single worst failure this storefront has, and
+     * one that would be caused by the visibility feature rather than by
+     * anything the owner did. So if the filtered read fails, it is run again
+     * WITHOUT the filter and the JS filter below does the hiding instead.
+     *
+     * The cost of the fallback is a short page when `limit` is in play. The
+     * cost of not having it is a shop with nothing in it.
+     */
+    if (error && hidden.size > 0) {
+      console.error(
+        `[db] products read with the hidden-category filter FAILED: ${error.message}` +
+          " — retrying without it; hidden products are still filtered in memory."
+      );
+      ({ data, error } = await build(false));
+    }
+
     logReadFailure("products", error);
     /**
      * A read that SUCCEEDED and found nothing is a different problem from one
@@ -196,12 +298,17 @@ const getProductsCached = unstable_cache(
           "role and bypasses both."
       );
     }
-    return (data as Product[]) ?? [];
+    /**
+     * THE AUTHORITATIVE FILTER, on the joined category row. The query-level
+     * exclusion above is an optimisation for `limit`; this is the rule, and it
+     * is what makes the rule hold when that exclusion was skipped or retried
+     * away.
+     */
+    return visibleProducts((data as Product[]) ?? []);
   },
   ["products"],
   { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
 );
-
 /*
  * getFeaturedProducts / getFlaggedFeatured were removed here.
  *
@@ -266,6 +373,18 @@ export const getProductBySlug = unstable_cache(
       .maybeSingle();
     if (!data) return null;
     const product = data as Product;
+    /**
+     * A switched-off category takes its products' pages with it. Returning
+     * null here is what makes /product/<slug> a 404 rather than a live,
+     * buyable page nothing links to — the one leak a link-only fix leaves,
+     * and the one a search engine or an old bookmark finds first.
+     */
+    if (!productVisible(product)) {
+      console.warn(
+        `[db] product "${slug}" belongs to a switched-off category — serving 404`
+      );
+      return null;
+    }
     product.images = (product.images ?? []).sort((a, b) => a.position - b.position);
     product.specs = (product.specs ?? []).sort((a, b) => a.position - b.position);
     return product;
@@ -293,7 +412,10 @@ export const searchProducts = unstable_cache(
       .eq("status", "active")
       .or(`name.ilike.%${term}%,tagline.ilike.%${term}%,description.ilike.%${term}%`)
       .limit(24);
-    return (data as Product[]) ?? [];
+    // Filtered in JS, not in the query: this read already uses `or` for the
+    // term match, and a second one would be AND-ed onto it in a way that is
+    // far easier to get wrong than it is to read.
+    return visibleProducts((data as Product[]) ?? []);
   },
   ["search-products"],
   { revalidate: SEARCH_TTL, tags: [CATALOG_TAG] }
@@ -432,9 +554,14 @@ export async function getWishlist(): Promise<Product[]> {
     .from("wishlist_items")
     .select("product:products(*, category:categories(*))")
     .eq("user_id", user.id);
-  return ((data ?? []) as unknown as { product: Product | null }[])
-    .map((r) => r.product)
-    .filter((p): p is Product => Boolean(p));
+  // A saved product whose category was switched off drops out of the Parts Bin
+  // too — it is no longer something this shop offers, and leaving it there
+  // means a "Add to cart" button the checkout will refuse.
+  return visibleProducts(
+    ((data ?? []) as unknown as { product: Product | null }[])
+      .map((r) => r.product)
+      .filter((p): p is Product => Boolean(p))
+  );
 }
 
 export async function isInWishlist(productId: string): Promise<boolean> {
@@ -545,8 +672,13 @@ export async function getOrderByNumber(orderNumber: string): Promise<Order | nul
  * root layout, which puts them on every page in the site.
  */
 
+/** The categories a visitor may see. Admin reads the table directly. */
 export function getCategories(): Promise<Category[]> {
-  return neverThrow("categories", () => getCategoriesCached(), []);
+  return neverThrow(
+    "categories",
+    async () => visibleCategories(await getAllCategoriesCached()),
+    []
+  );
 }
 
 export function getProducts(opts?: {

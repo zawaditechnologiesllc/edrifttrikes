@@ -611,7 +611,8 @@ export async function saveCategory(formData: FormData) {
   }
   revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/categories");
-  revalidatePath("/shop");
+  // Renaming a category renames it in every nav and footer — see toggleCategory.
+  revalidatePath("/", "layout");
 }
 
 /**
@@ -620,10 +621,21 @@ export async function saveCategory(formData: FormData) {
  * Separate from saveCategory so it is one click rather than a form submit, and
  * so turning a range off can never be a side effect of editing its name.
  *
- * "Off" removes the category from the storefront — the /shop filter and the
- * homepage tiles — and makes /shop?category=<slug> return nothing. It does NOT
- * hide its products: that stays with products.status, so switching a category
- * off cannot silently unpublish real catalogue rows.
+ * ═══ WHAT "OFF" MEANS ══════════════════════════════════════════════════════
+ *
+ * Everything. The nav and footer links, the hero button, the homepage tile,
+ * the shop filter, the category page (a 404 now, not an empty grid), ITS
+ * PRODUCTS wherever they appear — grid, search, wishlist, sitemap — their
+ * product pages, and the checkout, which refuses them.
+ *
+ * It does NOT touch the rows: nothing is unpublished, no product status
+ * changes, and turning the category back on restores all of it. The rule
+ * itself lives in lib/categories.ts; this action only sets the flag.
+ *
+ * It was narrower once — links only — and that was the bug: a range vanished
+ * from the menus while its products stayed in the grid and stayed buyable, so
+ * "off" produced a shop that still sold what the owner had withdrawn.
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 export async function toggleCategory(formData: FormData) {
   await requireAdmin();
@@ -642,8 +654,13 @@ export async function toggleCategory(formData: FormData) {
   }
   revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/categories");
-  revalidatePath("/shop");
-  revalidatePath("/");
+  /**
+   * The whole site, not just /shop and /: the header and footer build their
+   * links from the categories, so every page in the layout carries them. A
+   * path-by-path list was how a switched-off category kept a live link on the
+   * pages nobody thought to add here.
+   */
+  revalidatePath("/", "layout");
 }
 
 export async function deleteCategory(formData: FormData) {
@@ -652,7 +669,7 @@ export async function deleteCategory(formData: FormData) {
   await admin.from("categories").delete().eq("id", String(formData.get("id")));
   revalidateTag(CATALOG_TAG);
   revalidatePath("/admin/categories");
-  revalidatePath("/shop");
+  revalidatePath("/", "layout");
 }
 
 export async function saveArticle(formData: FormData) {

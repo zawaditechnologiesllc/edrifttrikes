@@ -15,15 +15,32 @@ export default async function AdminCategories() {
     );
   }
   const admin = createAdminClient();
-  const { data: categories } = await admin.from("categories").select("*").order("position");
+  /**
+   * The product counts are read alongside the categories so the page can say
+   * what turning one off actually costs. It hides that category's products
+   * too, and "7 products hidden with it" is the difference between an informed
+   * click and a surprise.
+   */
+  const [{ data: categories }, { data: liveProducts }] = await Promise.all([
+    admin.from("categories").select("*").order("position"),
+    admin.from("products").select("category_id").eq("status", "active"),
+  ]);
+  const productCount = new Map<string, number>();
+  for (const row of liveProducts ?? []) {
+    const key = String((row as { category_id: string | null }).category_id ?? "");
+    if (key) productCount.set(key, (productCount.get(key) ?? 0) + 1);
+  }
 
   return (
     <div className="p-8 max-w-4xl">
       <h1 className="font-display-lg text-display-lg-mobile text-white uppercase mb-2">Categories</h1>
       <p className="text-on-surface-variant text-sm mb-8 max-w-2xl">
-        Turning a category off removes it from the shop filter and the homepage
-        tiles, and its category page stops listing products — without deleting
-        it or changing its products. To hide individual products, set their
+        Turning a category off hides <span className="text-white">everything</span> about
+        it: the menu and footer links, the hero button, the homepage tile, the
+        shop filter, its category page, and its products — everywhere they
+        appear, including their own pages and the checkout, which will refuse
+        them. Nothing is deleted and no product status changes, so turning it
+        back on restores all of it. To hide one product on its own, set its
         status in <span className="text-secondary">Products</span>.
       </p>
 
@@ -52,6 +69,14 @@ export default async function AdminCategories() {
                 {c.active === false && (
                   <span className="ml-3 inline-block rounded border border-signal-orange/40 bg-signal-orange/10 px-2 py-0.5 text-[10px] font-label-bold uppercase tracking-widest text-signal-orange">
                     Hidden
+                  </span>
+                )}
+                {/* What the toggle is actually doing to the catalogue. */}
+                {(productCount.get(String(c.id)) ?? 0) > 0 && (
+                  <span className={`ml-3 text-xs ${c.active === false ? "text-signal-orange/80" : "text-on-surface-variant"}`}>
+                    {productCount.get(String(c.id))}{" "}
+                    {productCount.get(String(c.id)) === 1 ? "product" : "products"}
+                    {c.active === false ? " hidden with it" : " live"}
                   </span>
                 )}
               </div>

@@ -250,4 +250,10 @@ export type PublicSiteData = {
   settings: SiteSettings;
   /** Already filtered to the live set — see liveAnnouncements(). */
   announcements: Announcement[];
+  /**
+   * Already filtered to the categories a visitor may see — the header and
+   * footer build their links from this, so a switched-off category cannot
+   * reach them. See lib/categories.ts.
+   */
+  categories: Category[];
 };

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import ProductCard from "@/components/storefront/ProductCard";
@@ -49,6 +50,21 @@ export default async function ShopPage({
     getCategories(),
   ]);
 
+  /**
+   * A category slug that names nothing a visitor may see is a 404 — not an
+   * empty grid with the slug printed in the heading.
+   *
+   * `categories` holds only the switched-on ones, so this covers a typo, a
+   * deleted category and a switched-off one with the same answer. It has to:
+   * the heading used to echo the raw slug, so a switched-off range still got
+   * its name set in 48-point type on a page a search engine had indexed, over
+   * an empty grid. Hidden has to mean hidden here too.
+   */
+  const selected = searchParams.category
+    ? categories.find((c) => c.slug === searchParams.category)
+    : null;
+  if (searchParams.category && !selected) notFound();
+
   // PRICE IS FILTERED HERE, not in the query, and that is deliberate: the bands
   // are built from the products that match the OTHER filters, so they stay put
   // while the buyer clicks between them. Filtering in the database would shrink
@@ -79,7 +95,7 @@ export default async function ShopPage({
           Precision Engineering
         </span>
         <h1 className="font-display-lg text-display-lg-mobile md:text-display-lg uppercase leading-none mt-2">
-          {searchParams.category ? searchParams.category : "All"} Rigs
+          {selected ? selected.name : "All"} Rigs
         </h1>
         <div className="w-32 h-2 bg-secondary mt-4" />
       </header>

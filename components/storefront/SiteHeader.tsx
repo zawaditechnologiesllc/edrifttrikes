@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/components/cart/CartProvider";
 import AnnouncementTicker from "@/components/storefront/AnnouncementTicker";
+import { useCategories } from "@/components/storefront/SiteSettingsProvider";
+import { categoryLinks, type CategoryLink } from "@/lib/categories";
 import {
   SearchIcon,
   HeartIcon,
@@ -14,29 +16,50 @@ import {
   ChevronRightIcon,
 } from "@/components/Icon";
 
-const SHOP = [
-  { label: "All Rigs", href: "/shop" },
-  { label: "Trikes", href: "/shop?category=trikes" },
-  { label: "Parts", href: "/shop?category=parts" },
-  { label: "Dirt Bikes", href: "/shop?category=dirt-bikes" },
-  { label: "Electric", href: "/electric-trikes" },
-];
+/*
+ * ═══ THE CATEGORY LINKS ARE NOT WRITTEN DOWN HERE ══════════════════════════
+ *
+ * They used to be: Trikes / Parts / Dirt Bikes, hard-coded in two arrays in
+ * this file and a third in the footer. Switching a category off in the admin
+ * left all three live, which is the whole reason the toggle felt broken — the
+ * category page emptied but the shop still had a door marked with its name.
+ *
+ * They come from useCategories() now, which carries only the switched-on ones,
+ * so the toggle reaches the nav by construction rather than by remembering.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+/** Not categories, so they are not subject to the toggle. */
+const SHOP_ALL: CategoryLink = { key: "all", label: "All Rigs", href: "/shop" };
+/** A power filter across the whole catalogue, not a category. */
+const ELECTRIC: CategoryLink = { key: "electric", label: "Electric", href: "/electric-trikes" };
+const ABOUT: CategoryLink = { key: "about", label: "About Us", href: "/our-story" };
+
 const EXPLORE = [
   { label: "The Tech Lab", href: "/tech-lab" },
   { label: "About Us", href: "/our-story" },
   { label: "Support", href: "/support" },
   { label: "Shipping & Warranty", href: "/shipping-warranty" },
 ];
-const NAV = [
-  { label: "Trikes", href: "/shop?category=trikes" },
-  { label: "Parts", href: "/shop?category=parts" },
-  { label: "Dirt Bikes", href: "/shop?category=dirt-bikes" },
-  { label: "About Us", href: "/our-story" },
-];
 
 export default function SiteHeader({ light = false }: { light?: boolean }) {
   const { count, setOpen } = useCart();
   const [menu, setMenu] = useState(false);
+  const ranges = categoryLinks(useCategories());
+
+  /**
+   * The desktop bar has room for four items, which is what it has always
+   * shown. With more categories than fit, the third slot becomes All Rigs
+   * rather than silently dropping one — a category the admin added must not
+   * become unreachable just because it came fourth.
+   */
+  const nav =
+    ranges.length > 3
+      ? [...ranges.slice(0, 2), SHOP_ALL, ABOUT]
+      : [...ranges, ABOUT];
+
+  /** The mobile menu scrolls, so it lists every range. */
+  const shop = [SHOP_ALL, ...ranges, ELECTRIC];
 
   const controlColor = light ? "text-surface-container-lowest" : "text-on-surface";
   const bg = light ? "bg-off-white border-black/10" : "bg-surface-container-lowest border-white/10";
@@ -73,9 +96,9 @@ export default function SiteHeader({ light = false }: { light?: boolean }) {
           </Link>
 
           <div className="hidden md:flex gap-10">
-            {NAV.map((n) => (
+            {nav.map((n) => (
               <Link
-                key={n.label}
+                key={n.key}
                 href={n.href}
                 className={`font-label-bold text-label-bold uppercase tracking-widest ${
                   light ? "text-slate-gray hover:text-black" : "text-on-surface-variant hover:text-on-surface"
@@ -131,8 +154,8 @@ export default function SiteHeader({ light = false }: { light?: boolean }) {
 
             <p className="font-label-bold text-[11px] text-secondary uppercase tracking-widest mb-2">Shop</p>
             <nav className="flex flex-col mb-8">
-              {SHOP.map((n) => (
-                <Link key={n.label} href={n.href} onClick={() => setMenu(false)} className="flex items-center justify-between h-12 text-white font-headline-md text-xl uppercase border-b border-white/5">
+              {shop.map((n) => (
+                <Link key={n.key} href={n.href} onClick={() => setMenu(false)} className="flex items-center justify-between h-12 text-white font-headline-md text-xl uppercase border-b border-white/5">
                   {n.label}
                   <ChevronRightIcon className="w-5 h-5 text-on-surface-variant" />
                 </Link>

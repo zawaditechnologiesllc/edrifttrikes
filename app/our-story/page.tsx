@@ -2,6 +2,8 @@ import Link from "next/link";
 import SiteHeader from "@/components/storefront/SiteHeader";
 import SiteFooter from "@/components/storefront/SiteFooter";
 import { Icon } from "@/components/Icon";
+import { getCategories } from "@/lib/db";
+import { primaryShopLink } from "@/lib/categories";
 
 export const metadata = { title: "About Us" };
 
@@ -18,7 +20,12 @@ const VALUES = [
   { icon: "electric_bolt", title: "Electric-first performance", body: "Instant torque, near-silent drifts, zero emissions. From electric drift trikes to go-carts, we build the future of street motorsport." },
 ];
 
-export default function AboutUs() {
+export default async function AboutUs() {
+  // The CTA names a real product line rather than a hard-coded one, so it can
+  // never point at a category the admin has switched off. The root layout
+  // reads the categories for the nav on every page anyway, so this is the same
+  // cached read, not a new one.
+  const shop = primaryShopLink(await getCategories());
   return (
     <div className="bg-background text-on-surface min-h-screen flex flex-col">
       <SiteHeader />
@@ -79,8 +86,8 @@ export default function AboutUs() {
             <h2 className="font-headline-xl text-headline-xl uppercase">Ready to ride?</h2>
             <p className="font-body-md mt-1">Factory-direct trikes and go-carts, shipped to your door.</p>
           </div>
-          <Link href="/shop?category=trikes" className="bg-surface-container-lowest text-white px-10 py-4 font-label-bold uppercase tracking-widest rounded-lg hover:brightness-125 transition-all whitespace-nowrap">
-            Shop Trikes
+          <Link href={shop.href} className="bg-surface-container-lowest text-white px-10 py-4 font-label-bold uppercase tracking-widest rounded-lg hover:brightness-125 transition-all whitespace-nowrap">
+            {shop.label}
           </Link>
         </div>
       </main>
