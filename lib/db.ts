@@ -54,6 +54,40 @@ const SEARCH_TTL = 60; // seconds — search keys are user-supplied, keep them s
  * page down — but now it says why in the Worker log first.
  * ═══════════════════════════════════════════════════════════════════════════
  */
+/**
+ * Never let the CACHE LAYER take a page down.
+ *
+ * ═══ THE FAILURE THIS GUARDS ═══════════════════════════════════════════════
+ *
+ * These reads are wrapped in `unstable_cache`, which needs Next's incremental
+ * cache to be present. When it is not, the call does not return empty — it
+ * THROWS `Invariant: incrementalCache missing in unstable_cache`.
+ *
+ * The root layout awaits getSiteSettings() and getAnnouncements() on EVERY
+ * page, so a throw there is not a degraded footer, it is every route in the
+ * site failing to render. That surfaces as the error boundary on every
+ * navigation while a full reload may still work, because the two take
+ * different paths through the cache.
+ *
+ * So each cached read is wrapped: a cache-layer failure logs and falls back to
+ * the same value the function already returns when Supabase is absent. Losing
+ * the cache costs latency and some Supabase queries. It must not cost the
+ * storefront.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+async function neverThrow<T>(what: string, read: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await read();
+  } catch (e) {
+    console.error(
+      `[db] ${what} CACHE LAYER failed: ${String((e as Error)?.message || e).slice(0, 300)}` +
+        " — serving the fallback. If this says 'incrementalCache missing', the Worker" +
+        " has no incremental cache bound (see open-next.config.ts)."
+    );
+    return fallback;
+  }
+}
+
 function logReadFailure(
   what: string,
   error: { message?: string; code?: string; hint?: string; details?: string } | null
@@ -78,7 +112,7 @@ function logReadFailure(
  */
 const ANNOUNCEMENTS_TTL = CATALOG_TTL;
 
-export const getCategories = unstable_cache(
+const getCategoriesCached = unstable_cache(
   async (): Promise<Category[]> => {
     if (!supabaseConfigured()) return [];
     const supabase = createPublicClient();
@@ -99,7 +133,7 @@ export const getCategories = unstable_cache(
   { revalidate: CATALOG_TTL, tags: [CATALOG_TAG] }
 );
 
-export const getProducts = unstable_cache(
+const getProductsCached = unstable_cache(
   async (opts?: {
     categorySlug?: string;
     power?: string;
@@ -182,7 +216,7 @@ export const getProducts = unstable_cache(
  * product form still sets it.
  */
 
-export const getSiteSettings = unstable_cache(
+const getSiteSettingsCached = unstable_cache(
   async (): Promise<SiteSettings> => {
     if (!supabaseConfigured()) return DEFAULT_SITE_SETTINGS;
     const supabase = createPublicClient();
@@ -204,7 +238,7 @@ export const getSiteSettings = unstable_cache(
  * Cached like the catalog. Admin saves revalidate by tag immediately; a
  * scheduled start or end waits for the ttl — see ANNOUNCEMENTS_TTL.
  */
-export const getAnnouncements = unstable_cache(
+const getAnnouncementsCached = unstable_cache(
   async (): Promise<Announcement[]> => {
     if (!supabaseConfigured()) return [];
     const supabase = createPublicClient();
@@ -499,4 +533,35 @@ export async function getOrderByNumber(orderNumber: string): Promise<Order | nul
   }
   if (!data) return null;
   return sortOrderEvents([data as Order])[0];
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cache-safe public wrappers                                                 */
+/* -------------------------------------------------------------------------- */
+/*
+ * Every caller goes through these rather than the cached functions directly,
+ * so a cache-layer failure degrades instead of throwing. See neverThrow above
+ * for why that matters more than it looks: two of these are awaited by the
+ * root layout, which puts them on every page in the site.
+ */
+
+export function getCategories(): Promise<Category[]> {
+  return neverThrow("categories", () => getCategoriesCached(), []);
+}
+
+export function getProducts(opts?: {
+  categorySlug?: string;
+  power?: string;
+  sort?: "newest" | "price-asc" | "price-desc";
+  limit?: number;
+}): Promise<Product[]> {
+  return neverThrow("products", () => getProductsCached(opts), []);
+}
+
+export function getSiteSettings(): Promise<SiteSettings> {
+  return neverThrow("site settings", () => getSiteSettingsCached(), DEFAULT_SITE_SETTINGS);
+}
+
+export function getAnnouncements(): Promise<Announcement[]> {
+  return neverThrow("announcements", () => getAnnouncementsCached(), []);
 }

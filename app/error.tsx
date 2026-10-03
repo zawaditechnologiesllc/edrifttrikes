@@ -38,15 +38,22 @@ export default function Error({
     console.error("[app] client render failed:", error);
 
     /**
-     * A stale-bundle error is the one failure a reload genuinely fixes. Guarded
-     * by a sessionStorage flag so a genuinely broken page cannot put the
-     * browser into a reload loop — one attempt, then the message below.
+     * A stale-bundle error is the one failure a reload genuinely fixes.
+     *
+     * Guarded by a TIMESTAMP, not a once-per-session flag. The first version
+     * used a flag that was never cleared, which meant one reload per session
+     * and the error page forever after — so a visitor who hit a stale chunk
+     * early saw a broken site for the rest of their visit even though a reload
+     * would have fixed each navigation. A short window stops a tight loop
+     * while still allowing recovery on a later click.
      */
     const stale = /ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module|error loading dynamically imported module/i;
     if (!stale.test(`${error.name} ${error.message}`)) return;
     try {
-      if (sessionStorage.getItem("edrift.reloaded-for-chunk")) return;
-      sessionStorage.setItem("edrift.reloaded-for-chunk", "1");
+      const KEY = "edrift.last-chunk-reload";
+      const last = Number(sessionStorage.getItem(KEY) || 0);
+      if (Date.now() - last < 10_000) return; // reloaded moments ago — don't loop
+      sessionStorage.setItem(KEY, String(Date.now()));
       window.location.reload();
     } catch {
       /* storage blocked — fall through to the message rather than risk a loop */
@@ -77,11 +84,20 @@ export default function Error({
             Back to the shop
           </Link>
         </div>
-        {error.digest && (
-          <p className="text-outline text-xs mt-8">
-            Reference: {error.digest}
-          </p>
-        )}
+        {/*
+            The real message, collapsed. A customer never opens this; the owner
+            can read the actual fault without being told to open developer
+            tools, which is what the default Next error page asks of them.
+        */}
+        <details className="mt-10 text-left mx-auto max-w-lg">
+          <summary className="text-outline text-xs uppercase tracking-widest cursor-pointer hover:text-on-surface-variant">
+            Technical details
+          </summary>
+          <pre className="mt-3 whitespace-pre-wrap break-words rounded border border-white/10 bg-surface-container p-4 text-[11px] text-on-surface-variant">
+{error.name}: {error.message}
+{error.digest ? `\nReference: ${error.digest}` : ""}
+          </pre>
+        </details>
       </div>
     </div>
   );
