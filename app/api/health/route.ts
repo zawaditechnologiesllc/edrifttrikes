@@ -27,7 +27,7 @@ export async function GET() {
     ok: true,
     // Bump on each debug push — if this value doesn't change after a redeploy,
     // your deployment pipeline is serving a stale build.
-    diag: "release-2026-10-04-error-boundary-cart-fix",
+    diag: "release-2026-10-04b-cache-layer-never-throws",
     adminReady: supabase.url && supabase.serviceRoleKey,
     supabase,
     render: {
