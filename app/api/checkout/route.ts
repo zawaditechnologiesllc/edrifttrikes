@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, supabaseConfigured } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { stripeCompanyContent } from "@/lib/stripe-branding";
+import { createCheckoutSession } from "@/lib/stripe-checkout";
 import {
   stripeShipping,
   statementDescriptorSuffix,
@@ -600,21 +601,33 @@ export async function POST(request: Request) {
       },
     };
 
-    let session;
-    try {
-      session = await stripe.checkout.sessions.create(params);
-    } catch (e) {
-      // Adaptive Pricing is a DISPLAY feature: it shows the buyer their own
-      // currency. Not every account or region has it, and an account that
-      // rejects the flag would otherwise take the whole checkout down with it.
-      // Losing the local-currency display is a shame; losing the sale is not
-      // acceptable, so retry once without it.
-      const reason = String((e as Error)?.message || e);
-      if (!/adaptive_pricing/i.test(reason)) throw e;
-      console.warn("[checkout] Stripe rejected adaptive_pricing; retrying without it");
-      const { adaptive_pricing: _dropped, ...rest } = params;
-      session = await stripe.checkout.sessions.create(rest);
-    }
+    /**
+     * ═══ ASK FOR EVERYTHING; SETTLE FOR WHAT THIS ACCOUNT ALLOWS ═════════════
+     *
+     * Which of the PRESENTATION parameters above an account accepts depends on
+     * that account's settings and which Stripe products are switched on for
+     * it. Adaptive Pricing is not available everywhere. Managed Payments —
+     * enabled by default on newer accounts — refuses `custom_text` outright:
+     *
+     *     custom_text cannot be used with Managed Payments … Remove
+     *     custom_text, or pass managed_payments[enabled]=false
+     *
+     * Stripe returns that as a 400, so the session is never created and the
+     * buyer is told card checkout is unavailable. A storefront down because of
+     * a sentence of marketing copy.
+     *
+     * So this does not create the session directly any more. It negotiates:
+     * full feature set first, and on a refusal it gives up ONE presentation
+     * feature — guided by Stripe's own error, which names the parameter — and
+     * asks again. Where Stripe offers a way to keep the feature instead of
+     * dropping it, as Managed Payments does, that is tried first. The money,
+     * the URLs and the metadata the webhook reads are never negotiated.
+     *
+     * What the account accepted is remembered, so this costs extra calls once
+     * per account, not once per buyer. See lib/stripe-checkout.ts.
+     * ═════════════════════════════════════════════════════════════════════════
+     */
+    const { session } = await createCheckoutSession(stripe, params);
 
     // Same split as the PayPal path: stripe_session_id drives the tracking
       // write-back to Stripe and must not be lost to a missing migration.
