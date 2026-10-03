@@ -139,12 +139,29 @@ export async function POST(request: Request) {
   // select("*") so per-product shipping columns come through when present,
   // without failing on a database that hasn't run migration 0005 yet.
   const ids = items.map((i) => i.productId);
-  const { data: products } = await admin
+  const { data: products, error: productsError } = await admin
     .from("products")
     .select("*")
     .in("id", ids);
 
+  /**
+   * The buyer is told "No valid products in cart" either way, but the owner
+   * needs to know WHICH way. A failed lookup (bad service-role key, Supabase
+   * unreachable) and a lookup that simply matched nothing are different
+   * problems, and this message was previously the only trace of either.
+   */
+  if (productsError) {
+    console.error(
+      `[checkout] product lookup FAILED${productsError.code ? ` [${productsError.code}]` : ""}: ` +
+        `${productsError.message} — the buyer was told the cart is invalid`
+    );
+  }
   if (!products || products.length === 0) {
+    if (!productsError) {
+      console.warn(
+        `[checkout] product lookup matched no rows for ids: ${ids.join(", ")}`
+      );
+    }
     return NextResponse.json({ error: "No valid products in cart." }, { status: 400 });
   }
 
@@ -165,7 +182,19 @@ export async function POST(request: Request) {
   const lineItems = items
     .map((i) => {
       const p = products.find((x) => x.id === i.productId);
-      if (!p || p.status !== "active") return null;
+      if (!p || p.status !== "active") {
+        /**
+         * The single most likely reason a cart silently empties: the product
+         * exists but is not `active`. That same status gates the storefront —
+         * so a product left as draft disappears from the shop AND refuses to
+         * be bought, with nothing anywhere saying why. Now it says why.
+         */
+        console.warn(
+          `[checkout] dropped ${i.productId}: ` +
+            (p ? `status is "${p.status}", not "active"` : "no such product")
+        );
+        return null;
+      }
       const qty = Math.max(1, Math.min(i.qty, p.stock > 0 ? p.stock : i.qty));
 
       const offered = productColorOptions(p);
