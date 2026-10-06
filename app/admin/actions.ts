@@ -9,8 +9,10 @@ import {
   setOrderStage,
   ensureCustomerAccountLink,
   loadOrder,
+  recordGatewayIds,
   syncProductColors,
 } from "@/lib/orders";
+import { buildManualOrder, manualOrderFromForm } from "@/lib/manual-order";
 import { sendAccountInviteEmail, sendRefundEmail, resendFailureHint } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
@@ -578,6 +580,186 @@ export async function updateOrderStatus(
     ok: true,
     message: notes.length ? `Saved: ${notes.join(", ")}.` : "No changes to save.",
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Manual orders                                                               */
+/* -------------------------------------------------------------------------- */
+
+export type ManualOrderState = {
+  ok?: boolean;
+  /** Every problem at once — an admin retyping ten lines should see them all. */
+  errors?: string[];
+};
+
+/**
+ * Create an order by hand.
+ *
+ * ═══ FOR MONEY THAT ARRIVED SOMEWHERE THIS SHOP COULD NOT SEE ══════════════
+ *
+ * The checkout creates an order BEFORE sending the buyer to a payment page, so
+ * a storefront sale always leaves a row. A Stripe payment link, an invoice, a
+ * charge taken in the Dashboard, a bank transfer or a sale agreed over the
+ * phone leaves none — the money is real and there is nothing to fulfil,
+ * invoice or track against.
+ *
+ * ═══ IT DOES NOT TAKE A SHORTCUT ═══════════════════════════════════════════
+ *
+ * A paid order is NOT inserted with status "paid". It is inserted pending and
+ * then put through markOrderPaid — the same transition the Stripe and PayPal
+ * webhooks run. That is what stamps paid_at, starts the delivery schedule,
+ * computes the estimated delivery date, records the stage event and (when
+ * asked) sends the confirmation and sets up the customer's account.
+ *
+ * Writing "paid" straight into the column would produce an order that LOOKS
+ * right in the list and is inert everywhere else: no ladder, no ETA, no
+ * tracking emails, invisible to the fulfilment sweep. The whole point of this
+ * feature is an order that behaves like all the others.
+ *
+ * Columns from later migrations (the gateway reference, the tracking fields)
+ * are written separately and best-effort, so a database that has not run them
+ * still gets the order rather than failing the whole insert.
+ */
+export async function createManualOrder(
+  _prev: ManualOrderState,
+  formData: FormData
+): Promise<ManualOrderState> {
+  await requireAdmin();
+  if (!adminConfigured()) {
+    return { errors: ["Supabase is not configured, so there is nowhere to save an order."] };
+  }
+
+  // Read and validate in two steps, both of them in lib/manual-order.ts so the
+  // form's field names and the money rules are testable without a database.
+  const built = buildManualOrder(manualOrderFromForm(formData));
+
+  if (!built.ok) return { errors: built.errors };
+  const { order, items } = built;
+
+  const admin = createAdminClient();
+  const settled = order.status === "paid" || order.status === "fulfilled";
+
+  /*
+   * Insert with the ORIGINAL columns only (migration 0001). Everything later —
+   * the gateway reference, the paid timestamp, the delivery stage — is applied
+   * afterwards by code that already knows how to degrade when its migration is
+   * missing. One insert that can fail on a column nobody has added yet would
+   * lose the order entirely.
+   *
+   * A settled order is inserted PENDING so markOrderPaid can perform the real
+   * transition below; its update only matches rows still in that state.
+   */
+  const { data: row, error } = await admin
+    .from("orders")
+    .insert({
+      ...(order.order_number ? { order_number: order.order_number } : {}),
+      email: order.email,
+      status: settled ? "pending" : order.status,
+      subtotal_cents: order.subtotal_cents,
+      shipping_cents: order.shipping_cents,
+      tax_cents: order.tax_cents,
+      total_cents: order.total_cents,
+      currency: order.currency,
+      shipping_address: order.shipping_address,
+    })
+    .select()
+    .single();
+
+  if (error || !row) {
+    console.error("[admin] manual order insert failed:", error?.message);
+    const duplicate = error?.code === "23505";
+    return {
+      errors: [
+        duplicate
+          ? `Order number "${order.order_number}" is already taken. Leave it blank to have one generated.`
+          : `Could not create the order: ${error?.message ?? "unknown error"}`,
+      ],
+    };
+  }
+
+  const orderId = row.id as string;
+
+  // The lines. Retried without `color` for a database that has not run 0012 —
+  // losing the colour on the record beats losing the lines.
+  const itemRows = items.map((i) => ({ order_id: orderId, ...i }));
+  {
+    const { error: itemsError } = await admin.from("order_items").insert(itemRows);
+    if (itemsError) {
+      console.error("[admin] manual order items insert failed:", itemsError.message);
+      await admin
+        .from("order_items")
+        .insert(itemRows.map(({ color: _color, ...rest }) => rest));
+    }
+  }
+
+  /*
+   * The gateway's own id, split across the pre-0018 and post-0018 columns by
+   * the shared helper — the same write the checkout does, so a manual Stripe
+   * payment reconciles and refunds the same way as a real one.
+   */
+  if (order.gateway_reference || order.gateway_account) {
+    await recordGatewayIds(admin, orderId, {
+      ...(order.gateway_reference
+        ? { legacySessionId: order.gateway_reference, reference: order.gateway_reference }
+        : {}),
+      ...(order.gateway_account ? { account: order.gateway_account } : {}),
+    });
+  }
+
+  /*
+   * An audit trail. order_events is unique on (order_id, stage), so this
+   * cannot collide with a real delivery stage and cannot be written twice.
+   */
+  await admin.from("order_events").insert({
+    order_id: orderId,
+    stage: "manual_entry",
+    title: "Created by hand in the admin",
+    detail: order.note,
+    email_sent: false,
+  });
+
+  const notify = wantsNotify(formData);
+
+  if (settled) {
+    const paid = await markOrderPaid(
+      admin,
+      { id: orderId },
+      {
+        paidAt: order.paid_at ? new Date(order.paid_at) : undefined,
+        paidVia: order.paid_via ?? "manual",
+        sendEmail: notify,
+        ...(order.gateway_reference ? { gatewayReference: order.gateway_reference } : {}),
+      }
+    );
+    if (!paid.ok) {
+      console.error(`[admin] manual order ${orderId} created but not marked paid: ${paid.reason}`);
+    }
+    if (order.status === "fulfilled") {
+      await admin.from("orders").update({ status: "fulfilled" }).eq("id", orderId);
+    }
+  } else if (order.status === "cancelled" || order.status === "refunded") {
+    // Closed on arrival: stop the scheduler walking it through delivery stages
+    // and emailing the customer about a package that is not coming.
+    const { error: stageError } = await admin
+      .from("orders")
+      .update({ fulfillment_stage: "cancelled", stage_updated_at: new Date().toISOString() })
+      .eq("id", orderId);
+    if (stageError) {
+      console.error("[admin] manual order stage update failed:", stageError.message);
+    }
+    if (order.status === "refunded" && notify) {
+      const full = await loadOrder(admin, { id: orderId });
+      if (full?.email) {
+        await sendRefundEmail(full).catch((e) =>
+          console.error("[admin] manual refund email failed:", e)
+        );
+      }
+    }
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  redirect(`/admin/orders/${orderId}`);
 }
 
 export async function saveCategory(formData: FormData) {
