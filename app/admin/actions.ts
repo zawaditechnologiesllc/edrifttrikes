@@ -14,13 +14,8 @@ import {
 } from "@/lib/orders";
 import { buildManualOrder, manualOrderFromForm } from "@/lib/manual-order";
 import {
-  describeOrphan,
   emptyReport,
-  matchOrderForSession,
-  repairDecision,
-  sessionIsPaid,
-  sessionReference,
-  type OrderLike,
+  reconcileStripePayments,
   type SessionLike,
   type SyncReport,
 } from "@/lib/order-sync";
@@ -614,10 +609,6 @@ export async function refreshOrders() {
 
 export type SyncState = { report?: SyncReport };
 
-/** How far back to look, and how many pages of Stripe results to walk. */
-const SYNC_WINDOW_DAYS = 120;
-const SYNC_MAX_PAGES = 5;
-
 /**
  * Ask Stripe what it actually took, and repair the orders that missed it.
  *
@@ -662,109 +653,31 @@ export async function syncStripePayments(
     };
   }
   if (!adminConfigured()) {
-    return {
-      report: { ...emptyReport(), blocked: "Supabase is not configured." },
-    };
+    return { report: { ...emptyReport(), blocked: "Supabase is not configured." } };
   }
 
   const admin = createAdminClient();
-  const report: SyncReport = emptyReport();
-
-  /*
-   * Our side of the comparison. `gateway_reference` arrived in migration 0018,
-   * so a database without it must still be able to run this — the fallback
-   * drops that one column rather than the whole feature.
-   */
-  const COLUMNS = "id, order_number, status, email, total_cents, stripe_session_id";
-  let orders: OrderLike[] = [];
-  {
-    const full = await admin
-      .from("orders")
-      .select(`${COLUMNS}, gateway_reference`)
-      .order("created_at", { ascending: false })
-      .limit(2000);
-    if (full.error) {
-      console.warn(
-        `[sync] orders read without gateway_reference (${full.error.message}) — run migration 0018 for a complete match`
-      );
-      const basic = await admin
-        .from("orders")
-        .select(COLUMNS)
-        .order("created_at", { ascending: false })
-        .limit(2000);
-      if (basic.error) {
-        return {
-          report: { ...report, blocked: `Could not read orders: ${basic.error.message}` },
-        };
-      }
-      orders = (basic.data ?? []) as OrderLike[];
-    } else {
-      orders = (full.data ?? []) as OrderLike[];
-    }
-  }
-
-  // Stripe's side, bounded in both time and pages so this cannot run away.
-  const since = Math.floor(Date.now() / 1000) - SYNC_WINDOW_DAYS * 24 * 60 * 60;
-  const sessions: SessionLike[] = [];
-  try {
-    let startingAfter: string | undefined;
-    for (let page = 0; page < SYNC_MAX_PAGES; page++) {
-      const batch = await stripe.checkout.sessions.list({
-        limit: 100,
-        created: { gte: since },
-        ...(startingAfter ? { starting_after: startingAfter } : {}),
-      });
-      sessions.push(...(batch.data as unknown as SessionLike[]));
-      if (!batch.has_more || batch.data.length === 0) break;
-      startingAfter = batch.data[batch.data.length - 1]?.id;
-    }
-  } catch (e) {
-    return {
-      report: {
-        ...report,
-        blocked: `Stripe refused the request: ${String((e as Error)?.message || e).slice(0, 200)}`,
-      },
-    };
-  }
-
-  const notify = wantsNotify(formData);
-
-  for (const session of sessions) {
-    report.scanned++;
-    if (!sessionIsPaid(session)) continue;
-
-    const order = matchOrderForSession(session, orders);
-    if (!order) {
-      report.orphans.push(describeOrphan(session));
-      continue;
-    }
-
-    report.matched++;
-    const decision = repairDecision(order, session);
-    if (!decision.act) {
-      report.alreadyPaid++;
-      continue;
-    }
-
-    const paid = await markOrderPaid(
-      admin,
-      { id: order.id },
-      {
-        paidVia: "stripe",
-        sendEmail: notify,
-        paidAt: session.created ? new Date(Number(session.created) * 1000) : undefined,
-        gatewayReference: sessionReference(session),
-      }
-    );
-    if (paid.ok) {
-      report.repaired.push(order.order_number);
-      // Keep the in-memory copy in step so a second session for the same order
-      // in this same run is reported as already paid rather than repaired twice.
-      order.status = "paid";
-    } else {
-      report.problems.push(`${order.order_number}: ${paid.reason ?? "unknown error"}`);
-    }
-  }
+  const report = await reconcileStripePayments({
+    admin,
+    listSessions: (args) =>
+      stripe.checkout.sessions.list(args) as unknown as Promise<{
+        data: SessionLike[];
+        has_more?: boolean;
+      }>,
+    markPaid: (orderId, opts) =>
+      markOrderPaid(
+        admin,
+        { id: orderId },
+        {
+          paidVia: "stripe",
+          sendEmail: opts.sendEmail,
+          paidAt: opts.paidAt,
+          gatewayReference: opts.gatewayReference,
+        }
+      ).then((r) => ({ ok: r.ok, reason: r.reason })),
+    sendEmail: wantsNotify(formData),
+    log: (m) => console.warn(m),
+  });
 
   revalidatePath("/admin/orders");
   revalidatePath("/admin/orders/paid");

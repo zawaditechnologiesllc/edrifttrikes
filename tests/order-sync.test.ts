@@ -4,6 +4,7 @@ import {
   describeOrphan,
   emptyReport,
   matchOrderForSession,
+  reconcileStripePayments,
   repairDecision,
   sessionEmail,
   sessionIsPaid,
@@ -237,5 +238,229 @@ describe("what the admin is told", () => {
       summarizeSync({ ...emptyReport(), scanned: 2, repaired: ["X"] }),
       /Marked 1 order paid/
     );
+  });
+});
+
+/**
+ * The runner itself — shared by the admin button and the hourly scheduler.
+ *
+ * It is on the scheduler because a repair that only happens when somebody
+ * remembers to click is not a guarantee. A webhook outage, a rate-limited
+ * hour, a deploy at the wrong moment: all of it has to heal whether or not
+ * anyone is watching.
+ */
+describe("running the reconciliation", () => {
+  /** A Supabase stand-in: one `from("orders").select(...)` chain. */
+  function fakeAdmin(rows: OrderLike[], opts: { failFullSelect?: boolean; failAll?: boolean } = {}) {
+    const selects: string[] = [];
+    return {
+      selects,
+      admin: {
+        from: () => ({
+          select(columns: string) {
+            selects.push(columns);
+            const failing =
+              opts.failAll || (opts.failFullSelect && columns.includes("gateway_reference"));
+            const result = failing
+              ? { data: null, error: { message: 'column "gateway_reference" does not exist' } }
+              : { data: rows, error: null };
+            const chain = {
+              order: () => chain,
+              limit: () => Promise.resolve(result),
+            };
+            return chain;
+          },
+        }),
+      },
+    };
+  }
+
+  const paidSession = (id: string, orderId: string | null, amount = 1000): SessionLike => ({
+    id,
+    payment_status: "paid",
+    status: "complete",
+    amount_total: amount,
+    currency: "usd",
+    created: 1_790_000_000,
+    customer_details: { email: "buyer@example.com" },
+    payment_intent: `pi_${id}`,
+    metadata: orderId ? { order_id: orderId } : ({} as Record<string, string>),
+  });
+
+  test("REPAIRS THE ORDERS STRIPE HAD ALREADY PAID", async () => {
+    const rows = [order({ id: "o-1", order_number: "A", status: "pending" })];
+    const marked: string[] = [];
+    const report = await reconcileStripePayments({
+      admin: fakeAdmin(rows).admin,
+      listSessions: async () => ({ data: [paidSession("cs_1", "o-1")], has_more: false }),
+      markPaid: async (id) => {
+        marked.push(id);
+        return { ok: true };
+      },
+    });
+    assert.deepEqual(report.repaired, ["A"]);
+    assert.deepEqual(marked, ["o-1"]);
+  });
+
+  test("EMAIL IS OFF unless the caller asks for it", async () => {
+    // The scheduler must never email: these payments are hours or days old and
+    // a confirmation out of nowhere reads as a second charge.
+    const seen: boolean[] = [];
+    await reconcileStripePayments({
+      admin: fakeAdmin([order({ id: "o-1", order_number: "A", status: "pending" })]).admin,
+      listSessions: async () => ({ data: [paidSession("cs_1", "o-1")], has_more: false }),
+      markPaid: async (_id, opts) => {
+        seen.push(opts.sendEmail);
+        return { ok: true };
+      },
+    });
+    assert.deepEqual(seen, [false]);
+  });
+
+  test("and it is passed through when it is asked for", async () => {
+    const seen: boolean[] = [];
+    await reconcileStripePayments({
+      admin: fakeAdmin([order({ id: "o-1", order_number: "A", status: "pending" })]).admin,
+      listSessions: async () => ({ data: [paidSession("cs_1", "o-1")], has_more: false }),
+      markPaid: async (_id, opts) => {
+        seen.push(opts.sendEmail);
+        return { ok: true };
+      },
+      sendEmail: true,
+    });
+    assert.deepEqual(seen, [true]);
+  });
+
+  test("an unpaid session repairs nothing", async () => {
+    let called = 0;
+    const report = await reconcileStripePayments({
+      admin: fakeAdmin([order({ id: "o-1", order_number: "A", status: "pending" })]).admin,
+      listSessions: async () => ({
+        data: [{ ...paidSession("cs_1", "o-1"), payment_status: "unpaid" }],
+        has_more: false,
+      }),
+      markPaid: async () => {
+        called++;
+        return { ok: true };
+      },
+    });
+    assert.equal(called, 0);
+    assert.deepEqual(report.repaired, []);
+  });
+
+  test("a payment with no order is reported, never created", async () => {
+    const report = await reconcileStripePayments({
+      admin: fakeAdmin([]).admin,
+      listSessions: async () => ({ data: [paidSession("cs_x", null, 25900)], has_more: false }),
+      markPaid: async () => ({ ok: true }),
+    });
+    assert.equal(report.orphans.length, 1);
+    assert.equal(report.orphans[0].amountCents, 25900);
+    assert.deepEqual(report.repaired, []);
+  });
+
+  test("ONE ORDER IS NEVER REPAIRED TWICE IN A RUN", async () => {
+    // Two paid sessions against the same order — a retried checkout. The
+    // second must be counted as already paid, not marked again.
+    const rows = [order({ id: "o-1", order_number: "A", status: "pending" })];
+    let calls = 0;
+    const report = await reconcileStripePayments({
+      admin: fakeAdmin(rows).admin,
+      listSessions: async () => ({
+        data: [paidSession("cs_1", "o-1"), paidSession("cs_2", "o-1")],
+        has_more: false,
+      }),
+      markPaid: async () => {
+        calls++;
+        return { ok: true };
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(report.repaired.length, 1);
+    assert.equal(report.alreadyPaid, 1);
+  });
+
+  test("a failed transition is reported, and the run continues", async () => {
+    const rows = [
+      order({ id: "o-1", order_number: "A", status: "pending" }),
+      order({ id: "o-2", order_number: "B", status: "pending", stripe_session_id: "cs_2" }),
+    ];
+    const report = await reconcileStripePayments({
+      admin: fakeAdmin(rows).admin,
+      listSessions: async () => ({
+        data: [paidSession("cs_1", "o-1"), paidSession("cs_2", "o-2")],
+        has_more: false,
+      }),
+      markPaid: async (id) =>
+        id === "o-1" ? { ok: false, reason: "order_refunded" } : { ok: true },
+    });
+    assert.deepEqual(report.repaired, ["B"]);
+    assert.deepEqual(report.problems, ["A: order_refunded"]);
+  });
+
+  test("a database without migration 0018 still reconciles", async () => {
+    // gateway_reference does not exist there, and the whole select fails on it.
+    // Dropping that one column beats dropping the repair.
+    const fake = fakeAdmin([order({ id: "o-1", order_number: "A", status: "pending" })], {
+      failFullSelect: true,
+    });
+    const report = await reconcileStripePayments({
+      admin: fake.admin,
+      listSessions: async () => ({ data: [paidSession("cs_1", "o-1")], has_more: false }),
+      markPaid: async () => ({ ok: true }),
+    });
+    assert.deepEqual(report.repaired, ["A"]);
+    assert.equal(fake.selects.length, 2, "it should have retried without the column");
+    assert.ok(fake.selects[1].includes("gateway_reference") === false);
+  });
+
+  test("an unreadable orders table is reported, not silently empty", async () => {
+    const report = await reconcileStripePayments({
+      admin: fakeAdmin([], { failAll: true }).admin,
+      listSessions: async () => ({ data: [], has_more: false }),
+      markPaid: async () => ({ ok: true }),
+    });
+    assert.match(report.blocked ?? "", /Could not read orders/);
+  });
+
+  test("Stripe being unreachable is reported, not treated as 'nothing to do'", async () => {
+    const report = await reconcileStripePayments({
+      admin: fakeAdmin([]).admin,
+      listSessions: async () => {
+        throw new Error("connection reset");
+      },
+      markPaid: async () => ({ ok: true }),
+    });
+    assert.match(report.blocked ?? "", /Stripe refused the request/);
+    assert.match(summarizeSync(report), /Stripe refused/);
+  });
+
+  test("paging stops at the limit rather than walking Stripe for ever", async () => {
+    let pages = 0;
+    await reconcileStripePayments({
+      admin: fakeAdmin([]).admin,
+      listSessions: async () => {
+        pages++;
+        return { data: [paidSession(`cs_${pages}`, null)], has_more: true };
+      },
+      markPaid: async () => ({ ok: true }),
+      maxPages: 3,
+    });
+    assert.equal(pages, 3);
+  });
+
+  test("a run with nothing to fix writes nothing at all", async () => {
+    let calls = 0;
+    const report = await reconcileStripePayments({
+      admin: fakeAdmin([order({ id: "o-1", order_number: "A", status: "paid" })]).admin,
+      listSessions: async () => ({ data: [paidSession("cs_1", "o-1")], has_more: false }),
+      markPaid: async () => {
+        calls++;
+        return { ok: true };
+      },
+    });
+    assert.equal(calls, 0);
+    assert.equal(report.alreadyPaid, 1);
+    assert.match(summarizeSync(report), /No order was waiting/);
   });
 });

@@ -238,3 +238,154 @@ export function summarizeSync(report: SyncReport): string {
 
   return parts.join(" ");
 }
+
+/* -------------------------------------------------------------------------- */
+/* Running the reconciliation                                                  */
+/* -------------------------------------------------------------------------- */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type Admin = {
+  from: (table: string) => any;
+};
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+type SessionList = {
+  data: SessionLike[];
+  has_more?: boolean;
+};
+
+export type ReconcileDeps = {
+  admin: Admin;
+  /** Just the one call this needs, so a test can stand in for Stripe. */
+  listSessions: (args: {
+    limit: number;
+    created: { gte: number };
+    starting_after?: string;
+  }) => Promise<SessionList>;
+  /**
+   * The paid transition, injected rather than imported.
+   *
+   * It lives in lib/orders.ts, which imports half the application — email,
+   * fulfilment, Supabase. Taking it as an argument keeps this module free of
+   * that weight and, more to the point, lets a test prove the DECISIONS
+   * without a database or a mail provider anywhere near them.
+   */
+  markPaid: (
+    orderId: string,
+    opts: { paidAt?: Date; gatewayReference: string; sendEmail: boolean }
+  ) => Promise<{ ok: boolean; reason?: string }>;
+  windowDays?: number;
+  maxPages?: number;
+  sendEmail?: boolean;
+  log?: (message: string) => void;
+};
+
+/** Default reach: far enough back to cover a long weekend of broken webhooks. */
+export const DEFAULT_WINDOW_DAYS = 120;
+export const DEFAULT_MAX_PAGES = 5;
+
+const ORDER_COLUMNS = "id, order_number, status, email, total_cents, stripe_session_id";
+
+/**
+ * Compare Stripe against the orders table, and repair what the webhook missed.
+ *
+ * Shared by the admin button and the hourly scheduler, because a repair that
+ * only happens when somebody remembers to click is not a guarantee. The
+ * scheduler is what makes "the system always records orders" true: a webhook
+ * outage, a rate-limited hour, a deploy at the wrong moment — all of it heals
+ * within the hour whether or not anyone is watching.
+ */
+export async function reconcileStripePayments(
+  deps: ReconcileDeps
+): Promise<SyncReport> {
+  const report = emptyReport();
+  const log = deps.log ?? (() => {});
+
+  /*
+   * `gateway_reference` arrived in migration 0018, so a database without it
+   * must still be able to run this: the fallback drops that one column rather
+   * than the whole repair.
+   */
+  let orders: OrderLike[] = [];
+  const full = await deps.admin
+    .from("orders")
+    .select(`${ORDER_COLUMNS}, gateway_reference`)
+    .order("created_at", { ascending: false })
+    .limit(2000);
+  if (full.error) {
+    log(
+      `[sync] reading orders without gateway_reference (${full.error.message}) — run migration 0018 for a complete match`
+    );
+    const basic = await deps.admin
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    if (basic.error) {
+      return { ...report, blocked: `Could not read orders: ${basic.error.message}` };
+    }
+    orders = (basic.data ?? []) as OrderLike[];
+  } else {
+    orders = (full.data ?? []) as OrderLike[];
+  }
+
+  const since =
+    Math.floor(Date.now() / 1000) -
+    (deps.windowDays ?? DEFAULT_WINDOW_DAYS) * 24 * 60 * 60;
+
+  const sessions: SessionLike[] = [];
+  try {
+    let startingAfter: string | undefined;
+    for (let page = 0; page < (deps.maxPages ?? DEFAULT_MAX_PAGES); page++) {
+      const batch = await deps.listSessions({
+        limit: 100,
+        created: { gte: since },
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      sessions.push(...(batch.data ?? []));
+      if (!batch.has_more || (batch.data ?? []).length === 0) break;
+      startingAfter = batch.data[batch.data.length - 1]?.id;
+    }
+  } catch (e) {
+    return {
+      ...report,
+      blocked: `Stripe refused the request: ${String((e as Error)?.message || e).slice(0, 200)}`,
+    };
+  }
+
+  for (const session of sessions) {
+    report.scanned++;
+    if (!sessionIsPaid(session)) continue;
+
+    const order = matchOrderForSession(session, orders);
+    if (!order) {
+      report.orphans.push(describeOrphan(session));
+      continue;
+    }
+
+    report.matched++;
+    if (!repairDecision(order, session).act) {
+      report.alreadyPaid++;
+      continue;
+    }
+
+    const paid = await deps.markPaid(order.id, {
+      paidAt: session.created ? new Date(Number(session.created) * 1000) : undefined,
+      gatewayReference: sessionReference(session),
+      sendEmail: deps.sendEmail === true,
+    });
+    if (paid.ok) {
+      report.repaired.push(order.order_number);
+      /*
+       * Keep the in-memory copy in step, so a second session for the same
+       * order later in this same run is counted as already paid rather than
+       * repaired twice.
+       */
+      order.status = "paid";
+    } else {
+      report.problems.push(`${order.order_number}: ${paid.reason ?? "unknown error"}`);
+    }
+  }
+
+  return report;
+}

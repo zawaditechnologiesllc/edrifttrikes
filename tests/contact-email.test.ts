@@ -126,8 +126,24 @@ describe("resendFailureHint", () => {
   });
 
   test("stays quiet for unrelated failures rather than misdiagnosing them", () => {
-    assert.equal(resendFailureHint("Rate limit exceeded"), null);
     assert.equal(resendFailureHint("HTTP 500"), null);
+    assert.equal(resendFailureHint("Could not resolve host"), null);
     assert.equal(resendFailureHint(""), null);
+  });
+
+  test("a rate limit gets its OWN hint, not the domain one", () => {
+    /*
+     * This case used to return null, on the grounds that a hint should not
+     * misdiagnose. It still must not — but silence turned out to be its own
+     * misdiagnosis: a shop that had simply sent its quota for the day saw a
+     * bare "Resend: ..." in the logs, indistinguishable from a broken
+     * configuration, and read it as the ORDERS failing. They never do; the
+     * order is written before any email is attempted. The hint says so.
+     */
+    const hint = resendFailureHint("Rate limit exceeded");
+    assert.ok(hint);
+    assert.match(hint!, /daily quota|rate-limiting/);
+    assert.match(hint!, /ORDERS ARE UNAFFECTED/);
+    assert.doesNotMatch(hint!, /sending domain/);
   });
 });

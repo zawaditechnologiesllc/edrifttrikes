@@ -17,7 +17,7 @@ import {
 } from "@/lib/authorize-net";
 import { computeCartTotals } from "@/lib/totals";
 import { validateCheckout, normalizeShipping } from "@/lib/validation";
-import { sendAbandonedCartEmail } from "@/lib/email";
+import { sendAbandonedCartEmail, sendInBackground } from "@/lib/email";
 import { matchColor, productColorOptions, defaultColor } from "@/lib/colors";
 import { publicSiteUrl } from "@/lib/env";
 import { originFromRequest } from "@/lib/request-origin";
@@ -395,21 +395,38 @@ export async function POST(request: Request) {
   // and a link back to finish — and the real confirmation follows from
   // markOrderPaid() in lib/orders.ts when the money is actually in.
   //
-  // Never let a mail failure kill an order: log and carry on.
-  await sendAbandonedCartEmail({
-    ...(order as Order),
-    items: lineItems.map((i) => ({
-      id: i.product_id,
-      order_id: order.id,
-      product_id: i.product_id,
-      name: i.name,
-      slug: i.slug,
-      price_cents: i.price_cents,
-      qty: i.qty,
-      image_url: i.image_url,
-      color: i.color,
-    })),
-  }).catch((e) => console.error("[checkout] order confirmation email failed:", e));
+  /*
+   * ═══ THE EMAIL MUST NOT BE ABLE TO COST THE CHECKOUT ══════════════════════
+   *
+   * A failure here never could — the order is already written above, and the
+   * send is caught. DELAY was the real exposure. This used to be awaited
+   * outright, so a provider that was slow (which is what a provider at its
+   * daily limit becomes before it starts refusing) held the request open
+   * BEFORE the Stripe session was created. Under load that is how a checkout
+   * runs past its deadline: the order recorded, no payment page, nothing for
+   * the buyer to pay on, and a shop that looks like it stopped taking orders.
+   *
+   * It is dispatched with a short deadline now. The send continues; the
+   * checkout stops waiting for it. Losing a cart-recovery email is a shame.
+   * Losing the sale it was about is not survivable.
+   * ═════════════════════════════════════════════════════════════════════════
+   */
+  await sendInBackground("order confirmation", () =>
+    sendAbandonedCartEmail({
+      ...(order as Order),
+      items: lineItems.map((i) => ({
+        id: i.product_id,
+        order_id: order.id,
+        product_id: i.product_id,
+        name: i.name,
+        slug: i.slug,
+        price_cents: i.price_cents,
+        qty: i.qty,
+        image_url: i.image_url,
+        color: i.color,
+      })),
+    })
+  );
 
   const siteUrl = publicSiteUrl() || new URL(request.url).origin;
   const method = (payload.method || "").toLowerCase();

@@ -288,6 +288,70 @@ function purchasedItemsBlock(
 
 // ---- Resend direct send (Workers-safe: plain HTTPS, no SDK) ----
 
+/**
+ * ⚠️ NO EMAIL MAY EVER HANG A REQUEST.
+ *
+ * resendSend used to call fetch with no timeout. A provider that is slow —
+ * which is what a provider at its limit becomes, before it starts refusing
+ * outright — therefore held the calling request open for as long as it liked.
+ * On the CHECKOUT path that request is the one creating the Stripe session, so
+ * a stalled marketing email could run the whole checkout past its deadline:
+ * the order row written, no payment page, nothing for the buyer to pay on.
+ *
+ * Eight seconds is far longer than a healthy send (~200ms) and far shorter
+ * than any request budget, so a provider having a bad day costs latency and
+ * never a sale.
+ */
+const RESEND_TIMEOUT_MS = 8000;
+
+/**
+ * Let a caller send without being held hostage by it.
+ *
+ * Returns a promise that settles when the send finishes OR after this deadline,
+ * whichever is first — the send carries on either way. For mail that must not
+ * delay what the user is waiting for, which on this site means anything on the
+ * checkout path.
+ */
+const BACKGROUND_DEADLINE_MS = 1500;
+
+export async function sendInBackground(
+  label: string,
+  send: () => Promise<unknown>,
+  /** Overridable so a test does not have to wait the real deadline out. */
+  deadlineMs: number = BACKGROUND_DEADLINE_MS
+): Promise<void> {
+  let settled = false;
+  /*
+   * `send()` is invoked INSIDE the promise chain, not outside it.
+   *
+   * Written as `send().then().catch()`, a synchronous throw — a bad template,
+   * a missing field, anything that blows up before the first await — escapes
+   * before the catch is attached, and takes the caller down with it. Which is
+   * precisely what this function exists to make impossible.
+   */
+  const attempt = Promise.resolve()
+    .then(() => send())
+    .then(() => {
+      settled = true;
+    })
+    .catch((e) => {
+      settled = true;
+      console.error(`[email] ${label} failed:`, String((e as Error)?.message || e));
+    });
+
+  await Promise.race([
+    attempt,
+    new Promise<void>((resolve) => setTimeout(resolve, deadlineMs)),
+  ]);
+
+  if (!settled) {
+    console.warn(
+      `[email] ${label} is taking longer than ${deadlineMs}ms — ` +
+        "carrying on without it so the request is not held up."
+    );
+  }
+}
+
 async function resendSend(
   to: string,
   subject: string,
@@ -312,6 +376,9 @@ async function resendSend(
       ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
     }),
     cache: "no-store",
+    // See RESEND_TIMEOUT_MS: a send that never answers must not be able to
+    // hold open the request that started it.
+    signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
   });
   const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string; name?: string };
   if (!res.ok) {
@@ -335,6 +402,36 @@ async function resendSend(
  */
 export function resendFailureHint(message: string): string | null {
   const m = (message || "").toLowerCase();
+  /*
+   * THE DAILY LIMIT, named.
+   *
+   * It had no hint at all, so a shop that had simply sent its quota for the
+   * day got a bare "Resend: ..." in the logs — indistinguishable from a
+   * misconfiguration, and easy to read as the orders themselves failing. They
+   * do not: nothing on this site lets an email failure cost an order. Say so
+   * here, where somebody reading the logs at the time will see it.
+   */
+  if (
+    m.includes("rate limit") ||
+    m.includes("too many requests") ||
+    m.includes("daily limit") ||
+    m.includes("quota") ||
+    m.includes("429")
+  ) {
+    return (
+      "Resend is rate-limiting or you have reached the plan's daily quota. " +
+      "ORDERS ARE UNAFFECTED — every order is written to the database before " +
+      "any email is attempted, and a failed send is logged and stepped over. " +
+      "Customers simply do not get this message; raise the Resend plan, or " +
+      "let it reset tomorrow."
+    );
+  }
+  if (m.includes("timeouterror") || m.includes("aborted") || m.includes("signal timed out")) {
+    return (
+      "Resend did not answer in time and the send was abandoned so the request " +
+      "could continue. The order is unaffected."
+    );
+  }
   if (
     m.includes("only send testing emails") ||
     m.includes("not verified") ||
