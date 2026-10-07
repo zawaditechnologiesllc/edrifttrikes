@@ -100,7 +100,7 @@ export default async function SystemStatus() {
     const admin = createAdminClient();
     const columnExists = async (table: string, column: string) =>
       !(await admin.from(table).select(column).limit(1)).error;
-    const [m3, m4a, m4b, m5, m6, m12, m13, m15, m16, m17, m18, m19, { data }] = await Promise.all([
+    const [m3, m4a, m4b, m5, m6, m12, m13, m15, m16, m17, m18, m19, m20, m21, { data }] = await Promise.all([
       columnExists("site_settings", "id"),
       columnExists("site_settings", "shipping_cents"),
       columnExists("articles", "id").then(async (ok) => {
@@ -119,6 +119,18 @@ export default async function SystemStatus() {
       columnExists("site_settings", "dba_name"),
       columnExists("orders", "gateway_reference"),
       columnExists("site_settings", "authorizenet_account"),
+      /*
+       * 0020 renames a category rather than adding a column, so the probe is
+       * its effect: a `gear` slug still present means the rename has not run.
+       * A shop that never had one reads as done, which is correct — there is
+       * nothing for it to do there.
+       */
+      admin
+        .from("categories")
+        .select("id", { count: "exact", head: true })
+        .eq("slug", "gear")
+        .then((r) => (r.error ? false : (r.count ?? 0) === 0)),
+      columnExists("categories", "active"),
       admin.from("orders").select("*").order("created_at", { ascending: false }).limit(30),
     ]);
     migrations.push(
@@ -133,7 +145,9 @@ export default async function SystemStatus() {
       { label: "0017 — invoice identity (DBA, tax ID) + invoices", ok: m17 },
       { label: "0018 — gateway reference + account on orders", ok: m18 },
       // Inverted on purpose: 0019 DROPS a column, so "run" means it is gone.
-      { label: "0019 — Authorize.Net account picker removed", ok: !m19 }
+      { label: "0019 — Authorize.Net account picker removed", ok: !m19 },
+      { label: "0020 — Gear category renamed to Dirt Bikes", ok: m20 },
+      { label: "0021 — switch a category on or off", ok: m21 }
     );
     orders = (data as Order[]) ?? [];
   }
