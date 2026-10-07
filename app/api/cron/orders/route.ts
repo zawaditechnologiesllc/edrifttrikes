@@ -3,7 +3,14 @@ import { revalidateTag } from "next/cache";
 import { CATALOG_TAG } from "@/lib/db";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { isInternalRequest } from "@/lib/internal-auth";
-import { advanceOrder, sweepAbandonedOrders, syncProductColors } from "@/lib/orders";
+import {
+  advanceOrder,
+  markOrderPaid,
+  sweepAbandonedOrders,
+  syncProductColors,
+} from "@/lib/orders";
+import { reconcileStripePayments, type SessionLike, type SyncReport } from "@/lib/order-sync";
+import { getStripe } from "@/lib/stripe";
 import { SCHEDULED_STAGES } from "@/lib/fulfillment";
 import type { Order } from "@/lib/types";
 
@@ -25,6 +32,14 @@ export const dynamic = "force-dynamic";
  * clock cannot know a parcel arrived, so an admin sets it.
  *
  * The timings live in lib/fulfillment.ts. This route is only the engine.
+ *
+ * IT ALSO RECONCILES WITH STRIPE — see the pass at the end. The webhook is
+ * what normally turns a paid order from `pending` into `paid`; when that chain
+ * breaks (an outage, a rate-limited hour, a deploy at the wrong moment) the
+ * money arrives and the transition does not, and the order sits pending for
+ * ever. Doing it here as well as behind an admin button is what makes "the
+ * system always records orders" a property rather than a promise: nobody has
+ * to notice, and nobody has to click.
  *
  * IT ALSO CHASES UNPAID ORDERS — day 3, 7 and 12 after checkout, stopping the
  * moment the buyer pays for anything. That schedule lives in lib/abandoned.ts.
@@ -133,6 +148,72 @@ async function runScheduler(request: Request) {
     console.error("[cron/orders] abandoned sweep failed:", e);
   }
 
+  /*
+   * Repair orders Stripe has already been paid for.
+   *
+   * LAST, and wrapped, for the same reason as the sweep above: this talks to a
+   * third party, and a bad minute at Stripe must not stop a customer's
+   * shipping update. Email is OFF — these payments are hours or days old, the
+   * buyer has their Stripe receipt, and a confirmation arriving out of nowhere
+   * reads as a second charge. The admin button is where you ask for that.
+   *
+   * Idempotent, like everything else here: markOrderPaid only moves rows still
+   * in `pending`, so a run with nothing to fix writes nothing.
+   */
+  let reconciled: Pick<SyncReport, "scanned" | "repaired" | "orphans"> & {
+    blocked?: string;
+  } = { scanned: 0, repaired: [], orphans: [] };
+  try {
+    const stripe = getStripe();
+    if (stripe) {
+      const report = await reconcileStripePayments({
+        admin,
+        listSessions: (args) =>
+          stripe.checkout.sessions.list(args) as unknown as Promise<{
+            data: SessionLike[];
+            has_more?: boolean;
+          }>,
+        markPaid: (orderId, opts) =>
+          markOrderPaid(
+            admin,
+            { id: orderId },
+            {
+              paidVia: "stripe",
+              sendEmail: false,
+              paidAt: opts.paidAt,
+              gatewayReference: opts.gatewayReference,
+            }
+          ).then((r) => ({ ok: r.ok, reason: r.reason })),
+        // A shorter reach than the admin button: this runs every hour, so it
+        // only has to cover the gap since the last one, with room to spare.
+        windowDays: 14,
+        maxPages: 2,
+        sendEmail: false,
+        log: (m) => console.warn(m),
+      });
+      reconciled = {
+        scanned: report.scanned,
+        repaired: report.repaired,
+        orphans: report.orphans,
+        ...(report.blocked ? { blocked: report.blocked } : {}),
+      };
+      if (report.repaired.length > 0) {
+        console.warn(
+          `[cron/orders] repaired ${report.repaired.length} order(s) Stripe had already paid: ` +
+            `${report.repaired.join(", ")} — the payment webhook is not landing, check STRIPE_WEBHOOK_SECRET on Render`
+        );
+      }
+      if (report.orphans.length > 0) {
+        console.warn(
+          `[cron/orders] ${report.orphans.length} Stripe payment(s) have no order row — ` +
+            "create them under Admin → Orders → New order"
+        );
+      }
+    }
+  } catch (e) {
+    console.error("[cron/orders] Stripe reconciliation failed:", e);
+  }
+
   // Fill in colours on products that were uploaded before colours had a column,
   // reading them out of the description text the admin already wrote. Cheap,
   // bounded, and idempotent — once a product has colours it is never revisited.
@@ -156,6 +237,7 @@ async function runScheduler(request: Request) {
     changes: advanced,
     abandoned,
     colors,
+    reconciled,
   });
 }
 

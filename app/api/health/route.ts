@@ -35,7 +35,7 @@ export async function GET() {
     ok: true,
     // Bump on each debug push — if this value doesn't change after a redeploy,
     // your deployment pipeline is serving a stale build.
-    diag: "release-2026-10-07-order-sync-and-db-counts",
+    diag: "release-2026-10-07b-email-never-blocks-an-order",
     adminReady: supabase.url && supabase.serviceRoleKey,
     supabase,
     render: {
