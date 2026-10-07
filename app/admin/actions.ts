@@ -13,6 +13,18 @@ import {
   syncProductColors,
 } from "@/lib/orders";
 import { buildManualOrder, manualOrderFromForm } from "@/lib/manual-order";
+import {
+  describeOrphan,
+  emptyReport,
+  matchOrderForSession,
+  repairDecision,
+  sessionIsPaid,
+  sessionReference,
+  type OrderLike,
+  type SessionLike,
+  type SyncReport,
+} from "@/lib/order-sync";
+import { getStripe } from "@/lib/stripe";
 import { sendAccountInviteEmail, sendRefundEmail, resendFailureHint } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
@@ -580,6 +592,183 @@ export async function updateOrderStatus(
     ok: true,
     message: notes.length ? `Saved: ${notes.join(", ")}.` : "No changes to save.",
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Keeping the orders page honest                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Re-read the orders straight from Supabase.
+ *
+ * The page is already `force-dynamic`, so it is never served from a build
+ * cache — but "never cached" is a claim, and when the question is "does this
+ * page agree with my database?" a claim is not an answer. This makes the
+ * re-read something the owner performs and sees the result of.
+ */
+export async function refreshOrders() {
+  await requireAdmin();
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/orders/paid");
+}
+
+export type SyncState = { report?: SyncReport };
+
+/** How far back to look, and how many pages of Stripe results to walk. */
+const SYNC_WINDOW_DAYS = 120;
+const SYNC_MAX_PAGES = 5;
+
+/**
+ * Ask Stripe what it actually took, and repair the orders that missed it.
+ *
+ * ═══ THE FAILURE THIS REPAIRS ══════════════════════════════════════════════
+ *
+ * The order row is created BEFORE the buyer reaches the payment page. It is
+ * the webhook — Stripe → Render → /api/internal/order-paid → markOrderPaid —
+ * that later turns it from `pending` into `paid`. If that chain is broken the
+ * money still arrives and the row still exists; what is lost is the
+ * TRANSITION. The order sits in `pending` for ever: missing from Paid Orders,
+ * missing from the revenue figure, never emailed, never scheduled.
+ *
+ * From the admin that is indistinguishable from "the order was never
+ * recorded", which is why this exists as a button rather than a support
+ * conversation.
+ *
+ * ═══ WHAT IT IS ALLOWED TO DO ══════════════════════════════════════════════
+ *
+ * Mark an order paid, and only ever because a Stripe session for that order
+ * came back `payment_status: "paid"`. It never invents a payment, never
+ * un-marks one, and never touches an order that is already paid, fulfilled,
+ * cancelled or refunded. markOrderPaid is idempotent, so running this twice
+ * does nothing the second time.
+ *
+ * Payments Stripe has that have NO order row are reported, not created: that
+ * needs a human to say what was sold, which is what New order is for.
+ */
+export async function syncStripePayments(
+  _prev: SyncState,
+  formData: FormData
+): Promise<SyncState> {
+  await requireAdmin();
+
+  const stripe = getStripe();
+  if (!stripe) {
+    return {
+      report: {
+        ...emptyReport(),
+        blocked:
+          "Stripe is not configured on this deployment, so there is nothing to compare against.",
+      },
+    };
+  }
+  if (!adminConfigured()) {
+    return {
+      report: { ...emptyReport(), blocked: "Supabase is not configured." },
+    };
+  }
+
+  const admin = createAdminClient();
+  const report: SyncReport = emptyReport();
+
+  /*
+   * Our side of the comparison. `gateway_reference` arrived in migration 0018,
+   * so a database without it must still be able to run this — the fallback
+   * drops that one column rather than the whole feature.
+   */
+  const COLUMNS = "id, order_number, status, email, total_cents, stripe_session_id";
+  let orders: OrderLike[] = [];
+  {
+    const full = await admin
+      .from("orders")
+      .select(`${COLUMNS}, gateway_reference`)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    if (full.error) {
+      console.warn(
+        `[sync] orders read without gateway_reference (${full.error.message}) — run migration 0018 for a complete match`
+      );
+      const basic = await admin
+        .from("orders")
+        .select(COLUMNS)
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (basic.error) {
+        return {
+          report: { ...report, blocked: `Could not read orders: ${basic.error.message}` },
+        };
+      }
+      orders = (basic.data ?? []) as OrderLike[];
+    } else {
+      orders = (full.data ?? []) as OrderLike[];
+    }
+  }
+
+  // Stripe's side, bounded in both time and pages so this cannot run away.
+  const since = Math.floor(Date.now() / 1000) - SYNC_WINDOW_DAYS * 24 * 60 * 60;
+  const sessions: SessionLike[] = [];
+  try {
+    let startingAfter: string | undefined;
+    for (let page = 0; page < SYNC_MAX_PAGES; page++) {
+      const batch = await stripe.checkout.sessions.list({
+        limit: 100,
+        created: { gte: since },
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      sessions.push(...(batch.data as unknown as SessionLike[]));
+      if (!batch.has_more || batch.data.length === 0) break;
+      startingAfter = batch.data[batch.data.length - 1]?.id;
+    }
+  } catch (e) {
+    return {
+      report: {
+        ...report,
+        blocked: `Stripe refused the request: ${String((e as Error)?.message || e).slice(0, 200)}`,
+      },
+    };
+  }
+
+  const notify = wantsNotify(formData);
+
+  for (const session of sessions) {
+    report.scanned++;
+    if (!sessionIsPaid(session)) continue;
+
+    const order = matchOrderForSession(session, orders);
+    if (!order) {
+      report.orphans.push(describeOrphan(session));
+      continue;
+    }
+
+    report.matched++;
+    const decision = repairDecision(order, session);
+    if (!decision.act) {
+      report.alreadyPaid++;
+      continue;
+    }
+
+    const paid = await markOrderPaid(
+      admin,
+      { id: order.id },
+      {
+        paidVia: "stripe",
+        sendEmail: notify,
+        paidAt: session.created ? new Date(Number(session.created) * 1000) : undefined,
+        gatewayReference: sessionReference(session),
+      }
+    );
+    if (paid.ok) {
+      report.repaired.push(order.order_number);
+      // Keep the in-memory copy in step so a second session for the same order
+      // in this same run is reported as already paid rather than repaired twice.
+      order.status = "paid";
+    } else {
+      report.problems.push(`${order.order_number}: ${paid.reason ?? "unknown error"}`);
+    }
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/orders/paid");
+  return { report };
 }
 
 /* -------------------------------------------------------------------------- */

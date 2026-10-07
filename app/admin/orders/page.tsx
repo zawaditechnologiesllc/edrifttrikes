@@ -7,6 +7,7 @@ import { OrderStatusQuickForm } from "./OrderStatusForm";
 import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 import { OriginCell } from "./OrderOrigin";
 import PaymentSourceBadge from "./PaymentSourceBadge";
+import OrdersToolbar from "./OrdersToolbar";
 
 /**
  * The status tabs.
@@ -16,6 +17,12 @@ import PaymentSourceBadge from "./PaymentSourceBadge";
  * are in the order an order moves through them, with Refunded and Cancelled
  * last because they are the ones you go looking for deliberately.
  */
+/** How many rows one page of the table shows before "Show more". */
+const PAGE_SIZE = 100;
+
+/** The order_status enum, in the order an order moves through it. */
+const STATUSES = ["pending", "paid", "fulfilled", "refunded", "cancelled"] as const;
+
 const TABS = [
   { key: "", label: "All" },
   { key: "pending", label: "Pending" },
@@ -28,7 +35,7 @@ const TABS = [
 export default async function AdminOrders({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; limit?: string }>;
 }) {
   if (!adminConfigured()) {
     return (
@@ -38,22 +45,66 @@ export default async function AdminOrders({
     );
   }
   const admin = createAdminClient();
+  const params = await searchParams;
+  const active = String(params.status ?? "");
+  const known = TABS.some((t) => t.key === active) ? active : "";
+  const limit = Math.min(Math.max(Number(params.limit) || PAGE_SIZE, PAGE_SIZE), 2000);
+
   /*
-   * Every order, then filtered and counted here rather than in the query. The
-   * tabs need a count for each status, so the rows have to be in hand anyway —
-   * and this keeps the page's existing promise that nothing is hidden from it.
+   * ═══ THE COUNTS COME FROM THE DATABASE, NOT FROM THE ROWS ════════════════
+   *
+   * They used to be counted in JavaScript over whatever the page had fetched,
+   * which quietly ties the numbers to the size of that fetch: any cap — ours,
+   * or PostgREST's own max-rows — and every tab starts lying, while the page
+   * still looks complete. A head-request per status costs no rows at all and
+   * is true however many orders exist.
+   *
+   * It is also the diagnosis. "Pending 40, Paid 0" is not a broken filter; it
+   * is forty payments that were never marked paid, and the tabs are the first
+   * place that becomes visible.
    */
-  const { data: orders } = await admin
+  const [totalRes, ...statusRes] = await Promise.all([
+    admin.from("orders").select("id", { count: "exact", head: true }),
+    ...STATUSES.map((status) =>
+      admin.from("orders").select("id", { count: "exact", head: true }).eq("status", status)
+    ),
+  ]);
+  const totalInDatabase = totalRes.count ?? 0;
+  const byStatus = new Map<string, number>(
+    STATUSES.map((status, i) => [status, statusRes[i]?.count ?? 0])
+  );
+  /** Rows whose status is not one of the six — nothing should be here. */
+  const unaccounted =
+    totalInDatabase - STATUSES.reduce((n, s) => n + (byStatus.get(s) ?? 0), 0);
+
+  /*
+   * FILTERED IN THE QUERY. Fetching everything and filtering in memory means a
+   * tab can only ever show what the fetch happened to include — so a shop with
+   * more orders than one page would find its older refunds simply absent from
+   * the Refunded tab.
+   */
+  let query = admin
     .from("orders")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (known) query = query.eq("status", known);
+  const { data: orders, error: ordersError } = await query;
 
-  const all = orders ?? [];
-  const active = String((await searchParams).status ?? "");
-  const known = TABS.some((t) => t.key === active) ? active : "";
-  const rows = known ? all.filter((o) => o.status === known) : all;
-  const countFor = (key: string) =>
-    key ? all.filter((o) => o.status === key).length : all.length;
+  const rows = orders ?? [];
+  const shownOf = known ? (byStatus.get(known) ?? 0) : totalInDatabase;
+  const countFor = (key: string) => (key ? (byStatus.get(key) ?? 0) : totalInDatabase);
+  const qs = (over: Record<string, string | undefined>) => {
+    const p = new URLSearchParams();
+    const merged: Record<string, string | undefined> = {
+      status: known || undefined,
+      limit: limit !== PAGE_SIZE ? String(limit) : undefined,
+      ...over,
+    };
+    Object.entries(merged).forEach(([k, v]) => v && p.set(k, v));
+    const str = p.toString();
+    return str ? `/admin/orders?${str}` : "/admin/orders";
+  };
 
   return (
     <div className="p-8">
@@ -73,6 +124,33 @@ export default async function AdminOrders({
         </Link>
       </div>
 
+      {/* Re-read from Supabase, and ask Stripe what it really took. */}
+      <OrdersToolbar totalInDatabase={totalInDatabase} />
+
+      {/*
+        A read that FAILED and a shop with no orders look identical in a table,
+        and the difference is the whole question being asked here.
+      */}
+      {ordersError && (
+        <p className="mb-4 bg-error/10 border border-error/40 rounded-lg px-4 py-3 text-error text-sm">
+          Supabase refused the read: {ordersError.message}. The counts above may
+          still be right — this is the row list that failed.
+        </p>
+      )}
+
+      {/*
+        A row whose status is none of the six would be invisible in every tab
+        AND present in All, which is exactly the shape of "the tabs do not
+        categorise". Nothing should ever be here; if something is, it says so.
+      */}
+      {unaccounted > 0 && (
+        <p className="mb-4 bg-signal-orange/10 border border-signal-orange/40 rounded-lg px-4 py-3 text-signal-orange text-sm">
+          {unaccounted} order{unaccounted === 1 ? " has a status" : "s have statuses"} outside
+          the six below, so {unaccounted === 1 ? "it appears" : "they appear"} only under All.
+          That should not be possible — tell Claude.
+        </p>
+      )}
+
       <nav className="flex flex-wrap gap-2 mb-6" aria-label="Filter orders by status">
         {TABS.map((t) => {
           const selected = known === t.key;
@@ -82,6 +160,10 @@ export default async function AdminOrders({
               key={t.key || "all"}
               href={t.key ? `/admin/orders?status=${t.key}` : "/admin/orders"}
               aria-current={selected ? "page" : undefined}
+              /* Always ask the server. A tab that answered from the client
+                 router's cache would show a stale set after a status change,
+                 which reads as "the tabs do not filter". */
+              prefetch={false}
               className={`rounded border px-4 py-2 text-xs font-label-bold uppercase tracking-widest transition-colors ${
                 selected
                   ? "border-secondary bg-secondary/15 text-secondary"
@@ -169,14 +251,40 @@ export default async function AdminOrders({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={9} className="p-8 text-center text-on-surface-variant">
-                  {all.length === 0
-                    ? "No orders yet."
-                    : `No ${known} orders.`}
+                  {totalInDatabase === 0 ? "No orders yet." : `No ${known} orders.`}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      {/*
+        WHAT IS ON THIS PAGE vs WHAT IS IN THE DATABASE, said out loud.
+        The question "are these all of them?" should never need a support
+        conversation, and a table alone can never answer it.
+      */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+        <p className="text-on-surface-variant text-sm">
+          Showing <span className="text-white">{rows.length}</span> of{" "}
+          <span className="text-white">{shownOf}</span>{" "}
+          {known ? `${known} orders` : "orders"}
+          {known && (
+            <>
+              {" "}· <span className="text-white">{totalInDatabase}</span> in the database
+            </>
+          )}
+          .
+        </p>
+        {rows.length < shownOf && (
+          <Link
+            href={qs({ limit: String(Math.min(limit + PAGE_SIZE * 4, 2000)) })}
+            prefetch={false}
+            className="border border-white/20 text-on-surface-variant hover:text-white hover:border-white/40 px-4 py-2 rounded text-xs font-label-bold uppercase tracking-widest"
+          >
+            Show more
+          </Link>
+        )}
       </div>
     </div>
   );
