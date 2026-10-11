@@ -4,13 +4,38 @@ import Link from "next/link";
 import NewsletterForm from "./NewsletterForm";
 import { useCategories, useSiteSettings } from "./SiteSettingsProvider";
 import { categoryLinks } from "@/lib/categories";
+import { realOrNull } from "@/lib/placeholders";
 import { Icon } from "@/components/Icon";
+import { COMPANY } from "@/lib/company";
 
 export default function SiteFooter() {
   const settings = useSiteSettings();
   // Built from the real categories, never written down here: a hard-coded
   // footer link is a door to a category the admin has switched off.
   const ranges = categoryLinks(useCategories());
+
+  /*
+   * ⚠️ NEVER PUBLISH A PLACEHOLDER CONTACT DETAIL.
+   *
+   * These render on every page of the site, which makes them the first thing a
+   * person — or a reputation scanner — checks. Until an admin saves real ones
+   * this component was printing a +1 (555) number (the range reserved for
+   * FICTION), a made-up street address and a generic mailbox.
+   *
+   * A young domain on a cheap TLD with contact details that resolve to nothing
+   * is close to the textbook fingerprint of a scam storefront, and that
+   * fingerprint is what the automated feeds behind ISP and corporate filters
+   * score. The structured data and the invoices already dropped unfilled
+   * values on exactly this reasoning; the footer simply never did.
+   *
+   * Showing nothing is not a loss. A missing line is neutral; a fictional one
+   * is evidence against you.
+   */
+  const email = realOrNull(settings.company_email);
+  const phone = realOrNull(settings.company_phone);
+  const addressLine1 = realOrNull(settings.address_line1);
+  const addressLine2 = realOrNull(settings.address_line2);
+
   return (
     <footer className="w-full bg-surface-container-lowest border-t border-secondary/20">
       <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12">
@@ -73,25 +98,28 @@ export default function SiteFooter() {
             Contact
           </h4>
           <div className="flex flex-col gap-3 text-on-surface-variant">
-            {settings.company_email && (
-              <a href={`mailto:${settings.company_email}`} className="flex items-start gap-2 hover:text-primary transition-colors break-all">
-                <Icon name="mail" className="w-4 h-4 mt-1 shrink-0" />
-                <span>{settings.company_email}</span>
-              </a>
-            )}
-            {settings.company_phone && (
-              <a href={`tel:${settings.company_phone.replace(/[^+\d]/g, "")}`} className="flex items-start gap-2 hover:text-primary transition-colors">
+            {/* The support address is always real — it is a constant, not a
+                setting — so there is always one way to reach a human here. */}
+            <a
+              href={`mailto:${email ?? COMPANY.supportEmail}`}
+              className="flex items-start gap-2 hover:text-primary transition-colors break-all"
+            >
+              <Icon name="mail" className="w-4 h-4 mt-1 shrink-0" />
+              <span>{email ?? COMPANY.supportEmail}</span>
+            </a>
+            {phone && (
+              <a href={`tel:${phone.replace(/[^+\d]/g, "")}`} className="flex items-start gap-2 hover:text-primary transition-colors">
                 <Icon name="call" className="w-4 h-4 mt-1 shrink-0" />
-                <span>{settings.company_phone}</span>
+                <span>{phone}</span>
               </a>
             )}
-            {(settings.address_line1 || settings.address_line2) && (
+            {(addressLine1 || addressLine2) && (
               <span className="flex items-start gap-2">
                 <Icon name="location_on" className="w-4 h-4 mt-1 shrink-0" />
                 <span>
-                  {settings.address_line1}
-                  {settings.address_line1 && settings.address_line2 && <br />}
-                  {settings.address_line2}
+                  {addressLine1}
+                  {addressLine1 && addressLine2 && <br />}
+                  {addressLine2}
                 </span>
               </span>
             )}

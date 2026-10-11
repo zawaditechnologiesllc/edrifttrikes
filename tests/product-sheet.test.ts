@@ -4,6 +4,7 @@ import { buildProductSheet, productSheetFilename } from "../lib/product-sheet";
 import { parseColors } from "../lib/colors";
 import { parseRichText } from "../lib/rich-text";
 import { COMPANY, DEFAULT_SITE_SETTINGS } from "../lib/company";
+import { EXAMPLE_CONTACT } from "../lib/placeholders";
 import { formatDeliveryWindow } from "../lib/delivery";
 import { toWinAnsi } from "../lib/pdf";
 import type { Product, SiteSettings } from "../lib/types";
@@ -114,7 +115,16 @@ const PRODUCT = {
   ],
 } as unknown as Product;
 
-const SETTINGS: SiteSettings = { ...DEFAULT_SITE_SETTINGS };
+// Real-looking details, because the shipped defaults are null: the point of
+// the contact tests below is that a shop which HAS filled the form in gets its
+// details on the sheet, and one that has not gets silence instead of fiction.
+const SETTINGS: SiteSettings = {
+  ...DEFAULT_SITE_SETTINGS,
+  company_email: "orders@edrifttrikes.shop",
+  company_phone: "+86 757 8100 2233",
+  address_line1: "Building 6, Lecong Industrial Park",
+  address_line2: "Shunde District, Foshan, Guangdong 528315, China",
+};
 
 const build = (overrides?: {
   product?: Partial<Product>;
@@ -191,7 +201,46 @@ describe("what the sheet says", () => {
       "no link back to the listing"
     );
     assert.ok(text.includes(SETTINGS.company_phone!));
-    assert.ok(text.includes("100 Drift Lane, Los Angeles, CA 90001, USA"));
+    // A long value wraps across drawn lines, so compare the collapsed text.
+    assert.ok(
+      text.replace(/\s+/g, " ").includes(
+        "Building 6, Lecong Industrial Park, Shunde District, Foshan, Guangdong 528315, China"
+      ),
+      "no address on the sheet"
+    );
+  });
+
+  test("PRINTS NO PLACEHOLDER CONTACT DETAIL, EVER", async () => {
+    // A sheet gets forwarded to a purchasing department. One carrying a
+    // +1 (555) number — the range reserved for fiction — and a street address
+    // the shop has never traded from reads as an unfinished template, and
+    // that is the signal reputation scanners score. Less on the page is the
+    // better outcome; lib/invoice.ts has always worked this way.
+    const text = await build({ settings: EXAMPLE_CONTACT }).then(sheetText);
+    for (const junk of [
+      "100 Drift Lane",
+      "555",
+      "Los Angeles, CA 90001",
+      "hello@edrifttrikes.shop",
+    ]) {
+      assert.ok(!text.includes(junk), `the sheet printed the placeholder "${junk}"`);
+    }
+    // It still says how to reach a human — that address is a constant.
+    assert.ok(text.includes(COMPANY.supportEmail));
+  });
+
+  test("drops the city when there is no real street line", async () => {
+    const text = await build({
+      settings: { address_line1: "100 Drift Lane", address_line2: "Foshan, China" },
+    }).then(sheetText);
+    assert.ok(!text.includes("Foshan, China"), "half an address reached the sheet");
+  });
+
+  test("a shop that has filled nothing in gets silence, not a default", async () => {
+    const text = await build({ settings: DEFAULT_SITE_SETTINGS }).then(sheetText);
+    assert.ok(!text.includes("Phone"), "a phone row with nothing real behind it");
+    assert.ok(!text.includes("Address"), "an address row with nothing real behind it");
+    assert.ok(text.includes(COMPANY.supportEmail), "no way to reach the seller at all");
   });
 
   test("does not double the slash when the site URL has a trailing one", async () => {

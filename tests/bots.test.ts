@@ -124,6 +124,12 @@ describe("what a blocked crawler can still reach", () => {
     assert.equal(isBotExemptPath("/robots.txt"), true);
   });
 
+  test("security.txt — the file the people who block domains read", () => {
+    // It exists to be fetched by scanners. One that only answers browsers is
+    // not reachable by the audience it was written for.
+    assert.equal(isBotExemptPath("/.well-known/security.txt"), true);
+  });
+
   test("payment, cron and health endpoints", () => {
     // Money has already moved by the time a webhook arrives; refusing it loses
     // the order rather than preventing anything.

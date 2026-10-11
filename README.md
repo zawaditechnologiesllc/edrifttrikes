@@ -249,6 +249,13 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 - **Render** — deploy `/server` via `render.yaml` for email, the Stripe webhook,
   and contact.
 
+> **If a customer says the site is blocked:** ask them for a screenshot of the
+> **block page** — it names who is blocking — then work from
+> **[`docs/BLOCKLIST-APPEALS.md`](./docs/BLOCKLIST-APPEALS.md)**: the checks to
+> run, the appeal to send, and what makes a reinstatement stick. Selling into
+> the EU is a separate matter, in
+> [`docs/EU-COMPLIANCE.md`](./docs/EU-COMPLIANCE.md).
+
 > **Scaling / high traffic:** see **[`docs/SCALING.md`](./docs/SCALING.md)** for
 > the capacity runbook — how the site absorbs a ~2,000 users/hour load plus
 > Instagram bursts on the free tiers, the one-time setup (env vars, Render

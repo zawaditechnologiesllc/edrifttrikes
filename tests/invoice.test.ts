@@ -11,6 +11,7 @@ import {
   sellerSnapshot,
 } from "../lib/invoice";
 import { DEFAULT_SITE_SETTINGS } from "../lib/company";
+import { EXAMPLE_CONTACT } from "../lib/placeholders";
 import type { Order, SiteSettings } from "../lib/types";
 
 /**
@@ -53,6 +54,16 @@ function pageCount(bytes: Uint8Array): number {
  * below should carry.
  */
 const ORDER_PLACED = "2026-08-14T10:22:00Z";
+
+/**
+ * A shop that has pasted the EXAMPLE details out of the admin hints straight
+ * into the form, which is the realistic way a placeholder reaches the database
+ * now that the shipped defaults are null.
+ */
+const PLACEHOLDER_SETTINGS: SiteSettings = {
+  ...DEFAULT_SITE_SETTINGS,
+  ...EXAMPLE_CONTACT,
+};
 
 const SETTINGS: SiteSettings = {
   ...DEFAULT_SITE_SETTINGS,
@@ -390,7 +401,11 @@ describe("who the seller is", () => {
     // one advertising "100 Drift Lane" and a 555 number, which tells a reviewer
     // it came off an unfinished template.
     const text = pdfText(
-      await build({ ...UNPAID, seller_snapshot: null } as Order, "proforma", DEFAULT_SITE_SETTINGS)
+      await build(
+        { ...UNPAID, seller_snapshot: null } as Order,
+        "proforma",
+        PLACEHOLDER_SETTINGS
+      )
     );
     for (const junk of ["100 Drift Lane", "555", "Los Angeles, CA 90001", "hello@edrifttrikes.shop"]) {
       assert.ok(!text.includes(junk), `the invoice printed the placeholder "${junk}"`);
@@ -424,7 +439,7 @@ describe("the snapshot recorded at checkout", () => {
   });
 
   test("never freezes a placeholder onto an order", () => {
-    const snap = sellerSnapshot(DEFAULT_SITE_SETTINGS, NOW);
+    const snap = sellerSnapshot(PLACEHOLDER_SETTINGS, NOW);
     assert.equal(snap.addressLine1, null);
     assert.equal(snap.addressLine2, null);
     assert.equal(snap.phone, null);

@@ -112,31 +112,34 @@ as a gap in Admin → System.
 
 ---
 
-## 3. On being blocked
+## 3. On being blocked — settled, and it is not this
 
 The theory that prompted this work was that the site is blocked in Europe
-because of missing terms. **No source found supports that.** The EU does not
-block websites for having incomplete policies, and browsers do not read terms.
+because of missing terms. **It is not**, and there is now a screenshot that
+settles it rather than an argument about it.
 
-What actually produces a block:
+The blocker is **UVT Internet Provider**, an ISP in the Czech Republic, whose
+page says the site is "considered to be harmful". That is a security and
+reputation classification, of the kind an ISP takes from a commercial
+blocklist. No ISP filter reads a terms page, and no EU rule blocks a site for
+having an incomplete one.
 
-| Blocker | What it reacts to |
-| --- | --- |
-| Google Safe Browsing / Microsoft SmartScreen | phishing or malware signals, a compromised host, deceptive redirects |
-| Corporate filters (Zscaler, Fortinet, Cisco Umbrella) | site category, **domain age**, and TLD reputation — `.shop` scores badly |
-| ISP and DNS filters | third-party blocklists |
-| Cloudflare itself | the account's own WAF, bot and country rules |
+**The appeal, the diagnostic sequence and the evidence are in
+[BLOCKLIST-APPEALS.md](./BLOCKLIST-APPEALS.md).** That is the document to work
+from; this one is the law.
 
-A young `.shop` domain with no trading history is the profile these filters are
-hardest on, and nothing in a terms page changes it. **The block page always
-names who is blocking** — that screenshot is the diagnosis. Without it, the
-checks worth running are Google Search Console → Security Issues, the Safe
-Browsing status page for the domain, and the filter vendor's own lookup tool.
+The compliance work here is still worth having — the withdrawal right in
+particular is expensive to omit — it is simply not the reason for the block,
+and treating it as the fix would have wasted the time.
 
-The business details in `lib/company.ts` are relevant here for a different
-reason: a live site printing `[Registered business address — update in
-lib/company.ts]` to customers reads as abandoned or fraudulent to a human
-reviewer and to an automated scorer. That is a real, fixable negative signal.
+One thing in that file belongs here too, because it is the same principle. The
+project used to ship example contact details (`+1 (555) 010-0000` — the range
+reserved for fiction — and a Los Angeles address) as the **live fallback**,
+so every page published them until an admin saved real ones. Unverifiable
+contact details on a young domain are a genuine adverse signal, and they are
+the reason `lib/placeholders.ts` exists and the defaults are now null. It is
+the rule already stated above — an unfilled value renders as nothing — applied
+to the part of the site a customer reads rather than only to the schema.
 
 ### Server location
 

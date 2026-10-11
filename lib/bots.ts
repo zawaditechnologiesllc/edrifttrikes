@@ -136,6 +136,9 @@ export function isBotExemptPath(pathname: string): boolean {
   const path = String(pathname ?? "");
   return (
     path === "/robots.txt" ||
+    // security.txt and friends exist to be read by machines, including the
+    // ones being turned away everywhere else.
+    path.startsWith("/.well-known") ||
     path.startsWith("/api/internal") ||
     path.startsWith("/api/cron") ||
     path.startsWith("/api/paypal") ||

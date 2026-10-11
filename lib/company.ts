@@ -40,16 +40,26 @@ export const COMPANY = {
 import type { SiteSettings } from "@/lib/types";
 
 /**
- * Placeholder footer contact info, shown until the admin saves real values in
- * /admin/settings (stored in the `site_settings` table). Kept here — not in
+ * What the storefront runs on before an admin has saved anything, and the
+ * fallback whenever `site_settings` cannot be read. Kept here — not in
  * lib/db.ts — so client components can import it without pulling server code.
+ *
+ * ⚠️ THE CONTACT FIELDS ARE NULL ON PURPOSE. They used to ship as a +1 (555)
+ * number (the range reserved for fiction), a street address in a city the shop
+ * has never traded from, and a generic mailbox — and because this object is
+ * also the live fallback, every page of the site published them.
+ *
+ * Unverifiable contact details on a young domain are a thing automated
+ * reputation feeds score against a shop, and those feeds are what ISP and
+ * corporate web filters subscribe to. Silence costs nothing by comparison. The
+ * examples still exist, as examples, in lib/placeholders.ts.
  */
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   id: 1,
-  company_email: "hello@edrifttrikes.shop",
-  company_phone: "+1 (555) 010-0000",
-  address_line1: "100 Drift Lane",
-  address_line2: "Los Angeles, CA 90001, USA",
+  company_email: null,
+  company_phone: null,
+  address_line1: null,
+  address_line2: null,
   shipping_cents: 5000,
   free_shipping: false,
   tax_rate_bps: 800,

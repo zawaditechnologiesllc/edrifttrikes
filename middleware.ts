@@ -78,11 +78,12 @@ export const config = {
    * docs/DEPLOYMENT.md.
    *
    * Static assets and the machine endpoints are excluded here as well as in
-   * isBotExemptPath, so they never reach the Worker at all. robots.txt is
-   * excluded too: it is prerendered, and it must stay readable by the very
-   * crawlers being turned away.
+   * isBotExemptPath, so they never reach the Worker at all. robots.txt and
+   * /.well-known are excluded too: they are prerendered, and they must stay
+   * readable by the very crawlers being turned away — a security.txt that only
+   * answers browsers is not reachable by the scanners it exists for.
    */
   matcher: [
-    "/((?!_next/static|_next/image|assets|favicon.ico|icon.svg|robots.txt|sitemap.xml|api/internal|api/cron|api/paypal|api/health).*)",
+    "/((?!_next/static|_next/image|assets|favicon.ico|icon.svg|robots.txt|sitemap.xml|\\.well-known|api/internal|api/cron|api/paypal|api/health).*)",
   ],
 };
