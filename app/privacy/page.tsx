@@ -1,10 +1,14 @@
 import Link from "next/link";
 import LegalPage from "@/components/storefront/LegalPage";
 import { COMPANY } from "@/lib/company";
+import { EU_COMPLIANCE, contactIsSet } from "@/lib/compliance";
 
 export const metadata = { title: "Privacy Policy" };
 
 export default function PrivacyPage() {
+  // Named only once appointed — see lib/compliance.ts for why a claimed
+  // representative is worse than none.
+  const hasRep = contactIsSet(EU_COMPLIANCE.representative);
   return (
     <LegalPage title="Privacy Policy" eyebrow="Legal">
       <p>
@@ -69,6 +73,59 @@ export default function PrivacyPage() {
         <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a>. We
         will respond as required by applicable law.
       </p>
+      <p>
+        If you are in the EU, the EEA or the UK, you may also complain to a data
+        protection authority. {EU_COMPLIANCE.supervisoryAuthorityNote}
+      </p>
+
+      {/*
+        The legal bases, stated. A GDPR privacy notice has to say WHY it is
+        allowed to process, not only what it does — and vague wording here is
+        one of the commonest findings against small online shops.
+      */}
+      <h2>6a. Why we are allowed to process your data (EU/UK)</h2>
+      <ul>
+        <li>
+          <strong>To perform our contract with you</strong> — taking, paying for,
+          shipping and supporting your order. Without this data we cannot sell
+          you anything.
+        </li>
+        <li>
+          <strong>To meet a legal obligation</strong> — tax, accounting and
+          product-safety records we are required to keep.
+        </li>
+        <li>
+          <strong>Our legitimate interests</strong> — preventing fraud and abuse,
+          keeping the site secure, and answering your messages. We balance these
+          against your rights and you may object at any time.
+        </li>
+        <li>
+          <strong>Your consent</strong> — for marketing email, where you asked
+          for it. You can withdraw consent whenever you like, and withdrawing it
+          does not affect what we sent before.
+        </li>
+      </ul>
+
+      <h2>6b. Our representative in the EU</h2>
+      {hasRep ? (
+        <p>
+          Our representative in the Union under Article 27 of the GDPR is{" "}
+          {EU_COMPLIANCE.representative.name},{" "}
+          {EU_COMPLIANCE.representative.address},{" "}
+          <a href={`mailto:${EU_COMPLIANCE.representative.email}`}>
+            {EU_COMPLIANCE.representative.email}
+          </a>
+          . You may contact them on any matter relating to your personal data.
+        </p>
+      ) : (
+        <p>
+          We are in the process of appointing a representative in the European
+          Union under Article 27 of the GDPR, and will name them here once that
+          is in place. In the meantime, every request reaches us directly at{" "}
+          <a href={`mailto:${COMPANY.supportEmail}`}>{COMPANY.supportEmail}</a>{" "}
+          and is handled on the same timescales.
+        </p>
+      )}
 
       <h2>7. Data retention</h2>
       <p>

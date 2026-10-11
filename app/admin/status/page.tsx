@@ -8,6 +8,7 @@ import type { Order } from "@/lib/types";
 import StorageCacheButton from "./StorageCacheButton";
 import { getSiteSettings } from "@/lib/db";
 import { trustGaps } from "@/lib/seo";
+import { euComplianceGaps } from "@/lib/compliance";
 import { checkStoredLogo } from "@/lib/logo";
 import { authorizeNetConfigured, authorizeNetEnv } from "@/lib/authorize-net";
 import { describeStripeAccount } from "@/lib/stripe-account";
@@ -49,6 +50,7 @@ function paymentMethod(o: Order): string {
 export default async function SystemStatus() {
   const settings = await getSiteSettings();
   const gaps = trustGaps(settings);
+  const euGaps = euComplianceGaps();
   // Checked live rather than assumed: the product sheet falls back to a text
   // watermark on ANY logo failure, so "no logo on the PDF" has three completely
   // different causes and looked identical from the admin.
@@ -483,6 +485,79 @@ export default async function SystemStatus() {
           screen, the things that move the score most are a claimed Google
           Business Profile, a real review platform collecting real reviews, and
           public WHOIS rather than privacy-shielded registration.
+        </p>
+      </section>
+
+      {/*
+        SELLING INTO THE EU.
+        Separate from the section above because these are not reputation
+        signals, they are obligations — and two of them are appointments a
+        person has to make, not values anyone can type in. Nothing here is
+        published to customers until it is real: a policy page claiming an EU
+        representative who has not been appointed is a false statement to a
+        regulator, in writing, which is a worse position than silence.
+      */}
+      <section className="mt-8">
+        <h2 className="font-headline-md text-headline-md text-white uppercase mb-2">
+          Selling into the EU
+        </h2>
+        <p className="text-on-surface-variant text-sm mb-4 max-w-2xl leading-relaxed">
+          What EU law asks of a seller outside the EU. The{" "}
+          <Link href="/eu-consumer-rights" className="text-secondary hover:underline">
+            EU &amp; UK consumer rights
+          </Link>{" "}
+          page is live and states the withdrawal right already — that one is
+          done, and it is the expensive one to omit: a trader who never
+          mentions the 14 days does not keep them, the period becomes{" "}
+          <strong className="text-white">twelve months</strong>. The rest are
+          filled in at{" "}
+          <code className="text-secondary">lib/compliance.ts</code>.
+        </p>
+        <div className="bg-surface-container border border-white/10 rounded-lg divide-y divide-white/5">
+          {euGaps.map((gap) => (
+            <div key={gap.key} className="flex items-start gap-3 p-4">
+              <span
+                aria-hidden="true"
+                className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 ${
+                  gap.done
+                    ? "border-secondary bg-secondary/30"
+                    : gap.blocking
+                      ? "border-error"
+                      : "border-signal-orange"
+                }`}
+              />
+              <div>
+                <p
+                  className={
+                    gap.done
+                      ? "text-white text-sm"
+                      : gap.blocking
+                        ? "text-error text-sm"
+                        : "text-signal-orange text-sm"
+                  }
+                >
+                  {gap.label}
+                  {gap.done && <span className="text-secondary text-xs"> · set</span>}
+                  {!gap.done && gap.blocking && (
+                    <span className="text-error/80 text-xs"> · required to trade in the EU</span>
+                  )}
+                </p>
+                {!gap.done && (
+                  <p className="text-on-surface-variant text-xs mt-1 leading-relaxed max-w-xl">
+                    {gap.why}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-on-surface-variant text-xs mt-3 max-w-2xl leading-relaxed">
+          Sources and the reasoning behind each item are in{" "}
+          <code className="text-secondary">docs/EU-COMPLIANCE.md</code>. None of
+          this is legal advice, and a lawyer should see it before you rely on
+          it — but the two marked <span className="text-error">required</span>{" "}
+          are the ones where the compliant answer, until they are done, is not
+          to sell into the EU.
         </p>
       </section>
     </div>

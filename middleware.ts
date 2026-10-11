@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { isAiCrawler, isBotExemptPath } from "@/lib/bots";
+import { canonicalFor, regionFromHost } from "@/lib/regions";
 
 export async function middleware(request: NextRequest) {
   // AI crawlers first: there is no point refreshing an auth session for a
@@ -28,7 +29,35 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  return await updateSession(request);
+  const response = await updateSession(request);
+
+  /*
+   * ═══ FOUR HOSTNAMES, ONE SITE ════════════════════════════════════════════
+   *
+   * The regional subdomains serve the same catalogue, the same products and
+   * the same policies as the apex. Left unsaid, that is three duplicate copies
+   * of a shop — which splits its own ranking and, at worst, reads as a doorway
+   * network, the sort of signal that gets a young domain filtered rather than
+   * ranked. Saying it here costs one header.
+   *
+   * Sent as a Link header rather than a <link> tag because it then covers every
+   * response — pages, PDFs, the feed — without touching each one's metadata,
+   * and because this is the only place that knows both the host and the path.
+   *
+   * The region's OWN landing page is canonical to itself: it is the one page
+   * whose content is genuinely regional.
+   */
+  const region = regionFromHost(request.headers.get("host"));
+  if (region.subdomain) {
+    // APPEND, never set: Link is a multi-value header and Next uses it for
+    // preload hints. Replacing it would quietly drop them.
+    response.headers.append(
+      "Link",
+      `<${canonicalFor(region, request.nextUrl.pathname)}>; rel="canonical"`
+    );
+  }
+
+  return response;
 }
 
 export const config = {
