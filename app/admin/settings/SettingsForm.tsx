@@ -6,6 +6,7 @@ import { saveSiteSettings, type SettingsState } from "../actions";
 import type { SiteSettings } from "@/lib/types";
 import { DEFAULT_TAX_RATE_BPS } from "@/lib/totals";
 import { logoToPng } from "@/lib/image-compress";
+import { EXAMPLE_CONTACT } from "@/lib/placeholders";
 
 function Save() {
   const { pending } = useFormStatus();
@@ -86,7 +87,7 @@ export default function SettingsForm({
             name="company_email"
             type="email"
             defaultValue={settings.company_email ?? ""}
-            placeholder="hello@edrifttrikes.shop"
+            placeholder={EXAMPLE_CONTACT.company_email}
             className={input}
           />
         </div>
@@ -95,7 +96,7 @@ export default function SettingsForm({
           <input
             name="company_phone"
             defaultValue={settings.company_phone ?? ""}
-            placeholder="+1 (555) 010-0000"
+            placeholder={EXAMPLE_CONTACT.company_phone}
             className={input}
           />
         </div>
@@ -105,7 +106,7 @@ export default function SettingsForm({
         <input
           name="address_line1"
           defaultValue={settings.address_line1 ?? ""}
-          placeholder="100 Drift Lane"
+          placeholder={EXAMPLE_CONTACT.address_line1}
           className={input}
         />
       </div>
@@ -114,7 +115,7 @@ export default function SettingsForm({
         <input
           name="address_line2"
           defaultValue={settings.address_line2 ?? ""}
-          placeholder="Los Angeles, CA 90001, USA"
+          placeholder={EXAMPLE_CONTACT.address_line2}
           className={input}
         />
       </div>

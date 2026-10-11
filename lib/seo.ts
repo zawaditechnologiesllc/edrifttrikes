@@ -37,25 +37,14 @@ import type { Product, SiteSettings } from "@/lib/types";
  * Values shipped as defaults or left as TODOs. Publishing one of these as fact
  * is worse than publishing nothing, so they are treated as absent.
  */
-const PLACEHOLDERS = [
-  "[registered business address",
-  "[governing-law jurisdiction",
-  "100 drift lane",
-  "los angeles, ca 90001",
-  "+1 (555)",
-  "555-01",
-  "update in lib/company.ts",
-  "hello@edrifttrikes.shop",
-  "example.com",
-];
+/*
+ * The placeholder rule moved to lib/placeholders.ts so the FOOTER can use it
+ * too — it is a client component, and this module pulls in the schema
+ * builders. Re-exported because the rule has not changed, only its address.
+ */
+import { isReal } from "@/lib/placeholders";
+export { isReal };
 
-/** True when a value is present AND is not one of the shipped placeholders. */
-export function isReal(value: string | null | undefined): boolean {
-  const v = String(value ?? "").trim();
-  if (v.length < 2) return false;
-  const lower = v.toLowerCase();
-  return !PLACEHOLDERS.some((p) => lower.includes(p));
-}
 
 /** Drop null/undefined/empty keys — schema.org would rather have no key. */
 function compact<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {

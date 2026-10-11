@@ -21,6 +21,7 @@
 
 import { PdfDocument, A4, type PdfImage } from "@/lib/pdf";
 import { COMPANY } from "@/lib/company";
+import { realOrNull } from "@/lib/placeholders";
 import { descriptionBody, productColorOptions } from "@/lib/colors";
 import { parseRichText } from "@/lib/rich-text";
 import { formatMoney } from "@/lib/format";
@@ -321,11 +322,25 @@ export async function buildProductSheet(
   const contact: [string, string][] = [];
   if (site) contact.push(["Order online", `${site}/product/${product.slug}`]);
   contact.push(["Support email", COMPANY.supportEmail]);
-  if (settings.company_email && settings.company_email !== COMPANY.supportEmail) {
-    contact.push(["General enquiries", settings.company_email]);
+  /*
+   * Unfilled details are dropped, never printed. This sheet is a document a
+   * buyer forwards to a purchasing department, and a fictional +1 (555) number
+   * on it is worse than a sheet that simply does not list a phone number —
+   * the invoices (lib/invoice.ts) have always taken that line; this file had
+   * not. See lib/placeholders.ts.
+   */
+  const email = realOrNull(settings.company_email);
+  const phone = realOrNull(settings.company_phone);
+  if (email && email !== COMPANY.supportEmail) {
+    contact.push(["General enquiries", email]);
   }
-  if (settings.company_phone) contact.push(["Phone", settings.company_phone]);
-  const address = [settings.address_line1, settings.address_line2].filter(Boolean).join(", ");
+  if (phone) contact.push(["Phone", phone]);
+  // An address is a unit: with no real street line there is no address, and a
+  // city on its own would have the sheet claim a location it cannot support.
+  const line1 = realOrNull(settings.address_line1);
+  const address = line1
+    ? [line1, realOrNull(settings.address_line2)].filter(Boolean).join(", ")
+    : "";
   if (address) contact.push(["Address", address]);
   contact.push(["Returns", `${COMPANY.returnWindowDays} days from delivery`]);
   for (const [label, value] of contact) {
