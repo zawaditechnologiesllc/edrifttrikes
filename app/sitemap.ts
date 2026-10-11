@@ -33,6 +33,7 @@ const STATIC_PATHS: [path: string, priority: number, freq: "daily" | "weekly" | 
   ["/returns", 0.5, "monthly"],
   ["/terms", 0.3, "monthly"],
   ["/privacy", 0.3, "monthly"],
+  ["/eu-consumer-rights", 0.4, "monthly"],
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

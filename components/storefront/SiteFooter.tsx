@@ -61,6 +61,11 @@ export default function SiteFooter() {
             <Link href="/privacy" className="text-on-surface-variant hover:text-primary transition-colors">Privacy Policy</Link>
             <Link href="/returns" className="text-on-surface-variant hover:text-primary transition-colors">Returns &amp; Refunds</Link>
             <Link href="/shipping-warranty" className="text-on-surface-variant hover:text-primary transition-colors">Shipping &amp; Warranty</Link>
+            {/* Statutory rights, not our policy — see the page for why the two
+                are kept apart. Linked everywhere, not only on europe., because
+                the right attaches to where the BUYER is, not which hostname
+                they happened to use. */}
+            <Link href="/eu-consumer-rights" className="text-on-surface-variant hover:text-primary transition-colors">EU &amp; UK Consumer Rights</Link>
           </nav>
         </div>
         <div className="space-y-4">
