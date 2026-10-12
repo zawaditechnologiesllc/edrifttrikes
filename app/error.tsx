@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { reloadOnceForStaleBundle } from "@/lib/stale-bundle";
 
 /**
  * What a visitor sees when a client-side render throws.
@@ -37,27 +38,10 @@ export default function Error({
     // recorded even though the visitor is shown something friendly.
     console.error("[app] client render failed:", error);
 
-    /**
-     * A stale-bundle error is the one failure a reload genuinely fixes.
-     *
-     * Guarded by a TIMESTAMP, not a once-per-session flag. The first version
-     * used a flag that was never cleared, which meant one reload per session
-     * and the error page forever after — so a visitor who hit a stale chunk
-     * early saw a broken site for the rest of their visit even though a reload
-     * would have fixed each navigation. A short window stops a tight loop
-     * while still allowing recovery on a later click.
-     */
-    const stale = /ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module|error loading dynamically imported module/i;
-    if (!stale.test(`${error.name} ${error.message}`)) return;
-    try {
-      const KEY = "edrift.last-chunk-reload";
-      const last = Number(sessionStorage.getItem(KEY) || 0);
-      if (Date.now() - last < 10_000) return; // reloaded moments ago — don't loop
-      sessionStorage.setItem(KEY, String(Date.now()));
-      window.location.reload();
-    } catch {
-      /* storage blocked — fall through to the message rather than risk a loop */
-    }
+    // A stale bundle after a deploy is the one failure a reload genuinely
+    // fixes, and the rule lives in lib/stale-bundle.ts so that this boundary
+    // and global-error.tsx cannot drift apart. They had.
+    reloadOnceForStaleBundle(error);
   }, [error]);
 
   return (
