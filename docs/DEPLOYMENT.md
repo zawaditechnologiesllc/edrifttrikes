@@ -1005,3 +1005,62 @@ Its network path could not be exercised from the development sandbox (the egress
 policy blocks `geocoding.geo.census.gov`), so its response parsing is
 unit-tested against the geocoder's documented shape and the first real request
 will be from production. `/api/health/address` will tell you either way.
+
+---
+
+## When the whole site shows "Something went wrong"
+
+That page is `app/global-error.tsx`, and **which error page you are looking at
+tells you where to look.** The two are deliberately worded differently:
+
+| What the page says | Which boundary | What it means |
+| --- | --- | --- |
+| "**The page failed to load.** Nothing in your cart has been lost." | `app/global-error.tsx` | The **root layout** failed. Every page is affected. |
+| "That page didn't load properly. **It's us, not you** — …" | `app/error.tsx` | One page failed. The rest of the site is fine. |
+| "The shop was just updated and this page is out of date." | `app/global-error.tsx` | A stale bundle after a deploy. It reloads itself. |
+
+### Finding the cause in under a minute
+
+1. **Open "Technical details"** on the error page. It prints the error's name
+   and message, and — the useful part — whether there is a reference:
+   - **"Reference: … (thrown on the server)"** → the failure is in the Worker.
+     Next only attaches a digest to a server-side error.
+   - **"No reference: this happened in the browser."** → a client-side failure.
+2. **For a server-side error, read the Worker log**, which has the real stack:
+   ```bash
+   npx wrangler tail
+   ```
+   Then load the site in another tab. The exception appears as it happens.
+   The same thing is in the Cloudflare dashboard under Workers → your Worker →
+   Logs.
+3. **Rule out a stale page first** — hard-reload (<kbd>Ctrl/Cmd</kbd> +
+   <kbd>Shift</kbd> + <kbd>R</kbd>) or open the site in a private window. If
+   that works, you were holding HTML from the previous build and nothing is
+   wrong with the deploy.
+
+### What CANNOT cause it
+
+Worth knowing, because these are the tempting guesses:
+
+- **A payment key.** Stripe, PayPal and Authorize.Net are not imported anywhere
+  in the root layout or its client components, so no key — missing, rotated or
+  malformed — can take the site down. A broken Stripe key breaks *checkout*,
+  with the card error shown on that page.
+- **Supabase being unreachable.** The three reads the root layout makes
+  (`getSiteSettings`, `getAnnouncements`, `getCategories`) all go through
+  `neverThrow` in `lib/db.ts` and fall back to empty values, by design.
+
+### Editing variables in the Cloudflare dashboard
+
+Changing a Worker variable in the dashboard **publishes a new version of the
+Worker**. Two consequences:
+
+- Visitors holding the previous build's HTML hit the stale-bundle case above.
+  That now self-heals, but it is why a site can look broken minutes after an
+  env change that was itself fine.
+- A dashboard save only keeps what the form shows. This Worker's one binding
+  is `ASSETS` (the static assets, declared in `wrangler.jsonc`), and without it
+  every stylesheet and script 404s — a site that renders as unstyled text, or
+  not at all. If anything looks off after a dashboard edit, re-run
+  `npm run deploy`: it republishes the Worker from `wrangler.jsonc` and
+  restores the bindings from source.
