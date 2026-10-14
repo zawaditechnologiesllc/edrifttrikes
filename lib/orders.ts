@@ -27,7 +27,9 @@ import {
   sendRefundEmail,
 } from "@/lib/email";
 import {
+  stageAllowedForStatus,
   type OrderStatus,
+  type StageOutcome,
   type StatusOutcome,
 } from "@/lib/order-status";
 import { publicSiteUrl } from "@/lib/env";
@@ -1004,7 +1006,7 @@ export async function applyStatusChange(
   };
 
   if (current.status === to) {
-    return outcome({ ...base, skipped: "already_in_status" });
+    return outcome({ ...base, skipped: "already_there" });
   }
 
   /*
@@ -1104,4 +1106,90 @@ export async function applyStatusChange(
   }
 
   return outcome({ ...base, changed: true, emailed, emailError, notes });
+}
+
+/**
+ * Move one order to a delivery stage, emailing the customer about it.
+ *
+ * ═══ WHY THIS IS NOT JUST setOrderStage ════════════════════════════════════
+ *
+ * setOrderStage is deliberately obedient: an admin asking for a stage email
+ * gets one whether or not the stage was already on the timeline, because the
+ * claim-once rule exists to stop webhook retries double-sending and was never
+ * meant to swallow a human's click.
+ *
+ * That is right for ONE order and wrong for forty. In a selection, the orders
+ * already at the target stage are the ones the admin is not thinking about,
+ * and re-sending to them is the whole spam risk. So this skips them — and
+ * refuses the stages that would be a lie on an order whose money has already
+ * gone back.
+ */
+export async function applyStageChange(
+  admin: Admin,
+  orderId: string,
+  stage: FulfillmentStage,
+  opts: { notify: boolean }
+): Promise<StageOutcome> {
+  const { data: current, error: readErr } = await admin
+    .from("orders")
+    .select("id, status, order_number, email, fulfillment_stage")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (readErr) {
+    return stageOutcome({ orderId, to: stage, error: `Could not read the order: ${readErr.message}` });
+  }
+  if (!current) {
+    return stageOutcome({ orderId, to: stage, skipped: "not_found", error: "Order not found." });
+  }
+
+  const base = {
+    orderId,
+    to: stage,
+    orderNumber: (current.order_number as string) ?? null,
+    customerEmail: (current.email as string) ?? null,
+    from: (current.fulfillment_stage as FulfillmentStage) ?? null,
+  };
+
+  if (current.fulfillment_stage === stage) {
+    return stageOutcome({ ...base, skipped: "already_there" });
+  }
+
+  // "Your order has shipped" on an order that was refunded last week.
+  if (!stageAllowedForStatus(stage, current.status as string)) {
+    return stageOutcome({
+      ...base,
+      error: `Refused: this order is ${current.status}, so telling the customer it is "${STAGE_COPY[stage].label}" would be untrue. Only Cancelled can be set on a closed order.`,
+    });
+  }
+
+  const moved = await setOrderStage(admin, orderId, stage, { sendEmail: opts.notify });
+  if (!moved.ok) {
+    return stageOutcome({ ...base, error: `Could not update stage: ${moved.error}` });
+  }
+
+  return stageOutcome({
+    ...base,
+    changed: true,
+    emailed: moved.emailed,
+    // setOrderStage reports emailed:false for a send that threw; with the
+    // email switched off that is simply what was asked for, not a failure.
+    emailError:
+      opts.notify && !moved.emailed ? "the email did not send — the stage is saved." : undefined,
+    notes: moved.warning ? [moved.warning] : [],
+  });
+}
+
+function stageOutcome(
+  partial: Partial<StageOutcome> & Pick<StageOutcome, "orderId" | "to">
+): StageOutcome {
+  return {
+    orderNumber: null,
+    customerEmail: null,
+    from: null,
+    changed: false,
+    emailed: false,
+    notes: [],
+    ...partial,
+  };
 }

@@ -2,20 +2,25 @@ import { test, describe, afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   BULK_CHUNK,
+  BULK_STAGES,
   ORDER_STATUSES,
   STATUS_EFFECT,
   chunkIds,
   describeBatch,
   isOrderStatus,
+  isStage,
+  stageAllowedForStatus,
+  stageEffect,
   summarize,
   type OrderStatus,
+  type StageOutcome,
   type StatusOutcome,
 } from "../lib/order-status";
-import { applyStatusChange } from "../lib/orders";
-import { STAGE_COPY } from "../lib/fulfillment";
+import { applyStageChange, applyStatusChange } from "../lib/orders";
+import { ALL_STAGES, STAGE_COPY, type FulfillmentStage } from "../lib/fulfillment";
 
 /**
- * CHANGING MANY ORDERS AT ONCE.
+ * CHANGING MANY ORDERS AT ONCE — their payment status, or their delivery stage.
  *
  * A bulk control over order status is a bulk control over two things that
  * cannot be taken back: what the shop's books say happened, and what a
@@ -271,7 +276,7 @@ describe("what must not happen", () => {
     const [out] = await runBatch(db, ["a"], "paid");
     assert.equal(out.changed, false);
     assert.equal(out.emailed, false);
-    assert.equal(out.skipped, "already_in_status");
+    assert.equal(out.skipped, "already_there");
     assert.equal(inbox.length, 0, "it emailed an order that was already paid");
   });
 
@@ -413,7 +418,7 @@ describe("what the admin reads afterwards", () => {
     const s = summarize([
       outcome({ changed: true, emailed: true }),
       outcome({ changed: true, emailed: false, emailError: "rate limited" }),
-      outcome({ skipped: "already_in_status" }),
+      outcome({ skipped: "already_there" }),
       outcome({ error: "closed" }),
     ]);
     assert.deepEqual(s, {
@@ -448,5 +453,171 @@ describe("what the admin reads afterwards", () => {
     for (const s of ["shipped", "delivered", "", "PAID", "drop table", null, undefined]) {
       assert.equal(isOrderStatus(s), false, String(s));
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The other thing that moves in bulk: the delivery stage                      */
+/* -------------------------------------------------------------------------- */
+
+/** Run the stage transition over a list of ids, the way the bulk action does. */
+async function runStages(
+  db: never,
+  ids: string[],
+  to: FulfillmentStage,
+  notify = true
+): Promise<StageOutcome[]> {
+  const out: StageOutcome[] = [];
+  for (const id of ids) out.push(await applyStageChange(db, id, to, { notify }));
+  return out;
+}
+
+describe("moving the delivery stage in bulk", () => {
+  test("EVERY STAGE IS OFFERED, AND EVERY ONE EMAILS SOMETHING", () => {
+    assert.deepEqual(BULK_STAGES, ALL_STAGES, "the bulk list drifted from the real one");
+    for (const stage of BULK_STAGES) {
+      const effect = stageEffect(stage);
+      assert.equal(effect.email, STAGE_COPY[stage].title, `${stage} promises the wrong subject`);
+      assert.equal(effect.label, STAGE_COPY[stage].label, stage);
+      assert.ok(effect.note.length > 30, `${stage} has no explanation`);
+    }
+  });
+
+  test("it moves the stage and emails that stage's own copy", async () => {
+    const { db, row } = fakeDb([seed("a", { status: "paid", paid_at: PAID.toISOString(), fulfillment_stage: "confirmed" })]);
+    const [out] = await runStages(db, ["a"], "shipped");
+    assert.equal(out.changed, true);
+    assert.equal(out.emailed, true);
+    assert.equal(out.from, "confirmed");
+    assert.equal(row("a").fulfillment_stage, "shipped");
+    assert.match(inbox.at(-1)!.subject, new RegExp(STAGE_COPY.shipped.title));
+  });
+
+  test("AN ORDER ALREADY AT THAT STAGE IS LEFT ALONE", async () => {
+    // setOrderStage deliberately re-sends when a human asks for ONE order.
+    // In a selection of forty, the ones already there are the ones nobody is
+    // thinking about, and re-sending to them is the whole spam risk.
+    const { db } = fakeDb([seed("a", { status: "paid", fulfillment_stage: "shipped" })]);
+    const [out] = await runStages(db, ["a"], "shipped");
+    assert.equal(out.changed, false);
+    assert.equal(out.skipped, "already_there");
+    assert.equal(inbox.length, 0, "it re-emailed a stage the order was already at");
+  });
+
+  test("A REFUNDED ORDER IS NEVER TOLD IT HAS SHIPPED", async () => {
+    // The easy mistake in bulk: a refunded row looks like any other row.
+    for (const status of ["refunded", "cancelled"] as const) {
+      const { db, row } = fakeDb([seed("a", { status, fulfillment_stage: "cancelled" })]);
+      const [out] = await runStages(db, ["a"], "shipped");
+      assert.equal(out.changed, false, status);
+      assert.match(out.error ?? "", /Refused/, status);
+      assert.equal(row("a").fulfillment_stage, "cancelled", status);
+      assert.equal(inbox.length, 0, status);
+    }
+  });
+
+  test("but a closed order can still be moved to Cancelled", async () => {
+    const { db, row } = fakeDb([
+      seed("a", { status: "refunded", fulfillment_stage: "preparing" }),
+    ]);
+    const [out] = await runStages(db, ["a"], "cancelled");
+    assert.equal(out.changed, true);
+    assert.equal(row("a").fulfillment_stage, "cancelled");
+  });
+
+  test("the rule itself, stated once", () => {
+    for (const stage of ALL_STAGES) {
+      assert.equal(stageAllowedForStatus(stage, "paid"), true, stage);
+      assert.equal(stageAllowedForStatus(stage, "pending"), true, stage);
+      assert.equal(
+        stageAllowedForStatus(stage, "refunded"),
+        stage === "cancelled",
+        `${stage} on a refunded order`
+      );
+      assert.equal(
+        stageAllowedForStatus(stage, "cancelled"),
+        stage === "cancelled",
+        `${stage} on a cancelled order`
+      );
+    }
+  });
+
+  test("a failed email never rolls back the stage", async () => {
+    const { db, row } = fakeDb([seed("a", { status: "paid", fulfillment_stage: "confirmed" })]);
+    emailBreaks = true;
+    const [out] = await runStages(db, ["a"], "shipped");
+    assert.equal(out.changed, true, "the stage was rolled back");
+    assert.equal(row("a").fulfillment_stage, "shipped");
+    assert.ok(out.emailError);
+  });
+
+  test("turning the email off moves the stage silently", async () => {
+    const { db, row } = fakeDb([seed("a", { status: "paid", fulfillment_stage: "confirmed" })]);
+    const [out] = await runStages(db, ["a"], "delivered", false);
+    assert.equal(row("a").fulfillment_stage, "delivered");
+    assert.equal(out.emailed, false);
+    assert.equal(out.emailError, undefined, "silence was reported as a failure");
+    assert.equal(inbox.length, 0);
+  });
+
+  test("an unpaid order is moved, with a warning that the scheduler will not continue", async () => {
+    // Allowed on purpose — shipping before payment clears is a real thing —
+    // but the admin is told the automation stops there.
+    const { db, row } = fakeDb([seed("a", { status: "pending" })]);
+    const [out] = await runStages(db, ["a"], "shipped");
+    assert.equal(row("a").fulfillment_stage, "shipped");
+    assert.ok(
+      out.notes.some((n) => /scheduler will not advance/i.test(n)),
+      `no warning: ${out.notes.join(" | ")}`
+    );
+  });
+
+  test("a missing order is reported, not thrown", async () => {
+    const { db } = fakeDb([seed("a")]);
+    const [out] = await runStages(db, ["nope"], "shipped");
+    assert.equal(out.skipped, "not_found");
+    assert.ok(out.error);
+  });
+
+  test("one refused order does not stop the rest of the batch", async () => {
+    const { db, row } = fakeDb([
+      seed("a", { status: "paid", fulfillment_stage: "confirmed" }),
+      seed("b", { status: "refunded", fulfillment_stage: "cancelled" }),
+      seed("c", { status: "paid", fulfillment_stage: "confirmed" }),
+    ]);
+    const outs = await runStages(db, ["a", "b", "c"], "shipped");
+    assert.equal(row("a").fulfillment_stage, "shipped");
+    assert.equal(row("c").fulfillment_stage, "shipped", "a refusal in the middle lost the rest");
+    assert.equal(summarize(outs).failed, 1);
+    assert.equal(summarize(outs).changed, 2);
+  });
+
+  test("every order is reported with what an admin needs to read", async () => {
+    const { db } = fakeDb([seed("a", { status: "paid" }), seed("b", { status: "paid" })]);
+    const outs = await runStages(db, ["a", "b"], "preparing");
+    assert.deepEqual(outs.map((o) => o.orderId), ["a", "b"]);
+    for (const o of outs) {
+      assert.ok(o.orderNumber);
+      assert.ok(o.customerEmail);
+      assert.equal(o.to, "preparing");
+    }
+  });
+
+  test("only real stages are accepted", () => {
+    for (const stage of ALL_STAGES) assert.equal(isStage(stage), true, stage);
+    for (const bad of ["paid", "posted", "", "SHIPPED", null, undefined]) {
+      assert.equal(isStage(bad), false, String(bad));
+    }
+  });
+
+  test("the summary line reads the same for stages as for statuses", () => {
+    const outs: StageOutcome[] = [
+      { orderId: "a", orderNumber: "ED-1", customerEmail: "a@x.com", from: "confirmed", to: "shipped", changed: true, emailed: true, notes: [] },
+      { orderId: "b", orderNumber: "ED-2", customerEmail: "b@x.com", from: "shipped", to: "shipped", changed: false, emailed: false, skipped: "already_there", notes: [] },
+    ];
+    const line = describeBatch(outs, "shipped");
+    assert.match(line, /1 order → shipped/);
+    assert.match(line, /1 customer emailed/);
+    assert.match(line, /1 already shipped/);
   });
 });

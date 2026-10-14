@@ -843,8 +843,9 @@ Note that OpenCV's basic `QRCodeDetector` fails on valid version-10-and-up codes
 
 Admin → Orders and Admin → Paid Orders both carry a checkbox per row, a
 select-all in the header, and a bar that appears as soon as anything is
-selected. Pick a status, press **Apply**, confirm, and it works through the
-selection with a progress count and a **Stop** button.
+selected. Choose **what** to change — the payment status or the delivery stage
+— pick a value, press **Apply**, confirm, and it works through the selection
+with a progress count and a **Stop** button.
 
 ### What each status sends the customer
 
@@ -864,16 +865,45 @@ Fulfilled and Cancelled used to send **nothing at all** — the status moved and
 the customer was never told. Both now go through `setOrderStage`, which is what
 owns the stage copy and the timeline entry.
 
+### Setting the delivery stage
+
+Every stage in `ALL_STAGES` can be set, and each sends its own copy from
+`STAGE_COPY` — the same email the scheduler would have sent on reaching that
+stage. `stageEffect()` builds the admin's warning from that table rather than
+restating it, so the subject an admin is shown is the subject the customer
+receives.
+
+Two things are worth knowing:
+
+- **A cancelled or refunded order is refused**, unless the stage is Cancelled.
+  Telling someone their refunded order has shipped is the mirror of the
+  refusal the status control already makes, and in bulk it is the easy
+  mistake — a refunded row looks like every other row in a selection of forty.
+- **The stage does not change the payment status**, and the status does not
+  follow the stage. Setting Delivered leaves the order `paid`; set the status
+  to Fulfilled separately if you want it closed in the books. (The reverse is
+  not true: setting the status to Fulfilled *does* move the stage to
+  Delivered, because that one is unambiguous.)
+
+An unpaid order can still be moved — shipping before payment clears is a real
+thing — but the report says the scheduler will not carry it any further.
+
 ### The rules that make it safe
 
-- **An order already in the target status is left alone.** Select forty, mark
-  them paid, and the eight that were already paid are not re-confirmed — a
-  customer reads a duplicate confirmation as a second charge.
+- **An order already at the target is left alone**, status or stage. Select
+  forty, mark them paid, and the eight that were already paid are not
+  re-confirmed — a customer reads a duplicate confirmation as a second charge.
+  Note this differs on purpose from the single-order form, where
+  `setOrderStage` re-sends because a human asking for one order's email means
+  it; in a selection the orders already there are the ones nobody is thinking
+  about.
 - **A failed email never rolls back the status.** The status is the record of
   what happened; the email is a notification about it.
 - **Every order is reported**, including the ones nothing happened to, with its
   order number, what changed and who was written to. "40 updated" over money
-  and customer email is not something anyone can check.
+  and customer email is not something anyone can check. A warning that applies
+  to several of them is printed once above the list rather than on every row —
+  repeated forty times it is what stops the report being read.
 - **Apply asks first**, and names the number of people and the exact subject
   they will read. Nothing else in this admin is irreversible; an email is.
 
@@ -891,8 +921,13 @@ safe.
 
 ### One control, two callers
 
-`applyStatusChange` in `lib/orders.ts` is the whole transition, and the
-single-order dropdown on the orders table calls exactly the same function. A
-bulk control written against the table directly would have moved the column and
+`applyStatusChange` and `applyStageChange` in `lib/orders.ts` are the whole
+transitions, and the single-order controls call the same functions. A bulk
+control written against the table directly would have moved the column and
 skipped the emails, the schedule and the idempotency — doing fifty at once is
 fifty of the thing that already worked.
+
+One server action, `bulkUpdateOrders`, serves both fields: everything around
+the transition is identical — the admin check, the deduplication, the chunk
+cap, the serial loop, the email pacing, which paths to revalidate — and two
+copies of that would be two places for the pacing to be forgotten.

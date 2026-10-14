@@ -580,7 +580,12 @@ export class PdfDocument {
   readonly width: number;
   readonly height: number;
 
-  private readonly meta: { title: string; author: string; subject: string };
+  private readonly meta: {
+    title: string;
+    author: string;
+    subject: string;
+    createdAt: Date | null;
+  };
   /** Drawing operators per page, in order. */
   private pages: string[][] = [];
   private current = -1;
@@ -594,6 +599,20 @@ export class PdfDocument {
     title?: string;
     author?: string;
     subject?: string;
+    /**
+     * The date to stamp as the PDF's CreationDate.
+     *
+     * ⚠️ PASS ONE FOR ANY DOCUMENT THAT MUST BE REPRODUCIBLE. Without it the
+     * clock is read at save time, so generating the same invoice twice gives
+     * two files that differ — in a field a PDF reader shows the customer as
+     * "Created". An invoice records a transaction and is dated to the order;
+     * its metadata has to agree, or two downloads of one document disagree
+     * about their own date.
+     *
+     * Omitted, it falls back to now, which is right for anything genuinely
+     * generated on demand.
+     */
+    createdAt?: Date | null;
   }) {
     this.width = opts?.width ?? A4.width;
     this.height = opts?.height ?? A4.height;
@@ -601,6 +620,7 @@ export class PdfDocument {
       title: toWinAnsi(opts?.title ?? ""),
       author: toWinAnsi(opts?.author ?? ""),
       subject: toWinAnsi(opts?.subject ?? ""),
+      createdAt: opts?.createdAt ?? null,
     };
   }
 
@@ -926,7 +946,7 @@ export class PdfDocument {
       infoId,
       `<< /Title (${pdfString(this.meta.title)}) /Author (${pdfString(this.meta.author)}) ` +
         `/Subject (${pdfString(this.meta.subject)}) /Producer (E-Drift Trikes storefront) ` +
-        `/CreationDate (${pdfDate(new Date())}) >>`
+        `/CreationDate (${pdfDate(this.meta.createdAt ?? new Date())}) >>`
     );
 
     // --- Assemble, tracking byte offsets for the cross-reference table. ------

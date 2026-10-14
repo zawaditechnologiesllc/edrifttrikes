@@ -10,19 +10,22 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { bulkUpdateOrderStatus } from "../actions";
+import { bulkUpdateOrders, type BulkField } from "../actions";
 import {
   BULK_CHUNK,
+  BULK_STAGES,
   ORDER_STATUSES,
   STATUS_EFFECT,
   chunkIds,
+  stageEffect,
   summarize,
-  type OrderStatus,
-  type StatusOutcome,
+  type AnyOutcome,
 } from "@/lib/order-status";
+import type { FulfillmentStage } from "@/lib/fulfillment";
 
 /**
- * Selecting orders and changing all of them at once.
+ * Selecting orders and changing all of them at once — their payment status or
+ * their delivery stage.
  *
  * ═══ WHY THE BROWSER DRIVES THE LOOP ═══════════════════════════════════════
  *
@@ -40,6 +43,18 @@ import {
  * many people will receive what. Everything else in this admin is reversible;
  * this is not.
  */
+
+/**
+ * The two things a selection can be changed to, as one list.
+ *
+ * Kept together rather than as two controls because they are alternatives: an
+ * admin is setting a status OR a stage, never both, and a bar with two Apply
+ * buttons invites pressing the wrong one over forty orders.
+ */
+const FIELDS: { key: BulkField; label: string }[] = [
+  { key: "status", label: "Payment status" },
+  { key: "stage", label: "Delivery stage" },
+];
 
 type Selection = {
   selected: Set<string>;
@@ -151,7 +166,23 @@ export function RowCheckbox({ id, label }: { id: string; label?: string }) {
 const select =
   "bg-surface-container-highest border border-white/15 text-white rounded px-3 py-2 text-sm focus:border-secondary focus:ring-0";
 
-function Row({ o }: { o: StatusOutcome }) {
+/**
+ * Notes that are true of several orders, lifted out of the rows.
+ *
+ * A warning like "the scheduler will not advance this further" is a property
+ * of the batch, not of one order, and repeated down forty lines it is the
+ * thing that stops the report being read at all — which defeats the point of
+ * reporting every order.
+ */
+function sharedNotes(outcomes: AnyOutcome[]): string[] {
+  const seen = new Map<string, number>();
+  for (const o of outcomes) {
+    for (const note of o.notes) seen.set(note, (seen.get(note) ?? 0) + 1);
+  }
+  return [...seen.entries()].filter(([, n]) => n > 1).map(([note]) => note);
+}
+
+function Row({ o, hide }: { o: AnyOutcome; hide: Set<string> }) {
   const name = o.orderNumber ?? o.orderId.slice(0, 8);
   const tone = o.error
     ? "text-error"
@@ -162,12 +193,12 @@ function Row({ o }: { o: StatusOutcome }) {
         : "text-on-surface-variant";
   const what = o.error
     ? o.error
-    : o.skipped === "already_in_status"
+    : o.skipped === "already_there"
       ? `already ${o.to} — left alone`
       : [
           `→ ${o.to}`,
           o.emailed ? `emailed ${o.customerEmail ?? ""}`.trim() : "no email",
-          ...o.notes,
+          ...o.notes.filter((n) => !hide.has(n)),
           o.emailError ? `EMAIL FAILED: ${o.emailError}` : "",
         ]
           .filter(Boolean)
@@ -184,11 +215,16 @@ function BulkStatusBar({ onRunningChange }: { onRunningChange: (on: boolean) => 
   const { selected, setAll, keepOnly } = useSelection();
   const router = useRouter();
 
-  const [status, setStatus] = useState<OrderStatus>("fulfilled");
+  const [field, setField] = useState<BulkField>("status");
+  // Two values, remembered separately: switching to Delivery stage to check
+  // the wording and back again must not quietly leave a different status
+  // selected than the one the admin had chosen.
+  const [status, setStatus] = useState<string>("fulfilled");
+  const [stage, setStage] = useState<string>("shipped");
   const [notify, setNotify] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [done, setDone] = useState(0);
-  const [outcomes, setOutcomes] = useState<StatusOutcome[] | null>(null);
+  const [outcomes, setOutcomes] = useState<AnyOutcome[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // A ref, not state: the loop reads it between chunks and must see the
@@ -196,7 +232,21 @@ function BulkStatusBar({ onRunningChange }: { onRunningChange: (on: boolean) => 
   const stop = useRef(false);
 
   const count = selected.size;
-  const effect = STATUS_EFFECT[status];
+  const value = field === "status" ? status : stage;
+  const options =
+    field === "status"
+      ? ORDER_STATUSES.map((key) => ({ key, label: STATUS_EFFECT[key].label }))
+      : BULK_STAGES.map((key) => ({ key, label: stageEffect(key).label }));
+  const effect =
+    field === "status"
+      ? STATUS_EFFECT[status as keyof typeof STATUS_EFFECT]
+      : stageEffect(stage as FulfillmentStage);
+
+  /** Any change to what is about to happen invalidates the confirmation. */
+  const choose = (next: () => void) => {
+    next();
+    setConfirming(false);
+  };
 
   const setRunning = (on: boolean) => {
     setBusy(on);
@@ -211,11 +261,11 @@ function BulkStatusBar({ onRunningChange }: { onRunningChange: (on: boolean) => 
     stop.current = false;
     setRunning(true);
 
-    const collected: StatusOutcome[] = [];
+    const collected: AnyOutcome[] = [];
     try {
       for (const chunk of chunkIds(Array.from(selected))) {
         if (stop.current) break;
-        const res = await bulkUpdateOrderStatus({ ids: chunk, status, notify });
+        const res = await bulkUpdateOrders({ ids: chunk, field, value, notify });
         if (res.error) {
           setError(res.error);
           break;
@@ -249,13 +299,16 @@ function BulkStatusBar({ onRunningChange }: { onRunningChange: (on: boolean) => 
   if (count === 0 && !outcomes && !error) return null;
 
   const summary = outcomes ? summarize(outcomes) : null;
+  // Computed once, not per row: this list is re-rendered on every chunk.
+  const shared = outcomes ? sharedNotes(outcomes) : [];
+  const sharedSet = new Set(shared);
 
   return (
     <section
       // Named, so a screen reader announces what this strip is when it
       // appears — it arrives unprompted, on selection, rather than by
       // navigation.
-      aria-label="Bulk status change"
+      aria-label="Bulk change"
       className="sticky bottom-0 z-20 mt-4 bg-surface-container-high border border-secondary/40 rounded-lg shadow-2xl"
     >
       <div className="p-4 flex flex-wrap items-end gap-4">
@@ -268,24 +321,47 @@ function BulkStatusBar({ onRunningChange }: { onRunningChange: (on: boolean) => 
 
         <div>
           <label
+            htmlFor="bulk-field"
+            className="block font-label-bold text-[10px] uppercase tracking-widest text-on-surface-variant mb-1"
+          >
+            Change
+          </label>
+          <select
+            id="bulk-field"
+            value={field}
+            disabled={busy}
+            onChange={(e) => choose(() => setField(e.target.value as BulkField))}
+            className={select}
+          >
+            {FIELDS.map((f) => (
+              <option key={f.key} value={f.key}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label
             htmlFor="bulk-status"
             className="block font-label-bold text-[10px] uppercase tracking-widest text-on-surface-variant mb-1"
           >
-            Change status to
+            To
           </label>
           <select
             id="bulk-status"
-            value={status}
+            value={value}
             disabled={busy}
-            onChange={(e) => {
-              setStatus(e.target.value as OrderStatus);
-              setConfirming(false);
-            }}
+            onChange={(e) =>
+              choose(() =>
+                field === "status" ? setStatus(e.target.value) : setStage(e.target.value)
+              )
+            }
             className={select}
           >
-            {ORDER_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_EFFECT[s].label}
+            {options.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
               </option>
             ))}
           </select>
@@ -297,10 +373,7 @@ function BulkStatusBar({ onRunningChange }: { onRunningChange: (on: boolean) => 
             className={box}
             checked={notify}
             disabled={busy}
-            onChange={(e) => {
-              setNotify(e.target.checked);
-              setConfirming(false);
-            }}
+            onChange={(e) => choose(() => setNotify(e.target.checked))}
           />
           Email the customers
         </label>
@@ -380,18 +453,37 @@ function BulkStatusBar({ onRunningChange }: { onRunningChange: (on: boolean) => 
             )}
           </p>
           <p className="text-on-surface-variant text-xs max-w-3xl">{effect.note}</p>
-          {/* The one genuinely dangerous combination, named. */}
-          {notify && status === "pending" && (
+          {/*
+            THE COMBINATIONS THAT GO WRONG QUIETLY, named before the click.
+            Each of these is something an admin would only discover from a
+            customer's reply, by which time forty of them have it.
+          */}
+          {notify && (value === "pending" || value === "awaiting_payment") && (
             <p className="text-signal-orange text-xs max-w-3xl">
               These customers will be told their payment is outstanding. If you
               are correcting a mistake on orders that were already paid, untick
               &ldquo;Email the customers&rdquo; first.
             </p>
           )}
-          {status === "refunded" && (
+          {value === "refunded" && (
             <p className="text-signal-orange text-xs max-w-3xl">
               This records the refund and tells the customer. It does NOT move
               money — refund each payment in the gateway that took it.
+            </p>
+          )}
+          {field === "stage" && (
+            <p className="text-outline text-xs max-w-3xl">
+              Orders that are cancelled or refunded are skipped — telling
+              someone their refunded order has shipped is the one thing this
+              refuses to do. Setting a stage does not change the payment
+              status.
+            </p>
+          )}
+          {field === "stage" && value === "shipped" && (
+            <p className="text-signal-orange text-xs max-w-3xl">
+              The shipped email carries the tracking number. Any of these
+              orders without one will go out saying the order has left the
+              workshop with nothing for the customer to follow.
             </p>
           )}
           <p className="text-outline text-xs">
@@ -417,9 +509,15 @@ function BulkStatusBar({ onRunningChange }: { onRunningChange: (on: boolean) => 
             {summary?.emailsFailed ? `, ${summary.emailsFailed} emails failed` : ""}
             {summary?.failed ? `, ${summary.failed} failed` : ""}.
           </p>
+          {/* Said once, above the list, rather than forty times inside it. */}
+          {shared.map((note) => (
+            <p key={note} className="text-on-surface-variant text-xs mb-2 max-w-3xl">
+              {note}
+            </p>
+          ))}
           <ul className="max-h-48 overflow-y-auto text-xs">
             {outcomes.map((o) => (
-              <Row key={o.orderId} o={o} />
+              <Row key={o.orderId} o={o} hide={sharedSet} />
             ))}
           </ul>
         </div>

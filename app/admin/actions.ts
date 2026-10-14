@@ -5,6 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { ANNOUNCEMENTS_TAG, CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
 import {
+  applyStageChange,
   applyStatusChange,
   markOrderPaid,
   setOrderStage,
@@ -19,8 +20,9 @@ import {
   EMAIL_PACE_MS,
   describeBatch,
   isOrderStatus,
+  isStage,
+  type AnyOutcome,
   type OrderStatus,
-  type StatusOutcome,
 } from "@/lib/order-status";
 import {
   emptyReport,
@@ -545,9 +547,12 @@ export async function updateOrderStatus(
 /* Changing many orders at once                                                */
 /* -------------------------------------------------------------------------- */
 
-export type BulkStatusResult = {
+/** What an admin can change about many orders at once. */
+export type BulkField = "status" | "stage";
+
+export type BulkResult = {
   /** Every order this call touched, in the order it touched them. */
-  outcomes: StatusOutcome[];
+  outcomes: AnyOutcome[];
   /** One readable line about this call. */
   message: string;
   /** Set when the call was refused before touching anything. */
@@ -555,52 +560,67 @@ export type BulkStatusResult = {
 };
 
 /**
- * Change the status of up to BULK_CHUNK orders, emailing each customer.
+ * Change the payment status OR the delivery stage of up to BULK_CHUNK orders,
+ * emailing each customer.
  *
  * Called imperatively from the browser rather than through a form, once per
- * chunk, so a selection of any size is processed as a sequence of small,
- * bounded requests. Each order goes through applyStatusChange — the same
- * function the single-order dropdown uses — so bulk cannot drift from
+ * chunk, so a selection of any size becomes a sequence of small, bounded
+ * requests. Each order goes through applyStatusChange or applyStageChange —
+ * the same functions the single-order form uses — so bulk cannot drift from
  * one-at-a-time.
  *
+ * ONE ACTION FOR BOTH, because everything around the transition is identical:
+ * the admin check, the deduplication, the chunk cap, the serial loop, the
+ * email pacing and which paths to revalidate. Two copies of that would be two
+ * places for the pacing to be forgotten.
+ *
  * ⚠️ ORDER IS PRESERVED AND EVERY ORDER IS REPORTED, including the ones
- * nothing happened to. "40 of 40 updated" with no detail is unverifiable; a
- * bulk operation over money and customer email has to say exactly what it did.
+ * nothing happened to. "40 of 40 updated" with no detail is unverifiable, and
+ * this runs over money and customer email.
  */
-export async function bulkUpdateOrderStatus(input: {
+export async function bulkUpdateOrders(input: {
   ids: string[];
-  status: string;
+  field: BulkField;
+  value: string;
   notify: boolean;
-}): Promise<BulkStatusResult> {
+}): Promise<BulkResult> {
   await requireAdmin();
 
-  if (!isOrderStatus(input.status)) {
-    return { outcomes: [], message: "", error: `"${input.status}" is not a valid order status.` };
+  const refuse = (error: string): BulkResult => ({ outcomes: [], message: "", error });
+
+  if (input.field !== "status" && input.field !== "stage") {
+    return refuse(`"${input.field}" is not something that can be changed in bulk.`);
   }
-  const status: OrderStatus = input.status;
+  if (input.field === "status" && !isOrderStatus(input.value)) {
+    return refuse(`"${input.value}" is not a valid order status.`);
+  }
+  if (input.field === "stage" && !isStage(input.value)) {
+    return refuse(`"${input.value}" is not a valid delivery stage.`);
+  }
 
   // Deduplicated: the same id twice would run the transition twice, and the
   // second run is the one that could double-email.
   const ids = Array.from(new Set((input.ids ?? []).map((v) => String(v).trim()).filter(Boolean)));
-  if (ids.length === 0) {
-    return { outcomes: [], message: "", error: "No orders selected." };
-  }
+  if (ids.length === 0) return refuse("No orders selected.");
   if (ids.length > BULK_CHUNK) {
-    return {
-      outcomes: [],
-      message: "",
-      error: `Too many at once: this call takes ${BULK_CHUNK}. The page sends them in batches — reload it.`,
-    };
+    return refuse(
+      `Too many at once: this call takes ${BULK_CHUNK}. The page sends them in batches — reload it.`
+    );
   }
 
   const admin = createAdminClient();
-  const outcomes: StatusOutcome[] = [];
+  const outcomes: AnyOutcome[] = [];
 
   // SERIAL, not Promise.all. Parallel writes would blow the subrequest budget
   // in bursts and hit Resend's rate limit; serial also means a failure part
   // way through leaves a report of exactly how far it got.
   for (const id of ids) {
-    const result = await applyStatusChange(admin, id, status, { notify: input.notify });
+    const result =
+      input.field === "status"
+        ? await applyStatusChange(admin, id, input.value as OrderStatus, { notify: input.notify })
+        : await applyStageChange(admin, id, input.value as FulfillmentStage, {
+            notify: input.notify,
+          });
     outcomes.push(result);
     if (result.emailed && id !== ids[ids.length - 1]) {
       await new Promise((resolve) => setTimeout(resolve, EMAIL_PACE_MS));
@@ -613,7 +633,7 @@ export async function bulkUpdateOrderStatus(input: {
     if (o.changed) revalidatePath(`/admin/orders/${o.orderId}`);
   }
 
-  return { outcomes, message: describeBatch(outcomes, status) };
+  return { outcomes, message: describeBatch(outcomes, input.value) };
 }
 
 /* -------------------------------------------------------------------------- */
