@@ -63,7 +63,20 @@ export function OrderStatusQuickForm({
     <form action={action}>
       <div className="flex items-center gap-2">
         <input type="hidden" name="id" value={orderId} />
+        {/*
+          ⚠️ KEYED ON THE STATUS, and it has to be.
+
+          This is an UNCONTROLLED select, so `defaultValue` applies once, when
+          the element mounts. A bulk change refreshes the table underneath it —
+          the tab counts and the delivery stage both update — but React reuses
+          this same DOM node, so the dropdown kept showing the OLD status. The
+          row then disagreed with itself, and the one place an admin looks to
+          confirm a bulk change worked was the one place still showing the
+          value before it. The key forces a fresh element when the status
+          actually changes.
+        */}
         <select
+          key={status}
           name="status"
           defaultValue={status}
           className={`${select} text-sm px-2 py-1`}

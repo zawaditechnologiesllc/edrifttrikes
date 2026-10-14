@@ -8,6 +8,11 @@ import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 import { OriginCell } from "./OrderOrigin";
 import PaymentSourceBadge from "./PaymentSourceBadge";
 import OrdersToolbar from "./OrdersToolbar";
+import {
+  BulkSelectionProvider,
+  RowCheckbox,
+  SelectAllCheckbox,
+} from "./BulkStatus";
 
 /**
  * The status tabs.
@@ -180,10 +185,21 @@ export default async function AdminOrders({
           );
         })}
       </nav>
+      {/*
+        Everything from here down is inside the selection provider: the
+        checkboxes, and the bulk bar it renders after the table. Only the ids
+        on THIS page can be selected — a "select all" that silently included
+        orders the admin cannot see would be the easiest way to email the wrong
+        two hundred people.
+      */}
+      <BulkSelectionProvider allIds={rows.map((o) => String(o.id))}>
       <div className="bg-surface-container border border-white/10 rounded-lg overflow-x-auto">
-        <table className="w-full text-left min-w-[1080px]">
+        <table className="w-full text-left min-w-[1140px]">
           <thead className="bg-surface-container-high text-on-surface-variant text-xs uppercase tracking-widest font-label-bold">
             <tr>
+              <th className="p-4 w-10">
+                <SelectAllCheckbox />
+              </th>
               <th className="p-4">Order</th>
               <th className="p-4">Customer</th>
               <th className="p-4">Origin</th>
@@ -198,6 +214,9 @@ export default async function AdminOrders({
           <tbody className="divide-y divide-white/5">
             {rows.map((o) => (
               <tr key={o.id} className="hover:bg-white/5">
+                <td className="p-4">
+                  <RowCheckbox id={String(o.id)} label={o.order_number} />
+                </td>
                 <td className="p-4">
                   <Link href={`/admin/orders/${o.id}`} className="text-secondary font-headline-md hover:underline">{o.order_number}</Link>
                 </td>
@@ -250,7 +269,7 @@ export default async function AdminOrders({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-8 text-center text-on-surface-variant">
+                <td colSpan={10} className="p-8 text-center text-on-surface-variant">
                   {totalInDatabase === 0 ? "No orders yet." : `No ${known} orders.`}
                 </td>
               </tr>
@@ -286,6 +305,7 @@ export default async function AdminOrders({
           </Link>
         )}
       </div>
+      </BulkSelectionProvider>
     </div>
   );
 }
