@@ -15,7 +15,7 @@ import {
   BulkSelectionProvider,
   RowCheckbox,
   SelectAllCheckbox,
-} from "../BulkStatus";
+} from "../BulkActions";
 import type { Order } from "@/lib/types";
 
 export const metadata = { title: "Paid Orders" };

@@ -12,7 +12,7 @@ import {
   BulkSelectionProvider,
   RowCheckbox,
   SelectAllCheckbox,
-} from "./BulkStatus";
+} from "./BulkActions";
 
 /**
  * The status tabs.

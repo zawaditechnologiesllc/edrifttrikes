@@ -419,6 +419,16 @@ export async function buildInvoice(
     title: `${title} ${number}`,
     author: seller.display,
     subject: `${title} for order ${order.order_number}`,
+    /*
+     * The document's OWN date, not the clock.
+     *
+     * Everything a reader sees is dated to the order already. The PDF's
+     * CreationDate was not, so two downloads of the same invoice produced two
+     * different files, differing in the field a PDF reader labels "Created".
+     * Harmless-looking, and exactly the inconsistency a customer or an auditor
+     * would notice on a document whose whole job is to be a stable record.
+     */
+    createdAt: new Date(issuedAt),
   });
 
   const logo = opts.logo ? await doc.addImage(opts.logo) : null;

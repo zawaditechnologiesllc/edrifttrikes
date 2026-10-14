@@ -247,7 +247,13 @@ describe("the facts every invoice has to carry", () => {
   test("the same order always produces the same document", async () => {
     // Determinism follows from dating to the order, and it matters: two
     // downloads of one invoice must not disagree about their own date.
+    //
+    // This used to fail about one run in eight, and only under load: the PDF
+    // CreationDate was read from the clock at save time, so the two builds
+    // matched unless they straddled a second boundary. The flake was the bug
+    // reporting itself — see createdAt in buildInvoice.
     const a = await build(PAID, "paid");
+    await new Promise((resolve) => setTimeout(resolve, 1100));
     const b = await build(PAID, "paid");
     assert.deepEqual(Array.from(a), Array.from(b));
   });

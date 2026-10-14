@@ -1,6 +1,9 @@
+import { ALL_STAGES, STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
+
 /**
- * The vocabulary of an order's status: the five values, what each one means for
- * the customer, and how a batch of them is reported.
+ * The vocabulary of what an admin can change about an order in bulk — its
+ * payment STATUS and its delivery STAGE — what each value means for the
+ * customer, and how a batch of either is reported.
  *
  * ═══ WHY THIS HOLDS NO LOGIC ═══════════════════════════════════════════════
  *
@@ -65,26 +68,38 @@ export const STATUS_EFFECT: Record<
   },
 };
 
-/** What happened to one order. Every field is something an admin may need. */
-export type StatusOutcome = {
+/**
+ * What happened to one order. Every field is something an admin may need.
+ *
+ * Generic over the thing being changed, because a status change and a stage
+ * change report identically — and the admin reads ONE list afterwards. Two
+ * shapes would have meant two renderers and, before long, two different ideas
+ * of what "already there" means.
+ */
+export type ChangeOutcome<T extends string> = {
   orderId: string;
   orderNumber: string | null;
   customerEmail: string | null;
-  from: OrderStatus | null;
-  to: OrderStatus;
-  /** The row's status actually moved. */
+  from: T | null;
+  to: T;
+  /** The row actually moved. */
   changed: boolean;
   /** A customer email was sent for this change. */
   emailed: boolean;
   /** Why nothing happened, when nothing did. */
-  skipped?: "already_in_status" | "not_found";
-  /** The status change itself failed; nothing was written. */
+  skipped?: "already_there" | "not_found";
+  /** The change itself failed; nothing was written. */
   error?: string;
-  /** The status changed and is saved; the email did not go. */
+  /** The change is saved; the email did not go. */
   emailError?: string;
   /** Anything else worth telling the admin. */
   notes: string[];
 };
+
+export type StatusOutcome = ChangeOutcome<OrderStatus>;
+export type StageOutcome = ChangeOutcome<FulfillmentStage>;
+/** Either kind, for the report renderer, which does not care which it got. */
+export type AnyOutcome = ChangeOutcome<string>;
 
 /* -------------------------------------------------------------------------- */
 /* Reading a batch back                                                        */
@@ -98,18 +113,18 @@ export type BatchSummary = {
   emailsFailed: number;
 };
 
-export function summarize(outcomes: StatusOutcome[]): BatchSummary {
+export function summarize(outcomes: AnyOutcome[]): BatchSummary {
   return {
     changed: outcomes.filter((o) => o.changed).length,
     emailed: outcomes.filter((o) => o.emailed).length,
-    alreadyThere: outcomes.filter((o) => o.skipped === "already_in_status").length,
+    alreadyThere: outcomes.filter((o) => o.skipped === "already_there").length,
     failed: outcomes.filter((o) => o.error).length,
     emailsFailed: outcomes.filter((o) => o.emailError).length,
   };
 }
 
 /** One line a human can read, from a batch of any size. */
-export function describeBatch(outcomes: StatusOutcome[], to: OrderStatus): string {
+export function describeBatch(outcomes: AnyOutcome[], to: string): string {
   const s = summarize(outcomes);
   if (outcomes.length === 0) return "Nothing selected.";
   const parts: string[] = [];
@@ -160,4 +175,78 @@ export function chunkIds(ids: string[], size: number = BULK_CHUNK): string[][] {
     out.push(unique.slice(i, i + Math.max(1, size)));
   }
   return out;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The other thing an admin changes in bulk: the delivery stage                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Stages an admin may set by hand, newest journey order.
+ *
+ * The same list the single-order form offers, so the bulk control cannot drift
+ * from it — ALL_STAGES is the schedule plus the two manual ends.
+ */
+export const BULK_STAGES: FulfillmentStage[] = ALL_STAGES;
+
+export function isStage(v: unknown): v is FulfillmentStage {
+  return (ALL_STAGES as readonly string[]).includes(String(v));
+}
+
+/**
+ * What setting a stage does beyond sending its email.
+ *
+ * Only the stages that do something SURPRISING are written down. Everything
+ * else moves the customer's tracker and emails them, which is what the subject
+ * line already says — a note repeating it would be noise an admin learns to
+ * skip past, and then they skip past these too.
+ */
+const STAGE_NOTE: Partial<Record<FulfillmentStage, string>> = {
+  awaiting_payment:
+    "Puts the order back before payment. On an order the customer has already paid for this reads as a problem with their money — turn the email off when you are correcting a mistake.",
+  delivered:
+    "Closes the delivery tracker. It does not change the payment status: set that to Fulfilled separately if you want the order marked complete in the books.",
+  cancelled:
+    "Stops the delivery schedule so nothing further is sent about a package that is not coming. It does not change the payment status, and it does not refund anything.",
+  ready_for_collection:
+    "Tells the customer to wait for the courier to arrange collection or confirm door delivery — the one stage that asks them to do something.",
+  shipped:
+    "Says the order has left the workshop, quoting the delivery estimate. If the tracking number is not on the order yet, add it first — the email carries it.",
+};
+
+/**
+ * One stage, described the way the status table describes a status.
+ *
+ * Built from STAGE_COPY rather than restated, so the subject an admin is
+ * warned about before pressing Apply is the subject the customer receives.
+ */
+export function stageEffect(stage: FulfillmentStage): {
+  label: string;
+  email: string;
+  note: string;
+} {
+  const copy = STAGE_COPY[stage];
+  return {
+    label: copy.label,
+    email: copy.title,
+    note:
+      STAGE_NOTE[stage] ??
+      "Moves the customer's delivery tracker to this stage and emails them to say so.",
+  };
+}
+
+/**
+ * Stages that would be a lie on an order whose money has gone back.
+ *
+ * Telling someone their refunded order has shipped is the same failure the
+ * status control already refuses in the other direction — and in bulk it is
+ * the easy mistake, because a refunded row looks like any other row in a
+ * selection of forty. Only closing such an order is allowed.
+ */
+export function stageAllowedForStatus(
+  stage: FulfillmentStage,
+  status: string | null | undefined
+): boolean {
+  const closed = status === "cancelled" || status === "refunded";
+  return !closed || stage === "cancelled";
 }
