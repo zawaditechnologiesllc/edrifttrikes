@@ -20,7 +20,16 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Order, OrderEvent } from "@/lib/types";
-import { sendAbandonedReminderEmail, sendFulfillmentEmail } from "@/lib/email";
+import {
+  resendFailureHint,
+  sendAbandonedReminderEmail,
+  sendFulfillmentEmail,
+  sendRefundEmail,
+} from "@/lib/email";
+import {
+  type OrderStatus,
+  type StatusOutcome,
+} from "@/lib/order-status";
 import { publicSiteUrl } from "@/lib/env";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { verifiedUserEmail } from "@/lib/account";
@@ -923,4 +932,176 @@ export async function syncProductColors(
   }
 
   return { scanned, updated, alreadyHad, missing };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Changing an order's status                                                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * ═══ WHY A STATUS CHANGE IS NOT A COLUMN WRITE ═════════════════════════════
+ *
+ * Each of the five statuses owes the customer a different email, starts or
+ * stops the delivery schedule, and has to be idempotent. All of that used to
+ * live INSIDE the single-order admin action, which meant anything else that
+ * changed a status — a bulk control, a script — would have moved the column
+ * and silently skipped every obligation: no confirmation, no refund notice, a
+ * cancelled order still being marched through the delivery stages by cron and
+ * emailed about a package that is not coming.
+ *
+ * It lives here now, beside the transitions it composes, and every caller uses
+ * it. Doing fifty at once is then exactly fifty of the thing that already
+ * worked — which is the only way the emails can be trusted.
+ */
+
+function outcome(partial: Partial<StatusOutcome> & Pick<StatusOutcome, "orderId" | "to">): StatusOutcome {
+  return {
+    orderNumber: null,
+    customerEmail: null,
+    from: null,
+    changed: false,
+    emailed: false,
+    notes: [],
+    ...partial,
+  };
+}
+
+/**
+ * Move one order to `to`, doing everything that owes.
+ *
+ * ⚠️ AN ORDER ALREADY IN THE TARGET STATUS IS LEFT ALONE, and that is the
+ * property that makes a bulk control safe. Selecting forty rows and marking
+ * them paid must not re-send the confirmation to the eight that were already
+ * paid — the customer reads a duplicate as a second charge.
+ *
+ * ⚠️ AN EMAIL FAILURE NEVER ROLLS BACK THE STATUS. The status is the record of
+ * what happened; the email is a notification about it. Losing the first
+ * because the second failed is how a paid order ends up looking unpaid.
+ */
+export async function applyStatusChange(
+  admin: Admin,
+  orderId: string,
+  to: OrderStatus,
+  opts: { notify: boolean }
+): Promise<StatusOutcome> {
+  const notify = opts.notify;
+
+  const { data: current, error: readErr } = await admin
+    .from("orders")
+    .select("id, status, order_number, email, fulfillment_stage")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (readErr) return outcome({ orderId, to, error: `Could not read the order: ${readErr.message}` });
+  if (!current) return outcome({ orderId, to, skipped: "not_found", error: "Order not found." });
+
+  const base = {
+    orderId,
+    to,
+    orderNumber: (current.order_number as string) ?? null,
+    customerEmail: (current.email as string) ?? null,
+    from: (current.status as OrderStatus) ?? null,
+  };
+
+  if (current.status === to) {
+    return outcome({ ...base, skipped: "already_in_status" });
+  }
+
+  /*
+   * PAID goes through the shared payment transition, not an update.
+   *
+   * It is the one status with money behind it: paid_at anchors every later
+   * delivery stage, the confirmation is claimed once in order_events so a
+   * webhook retry cannot double-send, and a cancelled or refunded order is
+   * refused outright rather than quietly confirmed to the customer.
+   */
+  if (to === "paid") {
+    const paid = await markOrderPaid(admin, { id: orderId }, {
+      paidVia: "manual",
+      sendEmail: notify,
+      force: true,
+    });
+    if (!paid.ok) {
+      // A closed order is refused on purpose — marking it paid would email the
+      // customer a confirmation for something they are not getting. Say that,
+      // rather than handing the admin the raw reason code.
+      const closed = paid.reason === "order_cancelled" || paid.reason === "order_refunded";
+      return outcome({
+        ...base,
+        error: closed
+          ? `Refused: this order is ${current.status}, so marking it paid would confirm a shipment that is not happening. Set it back to pending first if that is really what you want.`
+          : paid.reason === "order_not_found"
+            ? "Order not found."
+            : `Could not mark paid: ${paid.reason ?? "unknown error"}`,
+      });
+    }
+    return outcome({
+      ...base,
+      changed: true,
+      emailed: notify && paid.transitioned,
+      notes: [
+        paid.transitioned
+          ? notify
+            ? "confirmation sent"
+            : "confirmation suppressed"
+          : "already confirmed earlier, so no second email",
+      ],
+    });
+  }
+
+  const { error: writeErr } = await admin.from("orders").update({ status: to }).eq("id", orderId);
+  if (writeErr) return outcome({ ...base, error: `Could not update status: ${writeErr.message}` });
+
+  const notes: string[] = [];
+  let emailed = false;
+  let emailError: string | undefined;
+
+  /*
+   * THE DELIVERY STAGE MOVES WITH THE STATUS, and it has to.
+   *
+   * The scheduler advances an order through the delivery stages from paid_at
+   * and emails the customer at each one. Changing the status without closing
+   * the stage leaves a cancelled order being walked through "shipped" and
+   * "out for delivery" by a cron job — which is both a lie and a support
+   * conversation. Each branch below is also what sends the customer's email,
+   * because setOrderStage owns the stage copy and the timeline entry.
+   */
+  if (to === "refunded") {
+    // Closed WITHOUT the stage email: the refund notice below is the right
+    // message for this, and two emails for one refund reads as two refunds.
+    const closed = await setOrderStage(admin, orderId, "cancelled", { sendEmail: false });
+    if (!closed.ok) notes.push(`status saved, but the delivery tracker did not close: ${closed.error}`);
+
+    if (notify) {
+      const order = await loadOrder(admin, { id: orderId });
+      if (!order?.email) {
+        notes.push("no email address on this order, so nothing was sent");
+      } else {
+        try {
+          await sendRefundEmail(order);
+          emailed = true;
+          notes.push(`refund notice emailed to ${order.email}`);
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          console.error("[order-status] refund email failed", e);
+          emailError = `${message}. ${resendFailureHint(message) ?? "Tell the customer directly."}`;
+        }
+      }
+    }
+  } else {
+    // pending → awaiting payment, fulfilled → delivered, cancelled → cancelled.
+    // Each has its own customer-facing copy in lib/fulfillment.ts.
+    const stage = to === "fulfilled" ? "delivered" : to === "cancelled" ? "cancelled" : "awaiting_payment";
+    const moved = await setOrderStage(admin, orderId, stage, { sendEmail: notify });
+    if (!moved.ok) {
+      notes.push(`status saved, but the delivery tracker did not move: ${moved.error}`);
+    } else if (notify && !moved.emailed) {
+      emailError = "the email did not send — the status is saved.";
+    } else {
+      emailed = moved.emailed;
+    }
+    if (moved.warning) notes.push(moved.warning);
+  }
+
+  return outcome({ ...base, changed: true, emailed, emailError, notes });
 }

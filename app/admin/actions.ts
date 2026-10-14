@@ -5,6 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { createAdminClient, adminConfigured } from "@/lib/supabase/admin";
 import { ANNOUNCEMENTS_TAG, CATALOG_TAG, CONTENT_TAG, SETTINGS_TAG } from "@/lib/db";
 import {
+  applyStatusChange,
   markOrderPaid,
   setOrderStage,
   ensureCustomerAccountLink,
@@ -14,13 +15,21 @@ import {
 } from "@/lib/orders";
 import { buildManualOrder, manualOrderFromForm } from "@/lib/manual-order";
 import {
+  BULK_CHUNK,
+  EMAIL_PACE_MS,
+  describeBatch,
+  isOrderStatus,
+  type OrderStatus,
+  type StatusOutcome,
+} from "@/lib/order-status";
+import {
   emptyReport,
   reconcileStripePayments,
   type SessionLike,
   type SyncReport,
 } from "@/lib/order-sync";
 import { getStripe } from "@/lib/stripe";
-import { sendAccountInviteEmail, sendRefundEmail, resendFailureHint } from "@/lib/email";
+import { sendAccountInviteEmail, sendRefundEmail } from "@/lib/email";
 import { publicSiteUrl } from "@/lib/env";
 import { ALL_STAGES, type FulfillmentStage } from "@/lib/fulfillment";
 import { looksInternal, trackingUrlFor } from "@/lib/couriers";
@@ -376,15 +385,6 @@ export async function refreshProductColors(): Promise<ColorRefreshState> {
 
 export type OrderUpdateState = { ok?: boolean; error?: string; message?: string };
 
-/** The order_status enum in the database — anything else is rejected. */
-const ORDER_STATUSES = [
-  "pending",
-  "paid",
-  "fulfilled",
-  "cancelled",
-  "refunded",
-] as const;
-type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 /**
  * Update an order's status, delivery stage and tracking details.
@@ -407,8 +407,8 @@ export async function updateOrderStatus(
   const id = String(formData.get("id") || "").trim();
   if (!id) return { error: "Missing order id." };
 
-  const status = String(formData.get("status") || "").trim() as OrderStatus;
-  if (!ORDER_STATUSES.includes(status)) {
+  const status = String(formData.get("status") || "").trim();
+  if (!isOrderStatus(status)) {
     return { error: `"${status}" is not a valid order status.` };
   }
 
@@ -426,68 +426,20 @@ export async function updateOrderStatus(
   if (readErr) return { error: `Could not read the order: ${readErr.message}` };
   if (!current) return { error: "Order not found." };
 
+  /*
+   * THE SAME TRANSITION THE BULK CONTROL RUNS. It used to be written out here,
+   * which meant anything else that changed a status — a bulk action, a script
+   * — would have skipped the emails, the delivery schedule and the
+   * idempotency. lib/order-status.ts owns it now; this is one call to it.
+   */
   if (current.status !== status) {
-    if (status === "paid") {
-      // Route through the shared transition so the customer journey starts.
-      const paid = await markOrderPaid(
-        admin,
-        { id },
-        { paidVia: "manual", sendEmail: wantsNotify(formData), force: true }
-      );
-      if (!paid.ok) {
-        return { error: `Could not mark paid: ${paid.reason ?? "unknown error"}` };
-      }
-      notes.push(
-        paid.transitioned
-          ? "marked paid — shipping confirmation sent"
-          : "marked paid (confirmation already sent earlier)"
-      );
-    } else {
-      const { error } = await admin.from("orders").update({ status }).eq("id", id);
-      if (error) return { error: `Could not update status: ${error.message}` };
-      notes.push(`status → ${status}`);
-
-      // Closing an order stops the scheduler from marching it through the
-      // delivery stages and emailing a customer about a package that isn't
-      // coming.
-      if (status === "cancelled" || status === "refunded") {
-        await admin
-          .from("orders")
-          .update({ fulfillment_stage: "cancelled", stage_updated_at: new Date().toISOString() })
-          .eq("id", id);
-
-        // A refund is money leaving the customer's order without them doing
-        // anything, so they hear about it. Marking an order refunded used to
-        // send nothing at all — the customer's first sign was a credit
-        // appearing (or not appearing) on their statement days later.
-        if (status === "refunded" && wantsNotify(formData)) {
-          const order = await loadOrder(admin, { id });
-          if (order?.email) {
-            try {
-              await sendRefundEmail(order);
-              notes.push(`refund notice emailed to ${order.email}`);
-            } catch (e) {
-              // The status change is already committed and correct; a failed
-              // email must not roll it back or look like the refund failed.
-              const message = e instanceof Error ? e.message : String(e);
-              console.error("[admin] refund email failed", e);
-              notes.push(
-                `status saved, BUT the refund email did not send: ${message}. ${
-                  resendFailureHint(message) ?? "Tell the customer directly."
-                }`
-              );
-            }
-          } else {
-            notes.push("status saved — no email on this order, so nothing was sent");
-          }
-        }
-      } else if (status === "fulfilled") {
-        await admin
-          .from("orders")
-          .update({ fulfillment_stage: "delivered", stage_updated_at: new Date().toISOString() })
-          .eq("id", id);
-      }
-    }
+    const changed = await applyStatusChange(admin, id, status, {
+      notify: wantsNotify(formData),
+    });
+    if (changed.error) return { error: changed.error };
+    notes.push(`status → ${status}`);
+    notes.push(...changed.notes);
+    if (changed.emailError) notes.push(`the customer email did not send: ${changed.emailError}`);
   }
 
   // --- tracking details ----------------------------------------------------
@@ -587,6 +539,81 @@ export async function updateOrderStatus(
     ok: true,
     message: notes.length ? `Saved: ${notes.join(", ")}.` : "No changes to save.",
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Changing many orders at once                                                */
+/* -------------------------------------------------------------------------- */
+
+export type BulkStatusResult = {
+  /** Every order this call touched, in the order it touched them. */
+  outcomes: StatusOutcome[];
+  /** One readable line about this call. */
+  message: string;
+  /** Set when the call was refused before touching anything. */
+  error?: string;
+};
+
+/**
+ * Change the status of up to BULK_CHUNK orders, emailing each customer.
+ *
+ * Called imperatively from the browser rather than through a form, once per
+ * chunk, so a selection of any size is processed as a sequence of small,
+ * bounded requests. Each order goes through applyStatusChange — the same
+ * function the single-order dropdown uses — so bulk cannot drift from
+ * one-at-a-time.
+ *
+ * ⚠️ ORDER IS PRESERVED AND EVERY ORDER IS REPORTED, including the ones
+ * nothing happened to. "40 of 40 updated" with no detail is unverifiable; a
+ * bulk operation over money and customer email has to say exactly what it did.
+ */
+export async function bulkUpdateOrderStatus(input: {
+  ids: string[];
+  status: string;
+  notify: boolean;
+}): Promise<BulkStatusResult> {
+  await requireAdmin();
+
+  if (!isOrderStatus(input.status)) {
+    return { outcomes: [], message: "", error: `"${input.status}" is not a valid order status.` };
+  }
+  const status: OrderStatus = input.status;
+
+  // Deduplicated: the same id twice would run the transition twice, and the
+  // second run is the one that could double-email.
+  const ids = Array.from(new Set((input.ids ?? []).map((v) => String(v).trim()).filter(Boolean)));
+  if (ids.length === 0) {
+    return { outcomes: [], message: "", error: "No orders selected." };
+  }
+  if (ids.length > BULK_CHUNK) {
+    return {
+      outcomes: [],
+      message: "",
+      error: `Too many at once: this call takes ${BULK_CHUNK}. The page sends them in batches — reload it.`,
+    };
+  }
+
+  const admin = createAdminClient();
+  const outcomes: StatusOutcome[] = [];
+
+  // SERIAL, not Promise.all. Parallel writes would blow the subrequest budget
+  // in bursts and hit Resend's rate limit; serial also means a failure part
+  // way through leaves a report of exactly how far it got.
+  for (const id of ids) {
+    const result = await applyStatusChange(admin, id, status, { notify: input.notify });
+    outcomes.push(result);
+    if (result.emailed && id !== ids[ids.length - 1]) {
+      await new Promise((resolve) => setTimeout(resolve, EMAIL_PACE_MS));
+    }
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/orders/paid");
+  for (const o of outcomes) {
+    if (o.changed) revalidatePath(`/admin/orders/${o.orderId}`);
+  }
+
+  return { outcomes, message: describeBatch(outcomes, status) };
 }
 
 /* -------------------------------------------------------------------------- */

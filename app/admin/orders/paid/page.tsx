@@ -11,6 +11,11 @@ import {
   type PaymentSource,
 } from "@/lib/payment-display";
 import PaymentSourceBadge from "../PaymentSourceBadge";
+import {
+  BulkSelectionProvider,
+  RowCheckbox,
+  SelectAllCheckbox,
+} from "../BulkStatus";
 import type { Order } from "@/lib/types";
 
 export const metadata = { title: "Paid Orders" };
@@ -188,10 +193,20 @@ export default async function AdminPaidOrders({
         })}
       </div>
 
+      {/*
+        Selection covers only the rows on screen — the 500 this page fetches,
+        narrowed by whichever payment-source tab is open. A bulk change that
+        reached beyond what the admin can see is how the wrong customers get
+        emailed.
+      */}
+      <BulkSelectionProvider allIds={orders.map((o) => String(o.id))}>
       <div className="bg-surface-container border border-white/10 rounded-lg overflow-x-auto">
-        <table className="w-full text-left min-w-[880px]">
+        <table className="w-full text-left min-w-[980px]">
           <thead className="bg-surface-container-high text-on-surface-variant text-xs uppercase tracking-widest font-label-bold">
             <tr>
+              <th className="p-4 w-10">
+                <SelectAllCheckbox />
+              </th>
               <th className="p-4">Order</th>
               <th className="p-4">Customer</th>
               <th className="p-4">Paid</th>
@@ -203,6 +218,9 @@ export default async function AdminPaidOrders({
           <tbody className="divide-y divide-white/5">
             {orders.map((o) => (
               <tr key={o.id} className="hover:bg-white/5">
+                <td className="p-4">
+                  <RowCheckbox id={String(o.id)} label={o.order_number} />
+                </td>
                 <td className="p-4">
                   <Link
                     href={`/admin/orders/${o.id}`}
@@ -251,7 +269,7 @@ export default async function AdminPaidOrders({
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-on-surface-variant">
+                <td colSpan={7} className="p-12 text-center text-on-surface-variant">
                   {filter
                     ? `No orders paid via ${SOURCE_LABEL[filter]} yet.`
                     : "No paid orders yet."}
@@ -267,6 +285,7 @@ export default async function AdminPaidOrders({
           Showing the 500 most recent paid orders.
         </p>
       )}
+      </BulkSelectionProvider>
     </div>
   );
 }

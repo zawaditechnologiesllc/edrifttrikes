@@ -836,3 +836,63 @@ then both finished invoices scanned off the rendered PDF at 600, 400, 300 and
 Note that OpenCV's basic `QRCodeDetector` fails on valid version-10-and-up codes
 — it fails on a reference implementation's output too — so use
 `cv2.QRCodeDetectorAruco()`.
+
+---
+
+## Changing many orders at once
+
+Admin → Orders and Admin → Paid Orders both carry a checkbox per row, a
+select-all in the header, and a bar that appears as soon as anything is
+selected. Pick a status, press **Apply**, confirm, and it works through the
+selection with a progress count and a **Stop** button.
+
+### What each status sends the customer
+
+One table, `STATUS_EFFECT` in `lib/order-status.ts`, is both what the admin
+reads before pressing Apply and what the sender uses — so the warning and the
+inbox cannot disagree.
+
+| Status | The customer receives | Also |
+| --- | --- | --- |
+| Paid | *Order confirmed — preparing your shipment* | Stamps `paid_at` and starts the delivery schedule. Refuses a cancelled or refunded order. |
+| Fulfilled | *Delivered — enjoy the ride* | Closes the delivery tracker. |
+| Cancelled | *Order cancelled* | Stops the schedule. |
+| Refunded | *Refund issued* | Stops the schedule. **Moves no money** — refund in the gateway that took it. |
+| Pending | *Awaiting payment* | ⚠️ Tells the customer payment is outstanding. On orders already paid that is alarming; untick **Email the customers** when correcting a mistake. |
+
+Fulfilled and Cancelled used to send **nothing at all** — the status moved and
+the customer was never told. Both now go through `setOrderStage`, which is what
+owns the stage copy and the timeline entry.
+
+### The rules that make it safe
+
+- **An order already in the target status is left alone.** Select forty, mark
+  them paid, and the eight that were already paid are not re-confirmed — a
+  customer reads a duplicate confirmation as a second charge.
+- **A failed email never rolls back the status.** The status is the record of
+  what happened; the email is a notification about it.
+- **Every order is reported**, including the ones nothing happened to, with its
+  order number, what changed and who was written to. "40 updated" over money
+  and customer email is not something anyone can check.
+- **Apply asks first**, and names the number of people and the exact subject
+  they will read. Nothing else in this admin is irreversible; an email is.
+
+### Why it runs in batches
+
+A Worker request on Cloudflare's free plan may make 50 subrequests (1,000 on
+Workers Paid). One status change costs roughly seven, so a single action over
+forty orders would die partway through with some customers emailed and some
+not. The server takes `BULK_CHUNK` (6) per call and the browser loops — which
+is also where the progress count and the Stop button come from. Emails are
+paced `EMAIL_PACE_MS` apart because Resend's free tier allows two a second.
+
+Both constants are in `lib/order-status.ts` and raising them on Workers Paid is
+safe.
+
+### One control, two callers
+
+`applyStatusChange` in `lib/orders.ts` is the whole transition, and the
+single-order dropdown on the orders table calls exactly the same function. A
+bulk control written against the table directly would have moved the column and
+skipped the emails, the schedule and the idempotency — doing fifty at once is
+fifty of the thing that already worked.
