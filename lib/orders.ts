@@ -19,7 +19,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Order, OrderEvent } from "@/lib/types";
+import type { Order, OrderEvent, Product } from "@/lib/types";
 import {
   resendFailureHint,
   sendAbandonedReminderEmail,
@@ -47,6 +47,15 @@ import {
   type FulfillmentStage,
 } from "@/lib/fulfillment";
 import { deliveryDaysFor } from "@/lib/delivery";
+import { normalizeEmail } from "@/lib/email-optout";
+import {
+  BEST_SELLER_ROW_LIMIT,
+  BEST_SELLER_WINDOW_DAYS,
+  SELLING_STATUSES,
+  isPromotable,
+  rankBySold,
+  type SoldLine,
+} from "@/lib/best-seller";
 import { colorsFromDescription, productColors } from "@/lib/colors";
 import {
   ABANDONED_SCHEDULE,
@@ -748,13 +757,49 @@ export async function sweepAbandonedOrders(
   const orders = (data as Order[]) ?? [];
   let emailed = 0;
 
+  /*
+   * ONE READ FOR THE WHOLE BATCH, not one per recipient.
+   *
+   * The offer is the same product for everyone in the run, and the opt-out
+   * list is one query however many orders are in front of it. At three sends a
+   * week across the whole pending table, a per-order query for either would
+   * dominate the subrequest budget this sweep has to live inside.
+   */
+  const offer = await bestSellingProduct(admin, now);
+  const optedOut = await optedOutEmails(admin, orders.map((o) => o.email));
+
+  /*
+   * ONE EMAIL PER ADDRESS PER RUN.
+   *
+   * A buyer with three pending orders is still one person. Without this they
+   * get three of these on the same morning, which is the single fastest way to
+   * turn a campaign into a spam complaint — and a complaint is scored against
+   * the domain the order confirmations also leave on.
+   */
+  const writtenTo = new Set<string>();
+
   for (const order of orders) {
+    const address = normalizeEmail(order.email);
+
     const due = shouldRemind(
       { status: order.status, created_at: order.created_at },
       now
     );
     if (!due.send) {
       note(due.reason);
+      continue;
+    }
+
+    if (!address) {
+      note("no_email");
+      continue;
+    }
+    if (optedOut.has(address)) {
+      note("opted_out");
+      continue;
+    }
+    if (writtenTo.has(address)) {
+      note("already_written_to_this_run");
       continue;
     }
 
@@ -765,21 +810,21 @@ export async function sweepAbandonedOrders(
       continue;
     }
 
-    // Claim every step up to the due one. The earlier claims are what stop a
-    // recovered scheduler from working backwards through the sequence.
-    let sendThis = false;
-    for (const step of stepsUpTo(due.step)) {
-      const won = await claimReminder(admin, order.id, step);
-      if (step === due.step) sendThis = won;
-    }
-    if (!sendThis) {
+    // Claim the due step — the insert that wins the race is the one that
+    // sends — then record the steps this run skipped past, in ONE write. The
+    // old loop did an insert per step, which at a twenty-four-step schedule
+    // would have spent the whole subrequest budget on bookkeeping.
+    const won = await claimReminder(admin, order.id, due.step);
+    if (!won) {
       note("already_sent");
       continue;
     }
+    await backfillSkippedReminders(admin, order.id, due.step);
 
     try {
-      await sendAbandonedReminderEmail(order, due.step);
+      await sendAbandonedReminderEmail(order, due.step, offer);
       emailed++;
+      writtenTo.add(address);
     } catch (e) {
       // The claim already stands, so this order will not be retried. That is
       // the deliberate trade: a missed reminder beats a duplicate one.
@@ -792,6 +837,65 @@ export async function sweepAbandonedOrders(
   }
 
   return { scanned: orders.length, emailed, skipped };
+}
+
+/**
+ * Which of these addresses have asked us to stop.
+ *
+ * One query for the batch. Returns an empty set if the table is missing, so a
+ * deployment that has not run migration 0022 yet keeps working — but see the
+ * caller: a reminder that cannot be unsubscribed from is not sent at all.
+ */
+async function optedOutEmails(
+  admin: Admin,
+  emails: (string | null | undefined)[]
+): Promise<Set<string>> {
+  const wanted = [...new Set(emails.map(normalizeEmail).filter(Boolean))];
+  if (wanted.length === 0) return new Set();
+
+  const { data, error } = await admin
+    .from("email_opt_outs")
+    .select("email")
+    .in("email", wanted);
+
+  if (error) {
+    // FAIL CLOSED. Not knowing who opted out is not the same as nobody having
+    // opted out, and mailing someone who unsubscribed is the one mistake this
+    // whole mechanism exists to prevent.
+    console.error("[orders] opt-out lookup failed, skipping this sweep:", error.message);
+    return new Set(wanted);
+  }
+  return new Set(((data as { email: string }[]) ?? []).map((r) => normalizeEmail(r.email)));
+}
+
+/**
+ * Record the steps a late sweep jumped over, so the timeline is honest and a
+ * recovered scheduler cannot work backwards through the sequence.
+ *
+ * One insert for all of them, with duplicates ignored — the due step is
+ * claimed separately, and that claim is the lock.
+ */
+async function backfillSkippedReminders(
+  admin: Admin,
+  orderId: string,
+  dueStep: number
+): Promise<void> {
+  const skipped = stepsUpTo(dueStep).filter((s) => s !== dueStep);
+  if (skipped.length === 0) return;
+
+  const { error } = await admin.from("order_events").upsert(
+    skipped.map((step) => ({
+      order_id: orderId,
+      stage: reminderStage(step),
+      title: `Unpaid-order reminder skipped (day ${
+        ABANDONED_SCHEDULE.find((s) => s.step === step)?.afterDays ?? "?"
+      })`,
+      detail: "The scheduler was behind, so this step was passed over rather than sent late.",
+      email_sent: false,
+    })),
+    { onConflict: "order_id,stage", ignoreDuplicates: true }
+  );
+  if (error) console.error("[orders] could not record skipped reminders:", error.message);
 }
 
 /** claimStage's sibling for reminder steps, which are not fulfilment stages. */
@@ -1192,4 +1296,55 @@ function stageOutcome(
     notes: [],
     ...partial,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* The product the reminder campaign promotes                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The best-selling product that is actually fit to promote right now.
+ *
+ * Read ONCE per sweep, not once per order: it is the same answer for everyone
+ * in the batch, and a query per recipient would cost more subrequests than the
+ * emails do.
+ *
+ * Returns null rather than a fallback when nothing qualifies. An offer block
+ * pointing at an unpublished or sold-out product is worse than no offer block,
+ * because it is the part of the email that asks the reader to click.
+ */
+export async function bestSellingProduct(
+  admin: Admin,
+  now: Date = new Date()
+): Promise<Product | null> {
+  const since = new Date(now.getTime() - BEST_SELLER_WINDOW_DAYS * 86_400_000);
+
+  // `!inner` makes the embedded orders row a JOIN rather than a left join, so
+  // the status filter actually excludes line items instead of nulling them.
+  const { data, error } = await admin
+    .from("order_items")
+    .select("product_id, qty, orders!inner(status, created_at)")
+    .in("orders.status", SELLING_STATUSES as unknown as string[])
+    .gte("orders.created_at", since.toISOString())
+    .limit(BEST_SELLER_ROW_LIMIT);
+
+  if (error) {
+    console.error("[orders] best-seller query failed:", error.message);
+    return null;
+  }
+
+  const ranked = rankBySold((data as SoldLine[]) ?? []);
+  if (ranked.length === 0) return null;
+
+  // Walk the ranking rather than taking the top one blindly: the best seller
+  // of the last year may be exactly the product that has since been retired.
+  for (const entry of ranked.slice(0, 5)) {
+    const { data: product } = await admin
+      .from("products")
+      .select("*")
+      .eq("id", entry.productId)
+      .maybeSingle();
+    if (isPromotable(product as Product)) return product as Product;
+  }
+  return null;
 }

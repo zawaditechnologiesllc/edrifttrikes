@@ -69,6 +69,18 @@ async function send(to, subject, html, opts = {}) {
     subject,
     html,
     ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+    // One-click unsubscribe, for marketing mail. Gmail and Yahoo have required
+    // it of bulk senders since February 2024 and treat its absence as a spam
+    // signal — and a complaint is scored against the domain the order
+    // confirmations also leave on.
+    ...(opts.unsubscribeUrl
+      ? {
+          headers: {
+            "List-Unsubscribe": `<${opts.unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        }
+      : {}),
   });
   // The Resend SDK returns { data, error } and does NOT throw on rejection.
   // Without this, an unverified EMAIL_FROM domain (or the resend.dev test
@@ -124,9 +136,34 @@ function orderTable(order) {
  * The confirmation now goes out from the fulfilment email when the order is
  * actually marked paid.
  */
-export async function abandonedCartEmail({ order, subject, title, paragraphs, href, cta }) {
-  // The app composes the wording for the day 3/7/12 reminders and passes it in,
-  // so the escalation lives in one place (lib/abandoned.ts) rather than being
+export async function abandonedCartEmail({
+  order,
+  subject,
+  title,
+  paragraphs,
+  href,
+  cta,
+  offer,
+  unsubscribeUrl,
+  reminder,
+}) {
+  /*
+   * ⚠️ A REMINDER WITHOUT AN UNSUBSCRIBE LINK IS NOT SENT.
+   *
+   * The reminder sequence runs three times a week for two months and carries a
+   * product offer, which makes it marketing rather than transactional. The app
+   * refuses to send one without an opt-out; this path is the fallback, and it
+   * has to refuse for the same reason rather than quietly send a version with
+   * the footer missing.
+   */
+  if (reminder && !unsubscribeUrl) {
+    throw new Error(
+      "Refusing to send an order reminder with no unsubscribe link — set INTERNAL_API_KEY on the app."
+    );
+  }
+
+  // The app composes the wording for the reminder sequence and passes it in, so
+  // the escalation lives in one place (lib/abandoned.ts) rather than being
   // written twice. Without it, this is the first email.
   const lead =
     Array.isArray(paragraphs) && paragraphs.length
@@ -136,20 +173,72 @@ export async function abandonedCartEmail({ order, subject, title, paragraphs, hr
   // The link carries the order id so the cart page can restore exactly what
   // they picked, colours included.
   const link = href || `${process.env.SITE_URL || ""}/cart?recover=${encodeURIComponent(order.id || "")}`;
+  // Rendered HERE from the product the app sent, not fetched: this service has
+  // no database, and the app already decided which product is fit to promote.
+  const site = process.env.SITE_URL || "";
+  const offerBlock = offer
+    ? `
+    <div style="margin-top:32px;padding:20px;border:1px solid rgba(196,247,49,0.35);border-radius:10px;background:rgba(196,247,49,0.05)">
+      <p style="margin:0 0 12px;color:#c4f731;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:11px">Our best seller</p>
+      ${
+        offer.hero_image
+          ? `<a href="${site}/product/${esc(offer.slug)}"><img src="${esc(
+              String(offer.hero_image).startsWith("http")
+                ? offer.hero_image
+                : `${site}${offer.hero_image}`
+            )}" alt="${esc(offer.name)}" width="520" style="display:block;width:100%;max-width:520px;border-radius:8px;margin-bottom:16px" /></a>`
+          : ""
+      }
+      <p style="margin:0;color:#fff;font-size:18px;font-weight:700">${esc(offer.name)}</p>
+      <p style="margin:8px 0 0;color:#e4e1e6;font-size:16px">${money(
+        offer.price_cents,
+        order.currency
+      )}${
+        offer.compare_at_cents && offer.compare_at_cents > offer.price_cents
+          ? ` <span style="color:#8d90a2;text-decoration:line-through;font-size:13px">${money(
+              offer.compare_at_cents,
+              order.currency
+            )}</span>`
+          : ""
+      }</p>
+      ${
+        offer.tagline
+          ? `<p style="margin:10px 0 0;color:#c3c5d9;line-height:1.6;font-size:14px">${esc(offer.tagline)}</p>`
+          : ""
+      }
+      <a href="${site}/product/${esc(offer.slug)}" style="display:inline-block;margin-top:16px;border:1px solid #c4f731;color:#c4f731;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:12px">View this build</a>
+    </div>`
+    : "";
+
   const body = `
     ${lead}
     <a href="${link}" style="display:inline-block;margin:8px 0;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">${esc(cta || "Complete your order")}</a>
+    ${offerBlock}
     ${orderTable(order)}
-    <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">Changed your mind? No action is needed — an unpaid order simply expires and you will not be charged.</p>`;
+    <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">Changed your mind? No action is needed — an unpaid order simply expires and you will not be charged.</p>
+    ${
+      unsubscribeUrl
+        ? `<p style="margin-top:14px;color:#8d90a2;font-size:12px;line-height:1.7"><a href="${esc(
+            unsubscribeUrl
+          )}" style="color:#8d90a2;text-decoration:underline">Unsubscribe from order reminders</a> — one click, no sign-in, and it stops all of them straight away.</p>`
+        : ""
+    }`;
   const result = await send(
     order.email,
     subject || `Your order ${order.order_number} is waiting`,
-    shell(title || "Finish your order", body)
+    shell(title || "Finish your order", body),
+    unsubscribeUrl ? { unsubscribeUrl } : {}
   );
 
-  // New-order alert to the store owner. It fires on an UNPAID order because
-  // that is precisely what the admin needs to see — they mark it paid.
-  const notify = process.env.ORDERS_NOTIFICATION_EMAIL;
+  /*
+   * New-order alert to the store owner, on the FIRST email only.
+   *
+   * ⚠️ It used to fire on every call, and every reminder comes through here —
+   * so the owner got one "new order" alert per reminder. At four reminders
+   * that was noise. At twenty-four it would be an inbox full of alerts about
+   * one order that is still unpaid, which is how real alerts stop being read.
+   */
+  const notify = reminder ? null : process.env.ORDERS_NOTIFICATION_EMAIL;
   if (notify) {
     const addr = order.shipping_address
       ? `<p style="color:#c3c5d9;line-height:1.6">Ship to: ${Object.values(order.shipping_address)

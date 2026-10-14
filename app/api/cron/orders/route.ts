@@ -41,11 +41,12 @@ export const dynamic = "force-dynamic";
  * system always records orders" a property rather than a promise: nobody has
  * to notice, and nobody has to click.
  *
- * IT ALSO CHASES UNPAID ORDERS — day 3, 7 and 12 after checkout, stopping the
- * moment the buyer pays for anything. That schedule lives in lib/abandoned.ts.
- * The two passes share a run because they want the same cadence and the same
- * batching, and because an hourly job that does one of them is an hourly job
- * that could do both.
+ * IT ALSO CHASES UNPAID ORDERS — three times a week for eight weeks after
+ * checkout, carrying the shop's best-selling product, and stopping the moment
+ * the buyer pays for anything or asks to be left alone. That schedule lives in
+ * lib/abandoned.ts. The two passes share a run because they want the same
+ * cadence and the same batching, and because an hourly job that does one of
+ * them is an hourly job that could do both.
  *
  * WHO CALLS IT: the Render service runs node-cron hourly and pings this
  * endpoint (server/src/index.js), with a GitHub Actions schedule as a backup in

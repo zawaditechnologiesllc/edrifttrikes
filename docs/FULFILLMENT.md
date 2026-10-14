@@ -475,13 +475,75 @@ created:
 | Day | What happens |
 | --- | --- |
 | 0 | The checkout API sends the first email — the receipt, and a link back |
-| 3 | A nudge |
-| 7 | A firmer one |
-| 12 | The last. Nothing after this, ever |
+| 2, 4, 7 | Week 1 |
+| 9, 11, 14 | Week 2 |
+| … | Three a week, on the same pattern |
+| 51, 53, 56 | Week 8. Nothing after this, ever |
 
-The schedule and all three pieces of copy live in `lib/abandoned.ts`;
+**Twenty-four sends, three a week for eight weeks**, counted from the order
+rather than from a fixed weekday — so buyers land on different days and the
+whole list is never mailed in one burst. No two sends fall on consecutive days.
+The schedule is generated from `REMINDER_DAYS_IN_WEEK` and `REMINDER_WEEKS` in
+`lib/abandoned.ts` rather than written out, because twenty-five hand-typed
+offsets is twenty-five chances to be a day wrong in a way nobody notices.
 `sweepAbandonedOrders()` in `lib/orders.ts` runs it, from the same hourly cron
 that advances paid orders.
+
+### What makes twenty-four survivable
+
+Four emails about an order you placed last week is transactional. Twenty-four
+over two months carrying a product offer is marketing, and the risk changes
+shape: a spam complaint is scored against the sending **domain**, which is the
+same domain the order confirmations leave on. Getting this wrong does not just
+annoy people — it can stop paying customers hearing that their money arrived,
+on a domain already carrying an ISP blocklist entry
+([BLOCKLIST-APPEALS.md](./BLOCKLIST-APPEALS.md)).
+
+So the sequence does not go out without all of this:
+
+- **A one-click unsubscribe on every send**, with `List-Unsubscribe` and
+  `List-Unsubscribe-Post` headers — required of bulk senders by Gmail and Yahoo
+  since February 2024, and by CAN-SPAM and the EU/UK rules this shop already
+  documents. If the link cannot be built, **nothing is sent at all**: both the
+  direct path and the Render fallback refuse rather than send a version with
+  the footer missing.
+- **One email per address per run.** A buyer with three pending orders is still
+  one person; three on the same morning is the fastest route to a complaint.
+- **Copy that rotates.** Seven distinct angles plus the two openers and the
+  sign-off, so the same angle returns about every two and a half weeks. Each
+  says something the reader did not already know. Twenty-four variations of
+  "you forgot something" is not a campaign.
+- **Nothing invented.** No manufactured deadline, no stock pressure, no
+  discount the shop is not running — a test asserts the whole sequence against
+  a list of those phrases.
+
+### The offer
+
+Every send from the third onwards carries the shop's **best-selling product**,
+counted from paid orders over the last year (`lib/best-seller.ts`), not taken
+from the `featured` flag — which is an opinion somebody set once. Pending
+orders are excluded on purpose: otherwise the very buyers this campaign chases
+would nominate the product it then promotes back at them.
+
+A price reduction is shown only when `compare_at_cents` genuinely exceeds the
+price. If the winner has since been unpublished or sold out, the walk continues
+down the ranking, and if nothing qualifies the block is simply omitted — a
+two-month campaign pointing at a dead end is worse than no offer, because the
+offer is the part of the email that asks the reader to click.
+
+### Unsubscribing
+
+`/unsubscribe` takes a signed token (`lib/email-optout.ts`). **GET shows a
+button; POST does the work** — corporate mail security follows every link in
+every message before the recipient sees it, so an unsubscribe that acted on GET
+would opt people out who never clicked, and the only symptom is email that
+quietly stops arriving. The one-click path the spam filters actually measure is
+POST and stays a single action.
+
+The token is an HMAC over the address and an expiry, so one person's link
+cannot be pointed at somebody else's address. Opt-outs are stored in
+`email_opt_outs` (migration `0022`) keyed on the email, and the sweep **fails
+closed**: if that table cannot be read, nobody is mailed that run.
 
 **It stops the moment there is any reason to.** Paid, fulfilled, cancelled or
 refunded ends it — mailing "you left something behind" about an order the store
@@ -499,15 +561,15 @@ no migration for this — the column is plain text and the admin timeline render
 each row's title, so a reminder shows up there as "Unpaid-order reminder sent
 (day 7)".
 
-**A late sweep sends one email, not three.** If the cron is down for a week,
-`dueReminder` returns the furthest due step and the skipped ones are claimed
-silently — so a recovered scheduler can never work backwards and send a day-3
-note after the day-12 one.
+**A late sweep sends one email, not twenty.** If the cron is down for a month,
+`dueReminder` returns the furthest due step and the skipped ones are recorded in
+a single write — so a recovered scheduler can never work backwards, and the
+buyer does not wake up to two months of backlog in one morning.
 
 **Switching it on is safe.** The sweep only looks back `ABANDONED_WINDOW_DAYS`
-(14). Every pending order older than that is left alone rather than mailed out
-of the blue, which matters on a database that has been accumulating unpaid
-orders for months.
+(58 — the last send plus two days of slack). Every pending order older than that
+is left alone rather than mailed out of the blue, which matters on a database
+that has been accumulating unpaid orders for months.
 
 ### The link carries what they were buying
 

@@ -1,4 +1,4 @@
-import type { Order } from "@/lib/types";
+import type { Order, Product } from "@/lib/types";
 import { serverEnv, publicSiteUrl } from "@/lib/env";
 import {
   STAGE_COPY,
@@ -10,6 +10,8 @@ import { trackingUrlFor } from "@/lib/couriers";
 import { COMPANY } from "@/lib/company";
 import { methodLabel } from "@/lib/payment-display";
 import { isFinalReminder, reminderCopy, type ReminderStep } from "@/lib/abandoned";
+import { optOutLink } from "@/lib/email-optout";
+import { formatMoney } from "@/lib/format";
 
 /**
  * Email delivery. Primary path: send DIRECTLY via the Resend HTTP API from the
@@ -361,6 +363,16 @@ async function resendSend(
     from?: string;
     /** Where a reply should actually land, when the sender is a no-reply. */
     replyTo?: string;
+    /**
+     * One-click unsubscribe, for commercial mail.
+     *
+     * Gmail and Yahoo have required this of bulk senders since February 2024
+     * and treat its absence as a spam signal. Both headers are needed: the
+     * List-Unsubscribe URL is what the mail client offers, and
+     * List-Unsubscribe-Post is what tells it the link can be POSTed to
+     * without the reader leaving their inbox.
+     */
+    unsubscribeUrl?: string;
   } = {}
 ): Promise<{ id?: string }> {
   const key = resendApiKey();
@@ -374,6 +386,14 @@ async function resendSend(
       subject,
       html,
       ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+      ...(opts.unsubscribeUrl
+        ? {
+            headers: {
+              "List-Unsubscribe": `<${opts.unsubscribeUrl}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+          }
+        : {}),
     }),
     cache: "no-store",
     // See RESEND_TIMEOUT_MS: a send that never answers must not be able to
@@ -600,8 +620,88 @@ function recoveryLink(order: Order): string {
  * reminder carries the full receipt: by day 12 the buyer has forgotten what
  * they picked, and "your order" means nothing without it.
  */
-export async function sendAbandonedReminderEmail(order: Order, step: ReminderStep) {
-  const copy = reminderCopy(step, order.order_number);
+/**
+ * The best-selling product, as a block a buyer can click.
+ *
+ * Shows a reduced price ONLY when the product genuinely carries one —
+ * compare_at_cents above the real price is a sale the shop is actually
+ * running. Nothing here invents a discount, a deadline or a stock level: the
+ * campaign runs for two months and a promise the shop cannot keep costs more
+ * than the sale it wins.
+ */
+function offerBlock(product: Product | null | undefined, site: string): string {
+  if (!product) return "";
+  const href = `${site}/product/${esc(product.slug)}`;
+  const price = formatMoney(product.price_cents, "usd");
+  const was =
+    product.compare_at_cents && product.compare_at_cents > product.price_cents
+      ? formatMoney(product.compare_at_cents, "usd")
+      : null;
+  const image = product.hero_image
+    ? `<a href="${href}"><img src="${esc(
+        product.hero_image.startsWith("http") ? product.hero_image : `${site}${product.hero_image}`
+      )}" alt="${esc(product.name)}" width="520" style="display:block;width:100%;max-width:520px;border-radius:8px;margin-bottom:16px" /></a>`
+    : "";
+
+  return `
+    <div style="margin-top:32px;padding:20px;border:1px solid rgba(196,247,49,0.35);border-radius:10px;background:rgba(196,247,49,0.05)">
+      <p style="margin:0 0 12px;color:#c4f731;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:11px">Our best seller</p>
+      ${image}
+      <p style="margin:0;color:#fff;font-size:18px;font-weight:700">${esc(product.name)}</p>
+      <p style="margin:8px 0 0;color:#e4e1e6;font-size:16px">
+        ${esc(price)}${
+          was
+            ? ` <span style="color:#8d90a2;text-decoration:line-through;font-size:13px">${esc(was)}</span>`
+            : ""
+        }
+      </p>
+      ${
+        product.tagline
+          ? `<p style="margin:10px 0 0;color:#c3c5d9;line-height:1.6;font-size:14px">${esc(product.tagline)}</p>`
+          : ""
+      }
+      <a href="${href}" style="display:inline-block;margin-top:16px;border:1px solid #c4f731;color:#c4f731;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:12px">View this build</a>
+    </div>`;
+}
+
+/**
+ * One of the twenty-four unpaid-order reminders.
+ *
+ * ⚠️ NOT SENT WITHOUT AN UNSUBSCRIBE LINK. Three a week for two months,
+ * carrying a product offer, is commercial email — see lib/email-optout.ts for
+ * why that distinction decides whether the order confirmations keep arriving.
+ * If the link cannot be built, this throws rather than sending, and the sweep
+ * records it as a failure.
+ */
+export async function sendAbandonedReminderEmail(
+  order: Order,
+  step: ReminderStep,
+  offer?: Product | null
+) {
+  const site = publicSiteUrl() || COMPANY.siteUrl;
+  const copy = reminderCopy(
+    step,
+    order.order_number,
+    offer
+      ? {
+          name: offer.name,
+          price: formatMoney(offer.price_cents, "usd"),
+          was:
+            offer.compare_at_cents && offer.compare_at_cents > offer.price_cents
+              ? formatMoney(offer.compare_at_cents, "usd")
+              : null,
+        }
+      : null
+  );
+
+  const unsubscribe = await optOutLink(order.email, site);
+  if (!unsubscribe.includes("t=")) {
+    throw new Error(
+      "No unsubscribe link could be built (INTERNAL_API_KEY unset) — refusing to send marketing mail without one."
+    );
+  }
+
+  const shown = copy.showOffer ? offer : null;
 
   if (!directEmail()) {
     return call("/email/abandoned-cart", {
@@ -611,6 +711,20 @@ export async function sendAbandonedReminderEmail(order: Order, step: ReminderSte
       paragraphs: copy.paragraphs,
       href: recoveryLink(order),
       cta: copy.cta,
+      offer: shown
+        ? {
+            name: shown.name,
+            slug: shown.slug,
+            price_cents: shown.price_cents,
+            compare_at_cents: shown.compare_at_cents ?? null,
+            hero_image: shown.hero_image,
+            tagline: shown.tagline ?? null,
+          }
+        : null,
+      unsubscribeUrl: unsubscribe,
+      // Tells the fallback this is a reminder, not the first email: it refuses
+      // to send without an opt-out, and it skips the owner's new-order alert.
+      reminder: true,
     });
   }
 
@@ -619,6 +733,7 @@ export async function sendAbandonedReminderEmail(order: Order, step: ReminderSte
       .map((line: string) => `<p style="color:#c3c5d9;line-height:1.6">${esc(line)}</p>`)
       .join("")}
     <a href="${recoveryLink(order)}" style="display:inline-block;margin-top:8px;margin-bottom:8px;background:#1e5bff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px">${esc(copy.cta)}</a>
+    ${offerBlock(shown, site)}
     ${receiptBlock(order)}
     <p style="margin-top:28px;color:#8d90a2;font-size:12px;line-height:1.7">
       ${
@@ -630,11 +745,16 @@ export async function sendAbandonedReminderEmail(order: Order, step: ReminderSte
       <a href="mailto:${esc(COMPANY.supportEmail)}" style="color:#c4f731">${esc(
         COMPANY.supportEmail
       )}</a> and quote order ${esc(order.order_number)}.
+    </p>
+    <p style="margin-top:14px;color:#8d90a2;font-size:12px;line-height:1.7">
+      <a href="${esc(unsubscribe)}" style="color:#8d90a2;text-decoration:underline">Unsubscribe from order reminders</a>
+      — one click, no sign-in, and it stops all of them straight away.
     </p>`;
 
   return resendSend(order.email, copy.subject, shell(copy.title, body), {
     from: noReplyFrom(),
     replyTo: COMPANY.supportEmail,
+    unsubscribeUrl: unsubscribe,
   });
 }
 

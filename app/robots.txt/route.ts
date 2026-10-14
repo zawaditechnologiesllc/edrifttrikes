@@ -59,6 +59,10 @@ export function GET(): Response {
     "Disallow: /cart",
     "Disallow: /checkout",
     "Disallow: /order-confirmation",
+    // A crawler must never reach the unsubscribe flow. The action is behind a
+    // POST so a fetch alone cannot opt anyone out, but there is nothing here
+    // worth indexing and every reason not to invite the traffic.
+    "Disallow: /unsubscribe",
     "Disallow: /wishlist",
     "Allow: /",
     "",
