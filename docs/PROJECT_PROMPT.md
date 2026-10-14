@@ -283,7 +283,9 @@ Send directly from the app when it has its own Resend key; otherwise post the
 never rewrite copy — the two paths have to say the same words.
 
 ### Abandoned-order recovery
-After the first email, chase at **day 3, day 7 and day 12**, then stop. Before
+After the first email, chase **three times a week for eight weeks** (days 2, 4
+and 7 of each week, 24 sends, last on day 56), then stop. Every send after the
+second carries the best-selling product and a one-click unsubscribe. Before
 every send, check whether that email address has bought anything since; if so,
 stop permanently. Fail **safe** — if the check errors, skip the send. Each
 reminder claims a distinct `order_events` stage, so two overlapping cron runs
