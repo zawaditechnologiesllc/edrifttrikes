@@ -320,3 +320,58 @@ describe("the deployed hostnames", () => {
     }
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* The links a visitor — or an Instagram bio — uses to reach a storefront      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * These are the URLs the shop hands out publicly, so they have to be the kind
+ * of thing that survives being pasted somewhere with no context: absolute,
+ * https, and the same from any starting point.
+ */
+describe("the public address of each storefront", () => {
+  test("EVERY ONE IS AN ABSOLUTE https URL", () => {
+    // A relative link cannot cross hostnames. On europe., a "/" link labelled
+    // "United States" reloads the storefront you are already on — which looks
+    // exactly like a broken link and is impossible to diagnose by looking.
+    for (const region of REGIONAL_SITES) {
+      const url = regionHome(region);
+      assert.match(url, /^https:\/\//, region.key);
+      assert.doesNotMatch(url, /\s/, region.key);
+      assert.equal(new URL(url).pathname, "/", region.key);
+    }
+  });
+
+  test("each one is its own subdomain of the apex", () => {
+    assert.equal(regionHome(REGIONS.usa), "https://usa.edrifttrikes.shop");
+    assert.equal(regionHome(REGIONS.canada), "https://canada.edrifttrikes.shop");
+    assert.equal(regionHome(REGIONS.uae), "https://uae.edrifttrikes.shop");
+    assert.equal(regionHome(REGIONS.europe), "https://europe.edrifttrikes.shop");
+    assert.equal(regionHome(REGIONS.global), "https://global.edrifttrikes.shop");
+  });
+
+  test("no two storefronts share an address", () => {
+    const urls = REGIONAL_SITES.map((r) => regionHome(r));
+    assert.equal(new Set(urls).size, urls.length);
+  });
+
+  test("AND EVERY ADDRESS LEADS BACK TO ITS OWN STOREFRONT", () => {
+    // The round trip: the URL the footer hands out has to be one that
+    // regionFromHost recognises. If these ever disagree, a link published on
+    // Instagram opens the worldwide shop instead of the regional one, with no
+    // error anywhere to say so.
+    for (const region of REGIONAL_SITES) {
+      const host = new URL(regionHome(region)).hostname;
+      assert.equal(regionFromHost(host).key, region.key, host);
+    }
+  });
+
+  test("a link published once keeps working as the catalogue changes", () => {
+    // It points at the storefront, not at a product or a category that could
+    // be renamed or switched off later.
+    for (const region of REGIONAL_SITES) {
+      assert.equal(new URL(regionHome(region)).search, "", region.key);
+    }
+  });
+});
