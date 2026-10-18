@@ -6,6 +6,7 @@ import { useCategories, useSiteSettings } from "./SiteSettingsProvider";
 import { categoryLinks } from "@/lib/categories";
 import { realOrNull } from "@/lib/placeholders";
 import { Icon } from "@/components/Icon";
+import ShippingExclusions from "./ShippingExclusions";
 import { COMPANY } from "@/lib/company";
 
 export default function SiteFooter() {
@@ -49,8 +50,10 @@ export default function SiteFooter() {
           </div>
           <p className="text-on-surface-variant font-body-md">
             A global electric drift-trike and go-cart manufacturer, selling
-            direct to riders in every country — no middlemen, no markups.
+            direct to riders — no middlemen, no markups.
           </p>
+          {/* Said on every page, because "worldwide" above needs its footnote. */}
+          <ShippingExclusions className="text-xs" />
           <NewsletterForm />
         </div>
         <div className="space-y-4">

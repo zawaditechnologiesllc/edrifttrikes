@@ -7,6 +7,7 @@ import SiteHeader from "@/components/storefront/SiteHeader";
 import { useCart, cartLineKey } from "@/components/cart/CartProvider";
 import { useSiteSettings } from "@/components/storefront/SiteSettingsProvider";
 import { formatMoney } from "@/lib/format";
+import { CurrencyNote, LocalPrice } from "@/components/storefront/RegionProvider";
 import { computeCartTotals } from "@/lib/totals";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PayPalCardFields from "@/components/cart/PayPalCardFields";
@@ -404,6 +405,14 @@ export default function CheckoutClient({
               <div className="flex justify-between text-on-surface-variant"><span>Shipping</span><span className="text-white">{totals.shipping === 0 ? "FREE" : formatMoney(totals.shipping)}</span></div>
               <div className="flex justify-between text-on-surface-variant"><span>Tax</span><span className="text-white">{formatMoney(totals.tax)}</span></div>
               <div className="flex justify-between font-label-bold uppercase tracking-widest pt-2"><span className="text-white">Total</span><span className="text-secondary text-xl">{formatMoney(totals.total)}</span></div>
+              {/*
+                The one place the approximate price matters most, and the one
+                place it must not be mistaken for the amount charged — so it
+                sits UNDER the total, says "approx.", and the note beside it
+                names the currency the card is actually debited in.
+              */}
+              <LocalPrice cents={totals.total} className="text-right" />
+              <CurrencyNote />
               {/* The one line from the old explainer band worth keeping, moved
                   to where a buyer actually wants it: next to the amount, at the
                   moment they decide. It narrows to their own country as soon as

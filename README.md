@@ -249,6 +249,13 @@ Stripe (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 - **Render** — deploy `/server` via `render.yaml` for email, the Stripe webhook,
   and contact.
 
+> **Regional storefronts:** `usa.`, `canada.`, `uae.`, `europe.` and `global.`
+> are served by the same Worker as the apex and are declared in
+> `wrangler.jsonc`, so `npm run deploy` creates them. Setup, the
+> Spaceship/Cloudflare split, the per-region currency rules and the
+> Nigeria/India shipping exclusion are in
+> **[`docs/SUBDOMAINS.md`](./docs/SUBDOMAINS.md)**.
+
 > **If a customer says the site is blocked:** ask them for a screenshot of the
 > **block page** — it names who is blocking — then work from
 > **[`docs/BLOCKLIST-APPEALS.md`](./docs/BLOCKLIST-APPEALS.md)**: the checks to

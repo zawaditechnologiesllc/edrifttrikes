@@ -4,9 +4,11 @@ import {
   REGIONAL_SITES,
   REGIONS,
   canonicalFor,
+  currencyNote,
   regionFromHost,
   regionHome,
 } from "../lib/regions";
+import { isDisplayCurrency } from "../lib/currency";
 import {
   canPublishWithdrawalForm,
   contactIsSet,
@@ -126,7 +128,7 @@ describe("four hostnames must not read as four sites", () => {
 
   test("each region has a home", () => {
     assert.equal(regionHome(REGIONS.europe), "https://europe.edrifttrikes.shop");
-    assert.equal(regionHome(REGIONS.global), "https://edrifttrikes.shop");
+    assert.equal(regionHome(REGIONS.global), "https://global.edrifttrikes.shop");
   });
 });
 
@@ -142,8 +144,38 @@ describe("which region carries EU consumer law", () => {
     for (const region of REGIONAL_SITES) {
       assert.ok(region.label.length > 2, region.key);
       assert.ok(region.blurb.length > 10, region.key);
-      assert.match(region.currencyNote, /US dollars/, region.key);
+      assert.ok(isDisplayCurrency(region.currency), region.key);
     }
+  });
+
+  test("EVERY STOREFRONT SAYS IT CHARGES IN US DOLLARS", () => {
+    // Whatever currency a region QUOTES in, the card is debited in dollars.
+    // A storefront that shows euros without saying so is a dispute waiting to
+    // be filed — see lib/currency.ts.
+    for (const region of [...REGIONAL_SITES, REGIONS.global]) {
+      assert.match(currencyNote(region), /US dollars/, region.key);
+    }
+  });
+
+  test("each region quotes the currency its buyers think in", () => {
+    assert.equal(REGIONS.usa.currency, "USD");
+    assert.equal(REGIONS.canada.currency, "CAD");
+    assert.equal(REGIONS.uae.currency, "AED");
+    assert.equal(REGIONS.europe.currency, "EUR");
+    assert.equal(REGIONS.global.currency, "USD");
+  });
+
+  test("global is reachable at its own subdomain", () => {
+    assert.equal(REGIONS.global.subdomain, "global");
+    assert.equal(regionFromHost("global.edrifttrikes.shop").key, "global");
+  });
+
+  test("BUT GLOBAL IS AN ALIAS, SO IT CANONICALISES TO THE APEX", () => {
+    // Same catalogue, same prices, same policies. Letting it self-canonicalise
+    // would tell a search engine the worldwide storefront exists twice, which
+    // is the duplicate signal the regional design exists to avoid.
+    assert.equal(canonicalFor(REGIONS.global, "/"), "https://edrifttrikes.shop/");
+    assert.equal(canonicalFor(REGIONS.global, "/shop"), "https://edrifttrikes.shop/shop");
   });
 });
 
@@ -217,5 +249,74 @@ describe("EU compliance facts", () => {
     assert.match(text, /I\/We hereby give notice that I\/We withdraw/);
     assert.match(text, /Ordered on \/ received on/);
     assert.match(text, /only if this form is notified on paper/);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The hostnames the Worker is actually deployed on                            */
+/* -------------------------------------------------------------------------- */
+
+import { readFileSync } from "node:fs";
+
+/**
+ * wrangler.jsonc and lib/regions.ts have to agree.
+ *
+ * A region declared in the code but not in the Worker config is a storefront
+ * nobody can reach — and nobody finds out, because every test passes and the
+ * apex keeps working. A hostname in the config but not in the code is the
+ * reverse: it resolves, it serves, and it shows the worldwide storefront with
+ * no regional identity at all.
+ *
+ * Neither failure announces itself, which is why this reads the real file.
+ */
+describe("the deployed hostnames", () => {
+  const config = (() => {
+    const raw = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+    // Strip comments the way wrangler does before parsing.
+    const noBlock = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+    const noLine = noBlock.replace(/^\s*\/\/.*$/gm, "");
+    return JSON.parse(noLine) as { routes?: { pattern: string; custom_domain?: boolean }[] };
+  })();
+
+  const patterns = (config.routes ?? []).map((r) => r.pattern);
+
+  test("EVERY REGION WITH A SUBDOMAIN IS DEPLOYED", () => {
+    for (const region of REGIONAL_SITES) {
+      const host = `${region.subdomain}.edrifttrikes.shop`;
+      assert.ok(
+        patterns.includes(host),
+        `${host} is a region in the code but not a hostname in wrangler.jsonc — nobody can reach it`
+      );
+    }
+  });
+
+  test("and every deployed subdomain is a region", () => {
+    for (const pattern of patterns) {
+      const labels = pattern.split(".");
+      if (labels.length < 3) continue; // the apex
+      if (labels[0] === "www") continue; // an alias of the apex, not a region
+      // It has to resolve to the region whose subdomain it IS. An unrecognised
+      // host falls back to the worldwide region, whose subdomain is "global" —
+      // so comparing against the label catches that without special-casing it.
+      assert.equal(
+        regionFromHost(pattern).subdomain,
+        labels[0],
+        `${pattern} is deployed but is not a region — it would serve the worldwide storefront`
+      );
+    }
+  });
+
+  test("the apex and www are served too", () => {
+    assert.ok(patterns.includes("edrifttrikes.shop"));
+    assert.ok(patterns.includes("www.edrifttrikes.shop"));
+  });
+
+  test("ALL OF THEM ARE CUSTOM DOMAINS, NOT ROUTES", () => {
+    // A plain route needs a DNS record pointing at an origin first. These
+    // hostnames have no origin — the Worker is the origin — so a route would
+    // resolve to nothing and the subdomain would simply not work.
+    for (const route of config.routes ?? []) {
+      assert.equal(route.custom_domain, true, route.pattern);
+    }
   });
 });

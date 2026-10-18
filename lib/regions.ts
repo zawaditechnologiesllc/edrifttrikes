@@ -1,6 +1,8 @@
+import { currencyNoteFor, type DisplayCurrency } from "@/lib/currency";
+
 /**
- * The regional storefronts: usa, canada, uae and europe, on subdomains of the
- * main site.
+ * The regional storefronts: usa, canada, uae, europe and global, on subdomains
+ * of the main site.
  *
  * ═══ WHAT A SUBDOMAIN IS AND IS NOT ════════════════════════════════════════
  *
@@ -35,8 +37,14 @@ export type Region = {
   label: string;
   /** One line under the hero, naming who this storefront is for. */
   blurb: string;
-  /** Currency the buyer is charged in. Everything settles in USD today. */
-  currencyNote: string;
+  /**
+   * The currency this storefront QUOTES in.
+   *
+   * ⚠️ Not what it charges. Every payment settles in US dollars — see
+   * lib/currency.ts for why that distinction is load-bearing rather than
+   * pedantic. A region whose currency is USD shows one price and no note.
+   */
+  currency: DisplayCurrency;
   /**
    * True where EU/EEA consumer law attaches — the 14-day withdrawal right, the
    * two-year legal guarantee, GPSR. Drives which legal annex is shown.
@@ -47,12 +55,20 @@ export type Region = {
 };
 
 export const REGIONS: Record<RegionKey, Region> = {
+  /*
+   * The worldwide storefront, reachable at BOTH the apex and global.
+   *
+   * `global.edrifttrikes.shop` is an alias, not a fifth catalogue: same
+   * products, same prices, same policies, canonicalising to the apex. It
+   * exists so "global" sits beside "usa" and "europe" in anything that lists
+   * the storefronts, rather than being the odd one out with no address.
+   */
   global: {
     key: "global",
-    subdomain: null,
+    subdomain: "global",
     label: "Worldwide",
-    blurb: "Factory-direct to riders in every country.",
-    currencyNote: "Prices are shown and charged in US dollars.",
+    blurb: "Factory-direct to riders in every country we ship to.",
+    currency: "USD",
     euConsumerLaw: false,
     regimes: [],
   },
@@ -61,7 +77,7 @@ export const REGIONS: Record<RegionKey, Region> = {
     subdomain: "usa",
     label: "United States",
     blurb: "Served by our United States distributor.",
-    currencyNote: "Prices are shown and charged in US dollars.",
+    currency: "USD",
     euConsumerLaw: false,
     regimes: ["US state consumer-protection law", "FTC mail-order rules"],
   },
@@ -70,8 +86,7 @@ export const REGIONS: Record<RegionKey, Region> = {
     subdomain: "canada",
     label: "Canada",
     blurb: "Served by our Canadian distributor.",
-    currencyNote:
-      "Prices are shown and charged in US dollars; your bank converts at its own rate.",
+    currency: "CAD",
     euConsumerLaw: false,
     regimes: ["Provincial consumer-protection law"],
   },
@@ -80,8 +95,7 @@ export const REGIONS: Record<RegionKey, Region> = {
     subdomain: "uae",
     label: "United Arab Emirates",
     blurb: "Served by our UAE distributor, covering the Gulf.",
-    currencyNote:
-      "Prices are shown and charged in US dollars; your bank converts at its own rate.",
+    currency: "AED",
     euConsumerLaw: false,
     regimes: ["UAE Consumer Protection Law (Federal Law No. 15 of 2020)"],
   },
@@ -90,8 +104,7 @@ export const REGIONS: Record<RegionKey, Region> = {
     subdomain: "europe",
     label: "Europe",
     blurb: "Served by our European distributor.",
-    currencyNote:
-      "Prices are shown and charged in US dollars; your bank converts at its own rate. Import VAT and duty may apply on arrival.",
+    currency: "EUR",
     euConsumerLaw: true,
     regimes: [
       "EU Consumer Rights Directive 2011/83/EU",
@@ -108,7 +121,19 @@ export const REGIONAL_SITES: Region[] = [
   REGIONS.canada,
   REGIONS.uae,
   REGIONS.europe,
+  REGIONS.global,
 ];
+
+/**
+ * The sentence shown under this storefront's prices.
+ *
+ * Derived rather than stored, so a currency whose rate has gone stale silently
+ * stops promising a conversion it is no longer making — the note and the
+ * number come from the same check.
+ */
+export function currencyNote(region: Region, now: Date = new Date()): string {
+  return currencyNoteFor(region.currency, now);
+}
 
 /**
  * Which storefront is this request on?
@@ -177,6 +202,14 @@ export function canonicalFor(
   apex = "edrifttrikes.shop"
 ): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
-  if (region.subdomain && clean === "/") return `${regionHome(region, apex)}/`;
+  /*
+   * global. is an ALIAS of the apex, so even its landing page canonicalises
+   * away. Letting it self-canonicalise would tell a search engine that the
+   * same worldwide storefront exists twice, which is precisely the duplicate
+   * signal the rest of this file exists to avoid.
+   */
+  if (region.key !== "global" && region.subdomain && clean === "/") {
+    return `${regionHome(region, apex)}/`;
+  }
   return `https://${apex}${clean === "/" ? "/" : clean}`;
 }

@@ -3,8 +3,8 @@
 Two separate things got tangled together when this was first asked for, so they
 are kept apart here.
 
-1. **Regional subdomains** — `usa.`, `canada.`, `uae.`, `europe.` — which are a
-   presentation choice.
+1. **Regional subdomains** — `usa.`, `canada.`, `uae.`, `europe.`, `global.` —
+   which are a presentation choice.
 2. **EU compliance** — which is a set of obligations that apply wherever the
    buyer is, on any hostname.
 
@@ -39,11 +39,12 @@ host we actually answer on. Without that second check,
 `europe.edrifttrikes.shop.evil.test` would select the Europe storefront, and
 with it a different set of legal statements. Covered by `tests/regions.test.ts`.
 
-### DNS, which is not in this repository
+### Turning them on
 
-Each subdomain needs a DNS record and a Worker custom domain in Cloudflare.
-Until that exists the hostnames do not resolve; nothing in the code can create
-them.
+The hostnames are declared in `wrangler.jsonc` as Custom Domains, so
+`npm run deploy` creates them — DNS record and certificate included. Full
+steps, including the Spaceship/Cloudflare split and what to check,
+are in **[SUBDOMAINS.md](./SUBDOMAINS.md)**.
 
 ---
 

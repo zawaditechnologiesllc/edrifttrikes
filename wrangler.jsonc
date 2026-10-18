@@ -13,7 +13,44 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
-  }
+  },
+
+  /*
+   * ═══ THE HOSTNAMES THIS WORKER ANSWERS ON ════════════════════════════════
+   *
+   * `custom_domain: true` means a Custom Domain rather than a Route, and the
+   * difference is the whole reason this list exists rather than five records
+   * typed into the dashboard:
+   *
+   *   - Cloudflare creates and owns the DNS record for each hostname, and
+   *     issues its certificate. There is nothing to add under DNS by hand, and
+   *     nothing to remember to delete if a region is ever retired.
+   *   - The Worker receives the request directly, so it works for a hostname
+   *     that has no origin behind it — which is exactly what these are. A
+   *     plain Route needs a DNS record pointing somewhere first.
+   *   - Declared HERE, the set of hostnames is in version control and
+   *     `npm run deploy` is what applies it. A dashboard edit is invisible to
+   *     the next person and is lost the moment anyone redeploys from source.
+   *
+   * ⚠️ THE ZONE MUST BE ON THIS CLOUDFLARE ACCOUNT. The domain is registered
+   * at Spaceship, which is fine — registration and DNS are separate things —
+   * but edrifttrikes.shop has to be an active zone here, with Spaceship's
+   * nameservers pointed at Cloudflare. See docs/SUBDOMAINS.md.
+   *
+   * Each of these maps to a region in lib/regions.ts. Adding a hostname here
+   * without adding it there gives a storefront with no regional identity;
+   * adding it there without adding it here gives a region nobody can reach.
+   * tests/regions.test.ts binds the two.
+   */
+  "routes": [
+    { "pattern": "edrifttrikes.shop", "custom_domain": true },
+    { "pattern": "www.edrifttrikes.shop", "custom_domain": true },
+    { "pattern": "usa.edrifttrikes.shop", "custom_domain": true },
+    { "pattern": "canada.edrifttrikes.shop", "custom_domain": true },
+    { "pattern": "uae.edrifttrikes.shop", "custom_domain": true },
+    { "pattern": "europe.edrifttrikes.shop", "custom_domain": true },
+    { "pattern": "global.edrifttrikes.shop", "custom_domain": true }
+  ]
   // Environment variables (Supabase, Stripe, PayPal, Render, INTERNAL_API_KEY)
   // are set in the Cloudflare dashboard → Workers & Pages → your project →
   // Settings → Variables (mark secrets as encrypted). See docs/DEPLOYMENT.md.

@@ -207,7 +207,7 @@ describe("country", () => {
     // The form submits the code. If the server ever resolved different display
     // names than the browser (no ICU on Workers, say), name-based validation
     // would reject every order — code-based validation cannot.
-    for (const code of ["US", "GB", "KE", "AU", "IN", "BR"]) {
+    for (const code of ["US", "GB", "KE", "AU", "ZA", "BR"]) {
       assert.equal(
         validateShippingField("country", code),
         null,
@@ -216,16 +216,32 @@ describe("country", () => {
     }
   });
 
-  test("the store ships everywhere — no country is refused by policy", () => {
-    // There is no block list. Every ISO country the picker offers has to pass
-    // the server-side validator too, or the form would offer a destination the
-    // API then rejects.
-    for (const value of ["IN", "India", "PK", "Pakistan", "BD", "Bangladesh"]) {
-      assert.equal(
+  test("EVERY COUNTRY THE PICKER OFFERS PASSES THE VALIDATOR", () => {
+    // The invariant that stops the worst version of a block list: a form that
+    // offers a destination the API then rejects, so the buyer fills in an
+    // address and is refused with no idea why.
+    for (const c of countries()) {
+      assert.equal(validateShippingField("country", c.code), null, `code ${c.code}`);
+      assert.equal(validateShippingField("country", c.name), null, `name ${c.name}`);
+    }
+  });
+
+  test("AND THE ONES WE DO NOT SHIP TO ARE REFUSED BOTH WAYS", () => {
+    // Nigeria and India are not offered in the picker, so this is the second
+    // line: a typed or autofilled value must not reach a paid order that then
+    // has to be refunded by hand.
+    for (const value of ["NG", "Nigeria", "nigeria", "IN", "India", " india "]) {
+      assert.ok(
         validateShippingField("country", value),
-        null,
-        `${value} was refused`
+        `${value} was accepted — that order would have to be refunded`
       );
+    }
+  });
+
+  test("but a neighbour is still perfectly fine", () => {
+    // Guards against a sloppy match taking out more than it should.
+    for (const value of ["PK", "Pakistan", "BD", "Bangladesh", "NE", "Niger", "ID", "Indonesia"]) {
+      assert.equal(validateShippingField("country", value), null, `${value} was refused`);
     }
   });
 });

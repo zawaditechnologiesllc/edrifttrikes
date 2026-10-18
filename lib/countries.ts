@@ -32,15 +32,59 @@ const ISO_CODES = [
 /** Shown at the top of the select — the store's main markets. */
 const PRIORITY_CODES = ["US", "CA", "GB", "AU", "NZ", "IE"];
 
+/**
+ * Countries this shop does not ship to.
+ *
+ * ═══ A DISCLAIMER IS NOT A CONTROL ═════════════════════════════════════════
+ *
+ * Saying "we do not ship to X" on a policy page and then letting somebody from
+ * X complete a checkout produces an order that has to be refunded by hand,
+ * after they have paid, which is a worse experience than never selling to them
+ * — and on a card network it is a refund rate, which is a thing acquirers
+ * watch. So this list is enforced in three places at once: the destination is
+ * missing from the checkout picker, `isKnownCountry` rejects it so a typed or
+ * autofilled value cannot slip through, and the shipping policy says so in
+ * words.
+ *
+ * ⚠️ IT DOES NOT ERASE THEM FROM THE CODE LIST. Orders already placed to these
+ * destinations still have to render in the admin, still need a delivery band
+ * and still need a flag — so `countryName`, `countryCode` and the rest resolve
+ * against the FULL list. Only the places that decide "can somebody buy this,
+ * to here, now" consult the shippable one.
+ */
+export const NOT_SHIPPED_CODES = ["NG", "IN"] as const;
+
+export function shipsTo(codeOrName: string | null | undefined): boolean {
+  const v = String(codeOrName ?? "").trim().toLowerCase();
+  if (!v) return false;
+  return !allCountries().some(
+    (c) =>
+      (NOT_SHIPPED_CODES as readonly string[]).includes(c.code) &&
+      (c.code.toLowerCase() === v || c.name.toLowerCase() === v)
+  );
+}
+
+/** The excluded destinations, named, for the disclaimer that says so. */
+export function notShippedNames(): string[] {
+  return (NOT_SHIPPED_CODES as readonly string[])
+    .map((code) => countryName(code) ?? code)
+    .sort((a, b) => a.localeCompare(b));
+}
+
 export type Country = { code: string; name: string };
 
 let cache: Country[] | null = null;
+let shippableCache: Country[] | null = null;
 
 /**
- * Every country, display-name sorted, with the store's main markets first.
- * Computed once — the list never changes within a process.
+ * EVERY country, including the ones this shop will not ship to.
+ *
+ * For reading back what already exists: an order placed before a destination
+ * was excluded still has to show a country name and a flag in the admin, and
+ * still needs a delivery band. Nothing that decides whether a NEW order may be
+ * placed should use this — use `countries()`.
  */
-export function countries(): Country[] {
+export function allCountries(): Country[] {
   if (cache) return cache;
 
   let display: Intl.DisplayNames | null = null;
@@ -68,6 +112,20 @@ export function countries(): Country[] {
   return cache;
 }
 
+/**
+ * The countries a buyer may choose: everywhere this shop ships.
+ *
+ * This is what the checkout picker renders and what validation checks against,
+ * so an excluded destination is both unselectable and unsubmittable.
+ */
+export function countries(): Country[] {
+  if (shippableCache) return shippableCache;
+  shippableCache = allCountries().filter(
+    (c) => !(NOT_SHIPPED_CODES as readonly string[]).includes(c.code)
+  );
+  return shippableCache;
+}
+
 /** Names only — what the form submits and what validation checks against. */
 export function countryNames(): string[] {
   return countries().map((c) => c.name);
@@ -79,6 +137,10 @@ export function countryNames(): string[] {
  * Case- and space-insensitive, and accepts a bare ISO code too, so an
  * autofilled "us" or "United States " still passes instead of blocking a
  * legitimate order on formatting.
+ *
+ * ⚠️ FALSE for an excluded destination, deliberately — this is the check that
+ * stops a typed or autofilled "Nigeria" reaching a paid order that then has to
+ * be refunded by hand.
  */
 export function isKnownCountry(value: string): boolean {
   const v = value.trim().toLowerCase();
@@ -109,7 +171,9 @@ export function normalizeCountry(value: string): string | null {
 export function countryCode(value: string): string | null {
   const v = value.trim().toLowerCase();
   if (!v) return null;
-  const hit = countries().find(
+  // The FULL list: an order already placed to an excluded destination still
+  // needs a delivery band and still has to render.
+  const hit = allCountries().find(
     (c) => c.code.toLowerCase() === v || c.name.toLowerCase() === v
   );
   return hit ? hit.code : null;
