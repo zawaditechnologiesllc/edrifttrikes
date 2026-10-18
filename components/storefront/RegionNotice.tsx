@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { REGIONS, regionFromHost, type Region } from "@/lib/regions";
+import { currencyNote } from "@/lib/regions";
+import ShippingExclusions from "./ShippingExclusions";
+import { useRegion } from "./RegionProvider";
 
 /**
  * The strip that tells a visitor which regional storefront they are on.
@@ -24,11 +25,9 @@ import { REGIONS, regionFromHost, type Region } from "@/lib/regions";
  * server-rendered HTML and the first client render agree.
  */
 export default function RegionNotice() {
-  const [region, setRegion] = useState<Region>(REGIONS.global);
-
-  useEffect(() => {
-    setRegion(regionFromHost(window.location.hostname));
-  }, []);
+  // One source of truth for which storefront this is — the provider that the
+  // price lines read too, so the strip and the prices cannot disagree.
+  const region = useRegion();
 
   if (!region.subdomain) return null;
 
@@ -42,7 +41,14 @@ export default function RegionNotice() {
           {region.label}
         </span>
         <span className="text-on-surface-variant">{region.blurb}</span>
-        <span className="text-on-surface-variant/70">{region.currencyNote}</span>
+        <span className="text-on-surface-variant/70">{currencyNote(region)}</span>
+        {/*
+          The worldwide storefront is the one that says "every country", so it
+          is the one that has to say which ones it means.
+        */}
+        {region.key === "global" && (
+          <ShippingExclusions className="basis-full text-xs" />
+        )}
         {region.euConsumerLaw && (
           <Link
             href="/eu-consumer-rights"

@@ -14,6 +14,7 @@ import { publicSiteUrl } from "@/lib/env";
 import WishlistButton from "@/components/storefront/WishlistButton";
 import { getProductBySlug, getProducts, getSiteSettings } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
+import { LocalPrice } from "@/components/storefront/RegionProvider";
 import { productShippingCents, DEFAULT_SHIPPING_CENTS } from "@/lib/totals";
 import { formatDeliveryWindow, MAX_ROUTE_EXTRA_DAYS } from "@/lib/delivery";
 
@@ -102,15 +103,18 @@ export default async function ProductPage({
             <p className="text-on-surface-variant font-body-lg border-l-4 border-secondary pl-6">
               {product.tagline}
             </p>
-            <div className="flex items-baseline gap-3">
-              <span className="font-headline-xl text-headline-xl text-secondary">
-                {formatMoney(product.price_cents)}
-              </span>
-              {product.compare_at_cents && (
-                <span className="text-on-surface-variant line-through text-xl">
-                  {formatMoney(product.compare_at_cents)}
+            <div>
+              <div className="flex items-baseline gap-3">
+                <span className="font-headline-xl text-headline-xl text-secondary">
+                  {formatMoney(product.price_cents)}
                 </span>
-              )}
+                {product.compare_at_cents && (
+                  <span className="text-on-surface-variant line-through text-xl">
+                    {formatMoney(product.compare_at_cents)}
+                  </span>
+                )}
+              </div>
+              <LocalPrice cents={product.price_cents} className="text-sm" />
             </div>
 
             <p className="text-on-surface-variant font-label-bold uppercase tracking-widest text-sm">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Product } from "@/lib/types";
 import { formatMoney } from "@/lib/format";
+import { LocalPrice } from "@/components/storefront/RegionProvider";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 
 const BADGE_STYLES: Record<string, string> = {
@@ -105,6 +106,8 @@ export default function ProductCard({ product }: { product: Product }) {
                 {formatMoney(product.compare_at_cents)}
               </span>
             )}
+            {/* Nothing on a dollar storefront — see LocalPrice. */}
+            <LocalPrice cents={product.price_cents} />
           </div>
           {product.free_shipping && (
             <span className="hidden @[280px]:inline-block font-label-bold text-[10px] uppercase tracking-widest text-primary-container border border-primary-container/40 rounded px-2 py-1">

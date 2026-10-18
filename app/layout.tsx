@@ -5,6 +5,7 @@ import StructuredData from "@/components/StructuredData";
 import Enhancements from "@/components/Enhancements";
 import PublicEnvScript from "@/components/PublicEnvScript";
 import SiteSettingsProvider from "@/components/storefront/SiteSettingsProvider";
+import RegionProvider from "@/components/storefront/RegionProvider";
 import { CartProvider } from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
 import { getAnnouncements, getCategories, getSiteSettings } from "@/lib/db";
@@ -93,10 +94,12 @@ export default async function RootLayout({
           announcements={liveAnnouncements(announcements)}
           categories={categories}
         >
-          <CartProvider>
-            {children}
-            <CartDrawer />
-          </CartProvider>
+          <RegionProvider>
+            <CartProvider>
+              {children}
+              <CartDrawer />
+            </CartProvider>
+          </RegionProvider>
         </SiteSettingsProvider>
         <Enhancements />
         <Analytics />
