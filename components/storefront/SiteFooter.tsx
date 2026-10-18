@@ -7,6 +7,7 @@ import { categoryLinks } from "@/lib/categories";
 import { realOrNull } from "@/lib/placeholders";
 import { Icon } from "@/components/Icon";
 import ShippingExclusions from "./ShippingExclusions";
+import RegionLinks from "./RegionLinks";
 import { COMPANY } from "@/lib/company";
 
 export default function SiteFooter() {
@@ -129,6 +130,23 @@ export default function SiteFooter() {
           </div>
         </div>
       </div>
+      {/*
+        The five storefronts, on every page of every one of them.
+
+        A row rather than a seventh column: the grid above is six wide and
+        these are not another list of pages — they are the same shop at a
+        different address, which is a different kind of link and reads better
+        given its own line.
+      */}
+      <div className="border-t border-white/5">
+        <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-6 flex flex-col md:flex-row md:items-center gap-4">
+          <h4 className="font-label-bold text-label-bold text-white uppercase tracking-widest shrink-0">
+            Our storefronts
+          </h4>
+          <RegionLinks />
+        </div>
+      </div>
+
       <div className="border-t border-white/5">
         <div className="max-w-max-width mx-auto px-margin-mobile md:px-margin-desktop py-6 flex flex-col md:flex-row justify-between items-center gap-3 text-on-surface-variant font-label-bold text-[10px] tracking-widest uppercase">
           <span>© {new Date().getFullYear()} E-Drift Trikes &amp; Go Carts. All rights reserved.</span>

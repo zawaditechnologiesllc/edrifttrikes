@@ -24,18 +24,39 @@ import { approximate, currencyNoteFor } from "@/lib/currency";
  */
 const RegionContext = createContext<Region>(REGIONS.global);
 
+/**
+ * The hostname itself, which is NOT the same question as the region.
+ *
+ * The apex and global.edrifttrikes.shop are both the worldwide storefront, so
+ * `useRegion()` answers "global" for either. But a link to global. is only
+ * "the page you are on" when you are literally on that host — saying otherwise
+ * on the apex marks a link that leads somewhere else, which is wrong for a
+ * screen reader and misleading for everyone else.
+ */
+const HostContext = createContext<string>("");
+
 export function useRegion(): Region {
   return useContext(RegionContext);
 }
 
+export function useHost(): string {
+  return useContext(HostContext);
+}
+
 export default function RegionProvider({ children }: { children: ReactNode }) {
   const [region, setRegion] = useState<Region>(REGIONS.global);
+  const [host, setHost] = useState("");
 
   useEffect(() => {
     setRegion(regionFromHost(window.location.hostname));
+    setHost(window.location.hostname.toLowerCase());
   }, []);
 
-  return <RegionContext.Provider value={region}>{children}</RegionContext.Provider>;
+  return (
+    <HostContext.Provider value={host}>
+      <RegionContext.Provider value={region}>{children}</RegionContext.Provider>
+    </HostContext.Provider>
+  );
 }
 
 /**
