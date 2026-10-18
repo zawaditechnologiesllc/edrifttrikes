@@ -173,6 +173,38 @@ you want from this.
 
 ---
 
+## When someone lands on the wrong one
+
+Your teams hand out their own links, so a European clicking the USA team's
+Instagram link is the ordinary case, not a rare one.
+
+When that happens, a thin band appears under the top strip:
+
+> It looks like you're in **Germany**. Our **Europe** storefront is set up for
+> you — same products, same prices.  **Switch to Europe →**   *Stay here*
+
+It **never moves them automatically.** That is deliberate, and worth knowing
+why: a redirect would break the very links your teams are handing out. Anyone
+travelling, on a work VPN, or simply guessed wrong about would be bounced off
+the storefront they were sent to, and your UAE team's link would stop landing
+on the UAE storefront. The country comes from the visitor's internet
+connection, which is a good basis for a suggestion and a bad one for a
+decision.
+
+A few things it does quietly:
+
+- **It keeps their place.** Switching from a product page lands on that
+  product on the other storefront, not back at a homepage.
+- **It asks once.** "Stay here" is remembered, so somebody who says no is not
+  asked again every time they open a page.
+- **It says nothing when it has nothing to say** — to an American on the USA
+  storefront, to anyone on the worldwide one, or when the connection cannot be
+  placed at all. No banner, and no lookup either.
+
+Nothing to configure. It works from the moment this is deployed.
+
+---
+
 ## ⚠️ About the prices — please read this one
 
 **The local prices are a guide. Every card is charged in US dollars.**
