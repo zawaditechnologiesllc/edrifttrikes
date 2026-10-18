@@ -195,8 +195,15 @@ A few things it does quietly:
 
 - **It keeps their place.** Switching from a product page lands on that
   product on the other storefront, not back at a homepage.
-- **It asks once.** "Stay here" is remembered, so somebody who says no is not
-  asked again every time they open a page.
+- **It folds itself away after 15 seconds** if they do nothing, so it is never
+  permanently part of the furniture. The countdown pauses while the mouse is
+  over it, so it cannot disappear from under somebody reaching for the link.
+- **"Stay here" and "Switch" both fold it too**, and both are remembered for
+  good — somebody who has answered is never asked about that storefront
+  again.
+- **Being ignored is not an answer.** If the banner just times out, it stays
+  quiet for the rest of that browsing session but asks once more on a later
+  visit. Somebody who looked away for a minute has not declined anything.
 - **It says nothing when it has nothing to say** — to an American on the USA
   storefront, to anyone on the worldwide one, or when the connection cannot be
   placed at all. No banner, and no lookup either.
