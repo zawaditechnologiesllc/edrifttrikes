@@ -19,6 +19,11 @@ import { useHost } from "./RegionProvider";
  * no client-side route to take — and Next's prefetching has nothing useful to
  * do with a different host.
  *
+ * Place names only. The currency a storefront quotes in is already said twice
+ * where it matters — in the strip at the top of that storefront and under
+ * every price on it — and repeating it in a row of links turns a short list of
+ * destinations into something that has to be read rather than scanned.
+ *
  * The storefront the visitor is already on is marked rather than hidden.
  * Dropping it would leave a different number of links on each hostname, which
  * reads as a mistake; marking it answers "where am I?", which on a shop with
@@ -53,11 +58,6 @@ export default function RegionLinks() {
             }
           >
             {region.label}
-            {/* The currency is the useful half: it is what a visitor is
-                choosing between, and it saves a click to find out. */}
-            <span className={here ? "ml-2 text-secondary/70" : "ml-2 text-outline"}>
-              {region.currency}
-            </span>
             {here && <span className="sr-only"> (you are here)</span>}
           </a>
         );
