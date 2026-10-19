@@ -85,6 +85,11 @@ export const DROP_ORDER: readonly string[] = [
   "payment_intent_data.metadata",
   "payment_intent_data",
   "customer_email",
+  // Last, because giving it up means giving up AVS: the issuer stops being
+  // able to verify the cardholder and declines more of the four-figure
+  // card-not-present charges this shop is made of. Still droppable — a
+  // checkout that will not start sells nothing at all.
+  "billing_address_collection",
 ];
 
 /** Kept as the old name so existing callers and tests do not have to change. */
