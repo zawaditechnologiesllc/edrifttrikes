@@ -76,7 +76,6 @@ import type Stripe from "stripe";
  */
 export const DROP_ORDER: readonly string[] = [
   "custom_text",
-  "adaptive_pricing",
   "submit_type",
   "customer_creation",
   "payment_intent_data.statement_descriptor_suffix",
@@ -85,6 +84,22 @@ export const DROP_ORDER: readonly string[] = [
   "payment_intent_data.metadata",
   "payment_intent_data",
   "customer_email",
+  /**
+   * NOT A PRESENTATION FEATURE, whatever its position here once implied.
+   *
+   * Every line item we send is priced in USD. Stripe picks which payment
+   * methods to offer from the currency the buyer is actually charged in, and
+   * iDEAL, Bancontact, EPS, P24, SEPA Direct Debit and the rest can only be
+   * offered against their own local currency — a plain USD session cannot show
+   * them at all. Adaptive Pricing is what converts the charge into the buyer's
+   * currency, and so it is the only reason those methods appear.
+   *
+   * Dropped second, as it was, the first refusal on any unrelated parameter
+   * also quietly took most non-card payment methods in Europe and Asia with
+   * it — for a shop whose whole point is selling everywhere, the most
+   * expensive thing in the list was being treated as the cheapest.
+   */
+  "adaptive_pricing",
   // Last, because giving it up means giving up AVS: the issuer stops being
   // able to verify the cardholder and declines more of the four-figure
   // card-not-present charges this shop is made of. Still droppable — a
