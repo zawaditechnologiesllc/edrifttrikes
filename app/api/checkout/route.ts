@@ -20,7 +20,7 @@ import { validateCheckout, normalizeShipping } from "@/lib/validation";
 import { sendAbandonedCartEmail, sendInBackground } from "@/lib/email";
 import { matchColor, productColorOptions, defaultColor } from "@/lib/colors";
 import { publicSiteUrl } from "@/lib/env";
-import { originFromRequest } from "@/lib/request-origin";
+import { checkoutHost, originFromRequest } from "@/lib/request-origin";
 import { sellerSnapshot } from "@/lib/invoice";
 import { assessOrigin } from "@/lib/risk";
 import { countryCode } from "@/lib/countries";
@@ -327,6 +327,17 @@ export async function POST(request: Request) {
   const sellerRow = { seller_snapshot: sellerSnapshot(settingsRow ?? undefined) };
 
   const originRow = {
+    /*
+     * WHICH STOREFRONT THIS SALE CAME FROM.
+     *
+     * Each regional team hands out their own subdomain, so the Host header on
+     * the checkout request is the closest the shop gets to attributing a sale
+     * to the marketing that produced it. Stored as the raw host rather than a
+     * region name: the host is the fact, the region is an interpretation that
+     * lives in lib/regions.ts and may change. An order placed today should
+     * still read correctly after a region is renamed or retired.
+     */
+    origin_host: checkoutHost(request),
     origin_country: origin.country,
     origin_region: origin.region,
     origin_city: origin.city,

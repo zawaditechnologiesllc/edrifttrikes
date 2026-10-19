@@ -8,6 +8,7 @@ import { STAGE_COPY, type FulfillmentStage } from "@/lib/fulfillment";
 import { OriginCell } from "./OrderOrigin";
 import PaymentSourceBadge from "./PaymentSourceBadge";
 import OrdersToolbar from "./OrdersToolbar";
+import StorefrontCell from "./StorefrontCell";
 import {
   BulkSelectionProvider,
   RowCheckbox,
@@ -194,7 +195,7 @@ export default async function AdminOrders({
       */}
       <BulkSelectionProvider allIds={rows.map((o) => String(o.id))}>
       <div className="bg-surface-container border border-white/10 rounded-lg overflow-x-auto">
-        <table className="w-full text-left min-w-[1140px]">
+        <table className="w-full text-left min-w-[1260px]">
           <thead className="bg-surface-container-high text-on-surface-variant text-xs uppercase tracking-widest font-label-bold">
             <tr>
               <th className="p-4 w-10">
@@ -202,6 +203,8 @@ export default async function AdminOrders({
               </th>
               <th className="p-4">Order</th>
               <th className="p-4">Customer</th>
+              {/* Which regional link produced the sale — see StorefrontCell. */}
+              <th className="p-4">Storefront</th>
               <th className="p-4">Origin</th>
               <th className="p-4">Account</th>
               <th className="p-4">Date</th>
@@ -221,6 +224,7 @@ export default async function AdminOrders({
                   <Link href={`/admin/orders/${o.id}`} className="text-secondary font-headline-md hover:underline">{o.order_number}</Link>
                 </td>
                 <td className="p-4 text-on-surface-variant break-all">{o.email}</td>
+                <td className="p-4"><StorefrontCell host={o.origin_host} /></td>
                 {/* Where they were connecting from. Read-only, and flagged only
                     when something is worth a second look — a badge on every row
                     is a badge nobody reads. */}
@@ -269,7 +273,7 @@ export default async function AdminOrders({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-on-surface-variant">
+                <td colSpan={11} className="p-8 text-center text-on-surface-variant">
                   {totalInDatabase === 0 ? "No orders yet." : `No ${known} orders.`}
                 </td>
               </tr>
