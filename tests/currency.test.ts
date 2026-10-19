@@ -59,17 +59,33 @@ describe("what is charged, versus what is shown", () => {
     }
   });
 
-  test("every note says the charge is in US dollars", () => {
+  test("every storefront gets the same sentence", () => {
+    // The catalogue is priced in USD and Stripe takes the payment in the
+    // buyer's own currency, and that is true whichever storefront they
+    // arrived on — so a note that varied by region would be describing a
+    // difference that does not exist.
+    const expected = "Prices are shown in USD but charged in your local currency.";
     for (const code of DISPLAY_CURRENCIES) {
-      assert.match(currencyNoteFor(code, FRESH), /US dollars/, code);
+      assert.equal(currencyNoteFor(code, FRESH), expected, code);
     }
+  });
+
+  test("it does not promise a figure in the buyer's currency", () => {
+    // The note says where the money is taken, not what the total will be.
+    // Stripe fixes the converted amount at checkout; quoting one here would
+    // be a second price, and a shop showing two prices is a shop arguing
+    // with its customers later.
+    const note = currencyNoteFor("EUR", FRESH);
+    assert.ok(!/approximate|guidance|EUR|€/i.test(note), note);
   });
 
   test("an unknown currency is simply not shown", () => {
     for (const bad of ["GBP", "", "usd ", "xyz", null, undefined]) {
       assert.equal(convert(1000, bad as string, FRESH), null, String(bad));
     }
-    assert.match(currencyNoteFor("GBP", FRESH), /US dollars/);
+    // The note is about where payment is taken, so it stands even for a
+    // currency this shop never displays.
+    assert.match(currencyNoteFor("GBP", FRESH), /charged in your local currency/);
   });
 
   test("a bad amount produces nothing rather than a nonsense price", () => {
@@ -89,10 +105,11 @@ describe("a rate that has gone stale", () => {
     assert.equal(approximate(189900, "CAD", STALE), null);
   });
 
-  test("and the note stops promising a conversion", () => {
-    const note = currencyNoteFor("EUR", STALE);
-    assert.match(note, /US dollars/);
-    assert.ok(!/approximate/i.test(note), note);
+  test("and the note is unaffected, because it never quoted a rate", () => {
+    // A stale rate stops the approx. figure being SHOWN. The note only says
+    // which currency the payment is taken in, which no rate can falsify.
+    assert.equal(currencyNoteFor("EUR", STALE), currencyNoteFor("EUR", FRESH));
+    assert.ok(!/approximate/i.test(currencyNoteFor("EUR", STALE)));
   });
 
   test("A PEGGED CURRENCY DOES NOT EXPIRE", () => {
@@ -100,7 +117,7 @@ describe("a rate that has gone stale", () => {
     // months would be treating a constant as a guess.
     assert.equal(RATES.AED, 3.6725);
     assert.ok(convert(189900, "AED", STALE) !== null);
-    assert.match(currencyNoteFor("AED", STALE), /pegged/i);
+    assert.equal(approximate(189900, "AED", STALE)?.startsWith("approx. "), true);
   });
 
   test("a clock that reads before the rates were set is stale too", () => {

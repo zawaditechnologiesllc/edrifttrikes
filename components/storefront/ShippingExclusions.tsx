@@ -33,9 +33,7 @@ export default function ShippingExclusions({
   return (
     <p className={`text-on-surface-variant text-sm ${className}`}>
       We ship factory-direct to every country{" "}
-      <strong className="text-white">except {list}</strong>. Those destinations
-      are not offered at checkout, so an order to them cannot be placed by
-      mistake.
+      <strong className="text-white">except {list}</strong>.
     </p>
   );
 }

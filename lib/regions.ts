@@ -40,9 +40,10 @@ export type Region = {
   /**
    * The currency this storefront QUOTES in.
    *
-   * ⚠️ Not what it charges. Every payment settles in US dollars — see
-   * lib/currency.ts for why that distinction is load-bearing rather than
-   * pedantic. A region whose currency is USD shows one price and no note.
+   * ⚠️ Not what the buyer is charged. Every order is denominated in US
+   * dollars and settles to us in them, but Stripe Adaptive Pricing takes the
+   * payment in the buyer's own currency — see lib/currency.ts for why that
+   * distinction is load-bearing rather than pedantic.
    */
   currency: DisplayCurrency;
   /**

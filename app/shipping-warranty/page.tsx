@@ -12,7 +12,7 @@ const SHIPPING = [
   {
     title: "Where we ship",
     body:
-      "We manufacture and ship direct, worldwide, with two exceptions: we do not currently ship to Nigeria or India. Those destinations are not offered at checkout, so an order to them cannot be placed by mistake. Everywhere else, the total shown at checkout is the total you are charged — nothing further is added.",
+      "We manufacture and ship direct, worldwide, with two exceptions: we do not currently ship to Nigeria or India. Everywhere else, the total shown at checkout is the total you are charged — nothing further is added.",
   },
 ];
 
