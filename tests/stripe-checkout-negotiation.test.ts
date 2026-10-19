@@ -816,6 +816,34 @@ describe("collecting what the issuer needs to approve the charge", () => {
     assert.equal(PROTECTED_PARAMS.includes("billing_address_collection"), false);
   });
 
+  test("local payment methods are not sacrificed as if they were styling", () => {
+    /**
+     * Every line item is priced in USD, and Stripe chooses which payment
+     * methods to offer from the currency the buyer is charged in. iDEAL,
+     * Bancontact, EPS, P24 and SEPA Direct Debit can only be offered against
+     * their own local currency, so a plain USD session cannot show them —
+     * Adaptive Pricing converting the charge is the only reason they appear.
+     *
+     * It sat second in the drop order, which meant the first refusal on any
+     * unrelated parameter also took most non-card payment methods in Europe
+     * and Asia with it.
+     */
+    const adaptive = DROP_ORDER.indexOf("adaptive_pricing");
+    const styling = ["custom_text", "submit_type"].map((p) =>
+      DROP_ORDER.indexOf(p)
+    );
+    for (const s of styling) {
+      assert.ok(
+        s < adaptive,
+        "styling must be given up before the parameter that carries payment method coverage"
+      );
+    }
+    assert.ok(
+      adaptive >= DROP_ORDER.length - 2,
+      `adaptive_pricing should be among the last to go, found at ${adaptive} of ${DROP_ORDER.length}`
+    );
+  });
+
   test("it survives every refusal short of the minimal session", () => {
     // Dropping custom_text or adaptive_pricing costs presentation. Neither may
     // take AVS with it.
