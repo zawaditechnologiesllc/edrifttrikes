@@ -24,5 +24,12 @@ jobs:
       - run: npm test
       - run: npx tsc --noEmit
       - run: npm run cf:build
+      # The server bundle and the asset bundle are shipped together and have to
+      # agree. Next names static files by content hash, so changing one Tailwind
+      # class renames the stylesheet — and a deploy that updates the server
+      # without the assets serves 200 OK pages referencing a 404 stylesheet.
+      # The site renders as raw HTML and no status-code health check notices.
+      - name: Every referenced static file is in the asset bundle
+        run: node scripts/check-assets.mjs
       - name: Validate wrangler config (dry run)
         run: npx wrangler deploy --dry-run
