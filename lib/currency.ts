@@ -3,16 +3,24 @@
  *
  * ═══ WHAT THIS DOES AND, MORE IMPORTANTLY, WHAT IT DOES NOT ════════════════
  *
- * Every price in this shop is stored once, in US cents, and every payment is
- * taken in US dollars. That is a property of the data model (one
+ * Every price in this shop is stored once, in US cents, and every order is
+ * DENOMINATED in US dollars. That is a property of the data model (one
  * `price_cents` per product), of the checkout (`currency: "usd"` to the
  * gateway), of the refund path and of the admin's revenue totals, which add
  * `total_cents` across orders without looking at what currency each was in.
  *
+ * DENOMINATED IS NOT THE SAME AS CHARGED, and the difference is the whole
+ * reason the note under the prices reads the way it does. Stripe Adaptive
+ * Pricing converts at the checkout page and takes the payment in the buyer's
+ * own currency, settling to us in dollars — so the figure on a European
+ * buyer's statement is in euro, not the $1,899 this module stores. See
+ * `adaptive_pricing` in lib/stripe-branding.ts.
+ *
  * So this module converts for DISPLAY and says so. A buyer on
- * europe.edrifttrikes.shop sees "≈ €1,740" beside "$1,899", and the charge on
- * their card is $1,899. Quoting a price you do not charge, without saying
- * which is which, is a misleading price indication — in the EU explicitly so —
+ * europe.edrifttrikes.shop sees "≈ €1,740" beside "$1,899", and Stripe fixes
+ * the exact euro figure at checkout. Quoting a price you do not charge,
+ * without saying which is which, is a misleading price indication — in the EU
+ * explicitly so —
  * and it is also how a customer opens a dispute for an amount that does not
  * match what they agreed to.
  *
@@ -114,8 +122,8 @@ export function roundForDisplay(minorUnits: number): number {
  *
  * ⚠️ CAD IS FORMATTED en-US ON PURPOSE. In en-CA the Canadian dollar is the
  * local currency, so it renders a bare "$2,602" — which sits directly under
- * "$1,899" charged in US dollars and tells the buyer nothing about which is
- * which. en-US renders "CA$2,602". The whole point of the second line is to be
+ * the "$1,899" the order is denominated in and tells the buyer nothing about
+ * which is which. en-US renders "CA$2,602". The whole point of the second line is to be
  * read as a different currency; a formatting choice that hides that undoes it.
  */
 const LOCALES: Record<DisplayCurrency, string> = {
@@ -152,24 +160,23 @@ export function approximate(
   return `approx. ${formatIn(roundForDisplay(converted), code)}`;
 }
 
-/** The sentence a storefront puts under its prices. */
+/**
+ * The sentence a storefront puts under its prices.
+ *
+ * THE SAME SENTENCE ON EVERY STOREFRONT, because the same thing happens on
+ * every storefront: the catalogue is denominated in USD, and Stripe converts
+ * and takes the payment in the buyer's own currency at checkout. See
+ * `adaptive_pricing` in lib/stripe-branding.ts.
+ *
+ * It takes `currency` and `now` and reads neither. They are kept because the
+ * callers pass a region's currency and a clock, and this is the one place that
+ * would have to grow them back the day a storefront settles somewhere other
+ * than the United States — a signature change is a worse edit than an ignored
+ * argument.
+ */
 export function currencyNoteFor(
-  currency: string,
-  now: Date = new Date()
+  _currency?: string,
+  _now: Date = new Date()
 ): string {
-  const code = String(currency ?? "").toUpperCase();
-  if (!isDisplayCurrency(code) || code === SETTLEMENT_CURRENCY) {
-    return "Prices are shown and charged in US dollars.";
-  }
-  if (!PEGGED.includes(code) && ratesAreStale(now)) {
-    // Say nothing about a conversion that is not being shown.
-    return "Prices are shown and charged in US dollars.";
-  }
-  const pegged = PEGGED.includes(code);
-  return (
-    `Prices are charged in US dollars. The ${code} figures are approximate` +
-    (pegged
-      ? `, converted at the fixed rate the ${code} is pegged to the dollar at.`
-      : ", for guidance only — your bank converts at its own rate on the day.")
-  );
+  return "Prices are shown in USD but charged in your local currency.";
 }

@@ -118,7 +118,7 @@ export function submitMessage(
   return clampCustomText(
     `You're paying ${STRIPE_MERCHANT_NAME}${amount}${order}. ` +
       `Delivery to ${destination(country)} is tracked end to end and takes ${formatDeliveryWindow(country)}. ` +
-      `Your card may be billed in your own currency at your bank's rate. ` +
+      `Your card is billed in your own currency. ` +
       `Questions before you pay? ${COMPANY.supportEmail}`
   );
 }

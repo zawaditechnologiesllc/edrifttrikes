@@ -153,7 +153,11 @@ describe("which region carries EU consumer law", () => {
     // A storefront that shows euros without saying so is a dispute waiting to
     // be filed — see lib/currency.ts.
     for (const region of [...REGIONAL_SITES, REGIONS.global]) {
-      assert.match(currencyNote(region), /US dollars/, region.key);
+      assert.match(
+        currencyNote(region),
+        /charged in your local currency/,
+        region.key
+      );
     }
   });
 
