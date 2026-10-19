@@ -130,6 +130,12 @@ export type Order = {
   origin_timezone?: string | null;
   origin_asn?: number | null;
   origin_network?: string | null;
+  /**
+   * The hostname the checkout was submitted on — which regional storefront
+   * produced this sale. Null for admin-created orders and for anything placed
+   * before migration 0023. See lib/regions.ts for turning it into a name.
+   */
+  origin_host?: string | null;
   client_timezone?: string | null;
   risk_level?: "clear" | "review" | "high" | null;
   risk_score?: number | null;

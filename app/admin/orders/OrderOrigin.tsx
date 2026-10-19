@@ -1,4 +1,5 @@
 import { countryName, flagEmoji } from "@/lib/countries";
+import { isKnownStorefront, storefrontLabel } from "@/lib/regions";
 import {
   RISK_FLAG_COPY,
   zoneGapHours,
@@ -27,6 +28,8 @@ type OriginRow = {
   risk_score?: number | null;
   risk_flags?: string[] | null;
   shipping_address?: Record<string, unknown> | null;
+  /** The storefront hostname the checkout was submitted on. */
+  origin_host?: string | null;
 };
 
 const LEVEL_STYLE: Record<RiskLevel, string> = {
@@ -152,6 +155,32 @@ export function OriginPanel({ order }: { order: OriginRow }) {
           </span>
         )}
       </div>
+
+      {/*
+        The storefront sits ABOVE the "nothing was recorded" branch on purpose.
+        It comes from the request's own Host header rather than from the CDN's
+        geo data, so an order can perfectly well have one and none of the rest
+        — and burying it inside that branch would hide the field most of the
+        time it is interesting.
+      */}
+      {order.origin_host && (
+        <p className="text-on-surface-variant text-sm mb-4">
+          Arrived on the{" "}
+          <strong className="text-white">
+            {storefrontLabel(order.origin_host)}
+          </strong>{" "}
+          storefront
+          {isKnownStorefront(order.origin_host) ? (
+            <span className="text-outline"> ({order.origin_host})</span>
+          ) : (
+            <span className="text-signal-orange">
+              {" "}
+              — not one of the shop&apos;s known hostnames
+            </span>
+          )}
+          .
+        </p>
+      )}
 
       {!known ? (
         <p className="text-on-surface-variant text-sm leading-relaxed">

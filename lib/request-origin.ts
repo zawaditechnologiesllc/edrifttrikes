@@ -81,3 +81,27 @@ export function originFromRequest(
     clientTimezone: str(hints.timezone, 64),
   };
 }
+
+/**
+ * The hostname a request was made to, normalised.
+ *
+ * ⚠️ THE HOST HEADER IS ATTACKER-CONTROLLED, so this is a RECORD, never a
+ * decision. Nothing branches on it: `regionFromHost` does its own verification
+ * before a host selects a storefront, and this only writes down what arrived.
+ * Even so it is normalised and length-capped — an order row is rendered in the
+ * admin, and an unbounded attacker-supplied string has no business going into
+ * a database column that a human will later read.
+ */
+export function checkoutHost(request: Request): string | null {
+  const raw = String(request.headers.get("host") ?? "")
+    .trim()
+    .toLowerCase()
+    .split(",")[0]          // a proxy may append; the first is this request's
+    .replace(/:\d+$/, "")   // drop the port
+    .replace(/\.$/, "");    // and a fully-qualified trailing dot
+  if (!raw) return null;
+  // Hostnames are letters, digits, dots and hyphens. Anything else did not
+  // come from a browser addressing this site.
+  if (!/^[a-z0-9.-]+$/.test(raw)) return null;
+  return raw.slice(0, 253) || null;
+}

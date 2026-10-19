@@ -213,3 +213,51 @@ export function canonicalFor(
   }
   return `https://${apex}${clean === "/" ? "/" : clean}`;
 }
+
+/**
+ * What to call the storefront an order arrived on, for the admin.
+ *
+ * ⚠️ DELIBERATELY DIFFERENT FROM regionFromHost. That function decides which
+ * legal statements a live visitor is shown, so it refuses anything it does not
+ * recognise. This one is reading back a fact that was already recorded, and
+ * refusing would turn every order placed on a preview URL, an old hostname or
+ * a staging domain into a blank cell — hiding information the admin is looking
+ * at the column to find.
+ *
+ * So a host that maps to a storefront gets that storefront's name, and
+ * anything else is shown AS the host. Null means there was nothing to record:
+ * an order typed in by an admin, or one placed before migration 0023.
+ */
+export function storefrontLabel(host: string | null | undefined): string | null {
+  const raw = String(host ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  return matchStorefront(raw)?.label ?? raw;
+}
+
+/** True when the label above is a storefront rather than a bare hostname. */
+export function isKnownStorefront(host: string | null | undefined): boolean {
+  return matchStorefront(String(host ?? "").trim().toLowerCase()) !== null;
+}
+
+/**
+ * The storefront a recorded host IS, or null if it is not one of ours.
+ *
+ * This deliberately does NOT go through regionFromHost. That function answers
+ * `global` twice over — once for the apex, which really is the Worldwide
+ * storefront, and once as its safe fallback for a host it does not recognise,
+ * because a checkout still needs some region's legal text to show. Reading its
+ * answer back here cannot tell those two apart, so every unrecognised host
+ * would be labelled "Worldwide" and an order from a spoofed Host header would
+ * sit in the column looking like a legitimate sale. The column exists to say
+ * truthfully where an order came from, so it matches the host itself.
+ */
+function matchStorefront(host: string): Region | null {
+  if (!host) return null;
+  if (isKnownApex(host)) return REGIONS.global;
+
+  const labels = host.split(".");
+  if (labels.length < 2) return null;
+  const hit = REGIONAL_SITES.find((r) => r.subdomain === labels[0]);
+  if (!hit) return null;
+  return isKnownApex(labels.slice(1).join(".")) ? hit : null;
+}
