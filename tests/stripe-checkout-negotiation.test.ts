@@ -76,6 +76,7 @@ const PARAMS = {
   success_url: "https://edrifttrikes.shop/order-confirmation?order=ED-1",
   cancel_url: "https://edrifttrikes.shop/checkout",
   metadata: { order_id: "o-1", order_number: "ED-1" },
+  billing_address_collection: "required",
   customer_creation: "always",
   submit_type: "pay",
   adaptive_pricing: { enabled: true },
@@ -769,5 +770,59 @@ describe("the last resort", () => {
     // And it stops quickly: the original, the opt-out, the minimal session.
     assert.ok(calls.length <= 3, `sent ${calls.length} requests`);
     forgetLearnedAdjustments(stripe as object);
+  });
+});
+
+describe("collecting what the issuer needs to approve the charge", () => {
+  /**
+   * HTTP 402 from Stripe is a CARD ERROR — the issuer or Radar refused the
+   * charge. It is not a complaint about our request; a malformed or incomplete
+   * request is a 400. So a run of 402s is never fixed by "sending the field
+   * Stripe asked for", because Stripe did not ask for one.
+   *
+   * What it can be fixed by is giving the issuer enough to say yes. The
+   * billing address is the input to AVS, and a four-figure card-not-present
+   * charge with no AVS result is one a cautious issuer declines on principle.
+   */
+  test("the checkout route really asks for a billing address", () => {
+    // Read the route rather than the fixture above. A fixture agrees with
+    // whatever it is written to agree with; the guarantee worth holding is
+    // that the code which talks to Stripe sends this, and the only way a
+    // fixture-based test fails is if someone edits the fixture.
+    //
+    // Stripe's default is "auto", which collects as little as it can get away
+    // with — a postal code, sometimes nothing. That default is the bug.
+    const route = readFileSync(
+      new URL("../app/api/checkout/route.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(
+      route,
+      /billing_address_collection:\s*"required"/,
+      "app/api/checkout/route.ts must ask Stripe for a billing address, or AVS never runs"
+    );
+  });
+
+  test("it is the last thing given up, but it can be given up", () => {
+    assert.ok(
+      DROP_ORDER.includes("billing_address_collection"),
+      "a parameter an account refuses must be droppable, or no session is created at all"
+    );
+    assert.equal(
+      DROP_ORDER[DROP_ORDER.length - 1],
+      "billing_address_collection",
+      "nothing else should be sacrificed after AVS"
+    );
+    assert.equal(PROTECTED_PARAMS.includes("billing_address_collection"), false);
+  });
+
+  test("it survives every refusal short of the minimal session", () => {
+    // Dropping custom_text or adaptive_pricing costs presentation. Neither may
+    // take AVS with it.
+    const body = applyAdjustments(PARAMS, [MANAGED_PAYMENTS_OFF]) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(body.billing_address_collection, "required");
   });
 });

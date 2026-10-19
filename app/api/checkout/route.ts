@@ -544,6 +544,29 @@ export async function POST(request: Request) {
     const params = {
       mode: "payment" as const,
       customer_email: email,
+      /**
+       * COLLECT THE BILLING ADDRESS, WHICH IS NOT THE SHIPPING ADDRESS.
+       *
+       * Stripe's default here is "auto", which collects as little as the
+       * payment method and the local rules allow — often just a postal code,
+       * sometimes nothing. That is the setting that quietly costs sales.
+       *
+       * The billing address is what AVS checks. The issuer compares the street
+       * number and postcode we send against what the cardholder's bank has on
+       * file, and a card-not-present charge for four figures with NO AVS result
+       * is one a risk-averse issuer declines on principle — it arrives looking
+       * like a card number typed in by someone who has only the card number.
+       * Those declines come back as HTTP 402 with a decline_code from the bank,
+       * not as a validation error, so nothing in our logs says a field was
+       * missing. It is also the difference between "verified" and "unavailable"
+       * in Radar's score, and AVS evidence is worth having in a dispute.
+       *
+       * We cannot infer it from the shipping address we already hold. Gifts,
+       * office deliveries and anyone whose card is registered elsewhere all
+       * have a billing address that is legitimately different, and guessing
+       * wrong is an AVS mismatch — which is worse than no AVS at all.
+       */
+      billing_address_collection: "required" as const,
       line_items: [
         ...lineItems.map((i) => ({
           quantity: i.qty,
